@@ -186,6 +186,52 @@ static	::llc::error_t	test_base_log_print	(const char * text) {	return Serial ? 
 static	::llc::error_t	test_base_log_print	(const char * text) {	return (::llc::error_t)printf("%s", text); }
 #endif
 
+llc::err_t collectExactMatches(llc::view<const SFileInfoPair> potentiallyDuplicatedFiles, llc::aobj<SFileInfoPair> & exactMatches) {
+    llc::STimer                 timer;
+    for(const auto & pair : potentiallyDuplicatedFiles) {
+        verbose_printf("Processing potentially duplicated files with size %llu: %s/%s and %s/%s"
+            , pair.fileA.Size
+            , pair.fileA.Path.begin(), pair.fileA.Name.begin()
+            , pair.fileB.Path.begin(), pair.fileB.Name.begin()
+        );
+        
+        llc::err_t                  comparisonResult = 0;
+		if_fail_ce(comparisonResult = compareFileContents(pair))
+	    else if(comparisonResult)
+			verbose_printf("Files are different: %s/%s and %s/%s"
+				, pair.fileA.Path.begin(), pair.fileA.Name.begin()
+				, pair.fileB.Path.begin(), pair.fileB.Name.begin()
+			);
+        else {
+			info_printf("Files are identical: %s/%s and %s/%s"
+				, pair.fileA.Path.begin(), pair.fileA.Name.begin()
+				, pair.fileB.Path.begin(), pair.fileB.Name.begin()
+			);
+			if_fail_fe(exactMatches.push_back(pair));
+		}
+        timer.Frame();
+        info_printf("compareFileContents execution time: %f seconds.", timer.LastTimeMicroseconds * 0.000001);
+    }    
+    return 0;
+}
+
+llc::err_t collectPotentialDuplicates(llc::view<const SFileInfo> largeFiles, llc::aobj<SFileInfoPair> & potentiallyDuplicatedFiles) {
+	info_printf("Comparing large files...");
+    for(uint32_t iFile0 = 0; iFile0 < largeFiles.size() - 1; ++iFile0) 
+    for(uint32_t iFile1 = iFile0 + 1; iFile1 < largeFiles.size(); ++iFile1) {
+        if(largeFiles[iFile0].Size != largeFiles[iFile1].Size) 
+            continue; 
+
+        verbose_printf("Found possibly duplicated large files: %s/%s and %s/%s"
+            , largeFiles[iFile0].Path.begin(), largeFiles[iFile0].Name.begin()
+            , largeFiles[iFile1].Path.begin(), largeFiles[iFile1].Name.begin()
+            );
+        SFileInfoPair pair = { largeFiles[iFile0], largeFiles[iFile1] };
+        if_fail_fe(potentiallyDuplicatedFiles.push_back(pair));
+    }
+    return 0;
+}
+
 stxp llc::vcst_t  DEFAULT_PATH_TO_PROCESS   = LLC_CXS("./");
 stxp llc::vcst_t  DEFAULT_TARGET_FOLDER     = LLC_CXS("./Duplicated");
 
@@ -221,7 +267,7 @@ int main(int argc, char * argv[]) {
         );
 
 	llc::aobj<SFileInfo>    largeFiles; // list of large files found in the specified path
-    ::listFolder(pathToProcess, true, [&largeFiles](const WIN32_FIND_DATAA & entryData, llc::vcst_t folderPath) { 
+    if_fail_fe(::listFolder(pathToProcess, true, [&largeFiles](const WIN32_FIND_DATAA & entryData, llc::vcst_t folderPath) { 
         SFileInfo               newInfo         = {};
         newInfo.Size        = ((uint64_t)entryData.nFileSizeHigh << 32) | entryData.nFileSizeLow;
 		if( newInfo.Size < fileSizeRangeInBytes.Min 
@@ -235,50 +281,17 @@ int main(int argc, char * argv[]) {
         if_fail_fe(llc::append_strings(newInfo.Name, entryData.cFileName));
         if_fail_fe(largeFiles.push_back(newInfo));
         return 1;
-        });
+        }));
 
     info_printf("Total large files found: %u", largeFiles.size());
     llc::aobj<SFileInfoPair>    potentiallyDuplicatedFiles;
-	if(largeFiles.size() > 1) {
-		info_printf("Comparing large files...");
-        for(uint32_t iFile0 = 0; iFile0 < largeFiles.size() - 1; ++iFile0) {
-            for(uint32_t iFile1 = iFile0 + 1; iFile1 < largeFiles.size(); ++iFile1) {
-                if(largeFiles[iFile0].Size == largeFiles[iFile1].Size) {
-                    verbose_printf("Found possibly duplicated large files: %s/%s and %s/%s"
-                        , largeFiles[iFile0].Path.begin(), largeFiles[iFile0].Name.begin()
-                        , largeFiles[iFile1].Path.begin(), largeFiles[iFile1].Name.begin()
-                    );
-                    SFileInfoPair pair = { largeFiles[iFile0], largeFiles[iFile1] };
-                    potentiallyDuplicatedFiles.push_back(pair);
-                }
-            }
-        }
-	}
+	if(largeFiles.size() > 1)
+		if_fail_fe(collectPotentialDuplicates(largeFiles, potentiallyDuplicatedFiles));
+
     info_printf("Total potentially duplicated large files found: %u", potentiallyDuplicatedFiles.size());
     llc::aobj<SFileInfoPair>    exactMatches;
-    llc::STimer                 timer;
-    for(const auto & pair : potentiallyDuplicatedFiles) {
-        verbose_printf("Processing potentially duplicated files with size %llu: %s/%s and %s/%s"
-            , pair.fileA.Size
-            , pair.fileA.Path.begin(), pair.fileA.Name.begin()
-            , pair.fileB.Path.begin(), pair.fileB.Name.begin()
-        );
-		if(0 == compareFileContents(pair))
-			verbose_printf("Files are different: %s/%s and %s/%s"
-				, pair.fileA.Path.begin(), pair.fileA.Name.begin()
-				, pair.fileB.Path.begin(), pair.fileB.Name.begin()
-			);
-        else {
-			info_printf("Files are identical: %s/%s and %s/%s"
-				, pair.fileA.Path.begin(), pair.fileA.Name.begin()
-				, pair.fileB.Path.begin(), pair.fileB.Name.begin()
-			);
-			if_fail_fe(exactMatches.push_back(pair));
- 
-		}
-        timer.Frame();
-        info_printf("compareFileContents execution time: %f seconds.", timer.LastTimeMicroseconds * 0.000001);
-    }
+	if_fail_fe(collectExactMatches(potentiallyDuplicatedFiles, exactMatches));
+
     for(const auto & pair : exactMatches) {
         const b8_t          fileToMoveIsFileB 
             = (pair.fileA.Name.size() < pair.fileB.Name.size())
