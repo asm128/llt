@@ -1,0 +1,2 @@
+# **dedup**
+### This project is a simple deduplication tool that helps you identify and remove duplicate files from your system. It scans specified directories, compares file contents, and provides options to delete or move duplicates.

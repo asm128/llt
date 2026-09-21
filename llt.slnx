@@ -1,0 +1,12 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="../llc/llc/llc.vcxproj" Id="830ab681-b788-47d4-9767-ba4e0792f682" />
+  <Project Path="../zlib/contrib/vstudio/vc14/zlibvc.vcxproj" Id="8fd826f8-3739-44e6-8cc8-997122e53b8d" />
+  <Project Path="dedup/dedup.vcxproj" Id="46b43e22-f9b7-43bf-b6d5-234f4701ac57">
+    <BuildDependency Project="../llc/llc/llc.vcxproj" />
+  </Project>
+  <Project Path="llt/llt.vcxproj" Id="d03f5872-c7d1-413c-9c64-3c433340fdad" />
+</Solution>
