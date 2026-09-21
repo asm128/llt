@@ -166,26 +166,6 @@ llc::err_t moveFile(const SFileInfo & fileToMove, llc::vcst_c & targetFolder) {
     return 0;
 }
 
-#if defined(LLC_WINDOWS)
-static	::llc::error_t	test_base_log_write	(const char * text, uint32_t /*textLen*/) {	OutputDebugStringA(text); return (::llc::error_t)printf("%s", text); }
-#elif defined(LLC_ANDROID)
-static	::llc::error_t	test_base_log_write	(const char * text, uint32_t textLen) {	LOGI("%s", text); return (::llc::error_t)textLen; }
-#elif defined(LLC_ARDUINO)
-static	::llc::error_t	test_base_log_write	(const char * text, uint32_t textLen) {	return ::llc::error_t(Serial ? (::llc::error_t)Serial.write(text, textLen) : (::llc::error_t)textLen); }
-#else
-static	::llc::error_t	test_base_log_write	(const char * text, uint32_t textLen) {	(void)textLen; return (::llc::error_t)printf_s("%s", text, textLen); }
-#endif
-
-#if defined(LLC_WINDOWS)
-static	::llc::error_t	test_base_log_print	(const char * text) {	OutputDebugStringA(text); return (::llc::error_t)printf("%s", text); }
-#elif defined(LLC_ANDROID)z
-static	::llc::error_t	test_base_log_print	(const char * text) {	LOGI("%s", text); return (::llc::error_t)strlen(text); }
-#elif defined(LLC_ARDUINO)
-static	::llc::error_t	test_base_log_print	(const char * text) {	return Serial ? (::llc::error_t)Serial.print(text) : (::llc::error_t)strlen(text); }
-#else
-static	::llc::error_t	test_base_log_print	(const char * text) {	return (::llc::error_t)printf("%s", text); }
-#endif
-
 llc::err_t collectExactMatches(llc::view<const SFileInfoPair> potentiallyDuplicatedFiles, llc::aobj<SFileInfoPair> & exactMatches) {
     llc::STimer                 timer;
     for(const auto & pair : potentiallyDuplicatedFiles) {
@@ -235,13 +215,37 @@ llc::err_t collectPotentialDuplicates(llc::view<const SFileInfo> largeFiles, llc
 stxp llc::vcst_t  DEFAULT_PATH_TO_PROCESS   = LLC_CXS("./");
 stxp llc::vcst_t  DEFAULT_TARGET_FOLDER     = LLC_CXS("./Duplicated");
 
+struct SDedupApp {
+    llc::vcst_t                 pathToProcess     = DEFAULT_PATH_TO_PROCESS;
+    llc::vcst_t                 targetFolder      = DEFAULT_TARGET_FOLDER;
+    llc::aobj<SFileInfoPair>    exactMatches;
+};
+
+#if defined(LLC_WINDOWS)
+static	::llc::error_t	test_base_log_write	(const char * text, uint32_t /*textLen*/) {	OutputDebugStringA(text); return (::llc::error_t)printf("%s", text); }
+#elif defined(LLC_ANDROID)
+static	::llc::error_t	test_base_log_write	(const char * text, uint32_t textLen) {	LOGI("%s", text); return (::llc::error_t)textLen; }
+#elif defined(LLC_ARDUINO)
+static	::llc::error_t	test_base_log_write	(const char * text, uint32_t textLen) {	return ::llc::error_t(Serial ? (::llc::error_t)Serial.write(text, textLen) : (::llc::error_t)textLen); }
+#else
+static	::llc::error_t	test_base_log_write	(const char * text, uint32_t textLen) {	(void)textLen; return (::llc::error_t)printf_s("%s", text, textLen); }
+#endif
+
+#if defined(LLC_WINDOWS)
+static	::llc::error_t	test_base_log_print	(const char * text) {	OutputDebugStringA(text); return (::llc::error_t)printf("%s", text); }
+#elif defined(LLC_ANDROID)z
+static	::llc::error_t	test_base_log_print	(const char * text) {	LOGI("%s", text); return (::llc::error_t)strlen(text); }
+#elif defined(LLC_ARDUINO)
+static	::llc::error_t	test_base_log_print	(const char * text) {	return Serial ? (::llc::error_t)Serial.print(text) : (::llc::error_t)strlen(text); }
+#else
+static	::llc::error_t	test_base_log_print	(const char * text) {	return (::llc::error_t)printf("%s", text); }
+#endif
+
 int main(int argc, char * argv[]) {
     static_assert(sizeof(FileAttributes) == 4, "Must be exactly 4 bytes");
 	llc::setupLogCallbacks(test_base_log_print, test_base_log_write);
 
-    llc::vcst_t  pathToProcess     = DEFAULT_PATH_TO_PROCESS;
-    llc::vcst_t  targetFolder      = DEFAULT_TARGET_FOLDER;
-
+    SDedupApp   appState    = {};
 	if(argc < 3) {
 		info_printf(
             "\nUsage: %s"
@@ -252,22 +256,22 @@ int main(int argc, char * argv[]) {
 		return 0;
 	} 
 	else  {
-        pathToProcess   = {argv[1], (u2_t)-1};
-		targetFolder    = {argv[2], (u2_t)-1};
+        appState.pathToProcess   = {argv[1], (u2_t)-1};
+		appState.targetFolder    = {argv[2], (u2_t)-1};
 	}
     stxp llc::minmax<u3_t>  fileSizeRangeInBytes  = {50*1024*1024, (u3_t)-1};
 	info_printf(
         "\nPath to process  : \"%s\""
 	    "\nTarget folder    : \"%s\""
         "\nComparing files of sizes between %llu and %llu"
-        , pathToProcess.begin()
-        , targetFolder .begin()
+        , appState.pathToProcess.begin()
+        , appState.targetFolder .begin()
         , fileSizeRangeInBytes.Min
         , fileSizeRangeInBytes.Max
         );
 
 	llc::aobj<SFileInfo>    largeFiles; // list of large files found in the specified path
-    if_fail_fe(::listFolder(pathToProcess, true, [&largeFiles](const WIN32_FIND_DATAA & entryData, llc::vcst_t folderPath) { 
+    if_fail_fe(::listFolder(appState.pathToProcess, true, [&largeFiles](const WIN32_FIND_DATAA & entryData, llc::vcst_t folderPath) { 
         SFileInfo               newInfo         = {};
         newInfo.Size        = ((uint64_t)entryData.nFileSizeHigh << 32) | entryData.nFileSizeLow;
 		if( newInfo.Size < fileSizeRangeInBytes.Min 
@@ -289,16 +293,15 @@ int main(int argc, char * argv[]) {
 		if_fail_fe(collectPotentialDuplicates(largeFiles, potentiallyDuplicatedFiles));
 
     info_printf("Total potentially duplicated large files found: %u", potentiallyDuplicatedFiles.size());
-    llc::aobj<SFileInfoPair>    exactMatches;
-	if_fail_fe(collectExactMatches(potentiallyDuplicatedFiles, exactMatches));
+	if_fail_fe(collectExactMatches(potentiallyDuplicatedFiles, appState.exactMatches));
 
-    for(const auto & pair : exactMatches) {
+    for(const auto & pair : appState.exactMatches) {
         const b8_t          fileToMoveIsFileB 
             = (pair.fileA.Name.size() < pair.fileB.Name.size())
             //|| ((pair.fileB.Name.Size() == 13) && (0 == memcmp(pair.fileB.Name.begin(), "177", 3))) 
             ;
 	    const SFileInfo     & fileToMove    = fileToMoveIsFileB ? pair.fileB : pair.fileA;
-	    if_fail_wf(moveFile(fileToMove, targetFolder), "Failed to move file \"%s\".", fileToMove.Name.begin());
+	    if_fail_wf(moveFile(fileToMove, appState.targetFolder), "Failed to move file \"%s\".", fileToMove.Name.begin());
     }
     return 0;
 }
