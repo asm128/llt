@@ -4,11 +4,14 @@
 #include "llc_string.h"
 #include "llc_timer.h"
 #include "llc_minmax.h"
+#include "llc_args.h"
 
 
 LLC_USING_TYPEINT();
 LLC_USING_APOD();
 LLC_USING_VIEW();
+
+stxp u2_c       COMPARISON_CHUNK_SIZE_MAX   = 0x400 * 0x400 * 0x100; 
 
 #pragma pack(push, 1)
 struct FileAttributes {
@@ -117,7 +120,6 @@ int    compareFileContents(const SFileInfoPair& pair) {
 		FILE* Handle = nullptr;
 		~SAutoCloseFile() { if(Handle) fclose(Handle); }
 	};
-	stxp u2_c       COMPARISON_CHUNK_SIZE_MAX   = 0x400 * 0x400 * 0x100; 
 	u2_c            comparisonChunkSize         = (pair.fileA.Size > COMPARISON_CHUNK_SIZE_MAX) ? COMPARISON_CHUNK_SIZE_MAX : (u2_c)pair.fileA.Size;
 	info_printf("\nComparing file contents for: " 
         "\n%s/%s" 
@@ -195,6 +197,26 @@ llc::err_t collectExactMatches(llc::view<const SFileInfoPair> potentiallyDuplica
     return 0;
 }
 
+llc::err_t collectLargeFiles(llc::vcst_t pathToProcess, llc::minmax<u3_t> fileSizeRangeInBytes, llc::aobj<SFileInfo> & largeFiles) {
+    info_printf("Path to process: %s", pathToProcess.begin());
+    if_fail_fe(::listFolder(pathToProcess, true, [&largeFiles, fileSizeRangeInBytes](const WIN32_FIND_DATAA & entryData, llc::vcst_t folderPath) { 
+        SFileInfo               newInfo         = {};
+        newInfo.Size        = ((uint64_t)entryData.nFileSizeHigh << 32) | entryData.nFileSizeLow;
+		if( newInfo.Size < fileSizeRangeInBytes.Min 
+         || newInfo.Size > fileSizeRangeInBytes.Max
+         ) // if the file is smaller than the minimum Size or larger than the maximum Size, skip it
+            return 0; 
+        memcpy(&newInfo.TimestampCreation   , &entryData.ftCreationTime     , sizeof(uint64_t));
+        memcpy(&newInfo.TimestampLastAccess , &entryData.ftLastAccessTime   , sizeof(uint64_t));
+        verbose_printf("Large file found: %s. Size: %llu. Creation Time: %llu", entryData.cFileName, newInfo.Size, newInfo.TimestampCreation);
+        if_fail_fe(llc::append_strings(newInfo.Path, folderPath));
+        if_fail_fe(llc::append_strings(newInfo.Name, entryData.cFileName));
+        if_fail_fe(largeFiles.push_back(newInfo));
+        return 1;
+        }));
+    return 0;
+}
+
 llc::err_t collectPotentialDuplicates(llc::view<const SFileInfo> largeFiles, llc::aobj<SFileInfoPair> & potentiallyDuplicatedFiles) {
 	info_printf("Comparing large files...");
     for(uint32_t iFile0 = 0; iFile0 < largeFiles.size() - 1; ++iFile0) 
@@ -212,13 +234,52 @@ llc::err_t collectPotentialDuplicates(llc::view<const SFileInfo> largeFiles, llc
     return 0;
 }
 
-stxp llc::vcst_t  DEFAULT_PATH_TO_PROCESS   = LLC_CXS("./");
-stxp llc::vcst_t  DEFAULT_TARGET_FOLDER     = LLC_CXS("./Duplicated");
+static bool discardPath(llc::view<vcst_t> inputs, u2_t index, llc::vcst_c & path) {
+    for(u2_t iOther = 0; iOther < inputs.size(); ++iOther) {
+        if(iOther == index)
+            continue;
+
+        const auto & other = inputs[iOther];
+        if(other == path) {
+            if(iOther < index)
+                return true;
+            continue;
+        }
+
+        if(other.size() == 0 || other.size() >= path.size())
+            continue;
+        if(memcmp(path.begin(), other.begin(), other.size()))
+            continue;
+
+        if(other[other.size() - 1] == '/' || path[other.size()] == '/')
+            return true;
+    }
+    return false;
+}
+
+llc::err_t filterPathRoots(
+    llc::aobj<llc::vcst_t> & output,
+    llc::view<llc::vcst_t> inputs
+) {
+    if_fail_fe(inputs.enumerate([&](u2_t index, llc::vcst_c & path) {
+        if(discardPath(inputs, index, path))
+            return 0;
+
+        if_fail_fe(output.push_back(path));
+        return 0;
+    }));
+    return 0;
+}
+
+stxp llc::vcst_t                DEFAULT_TARGET_FOLDER       = LLC_CXS("./Duplicated");
+stxp llc::minmax<u3_t>          DEFAULT_FILE_SIZE_RANGE     = {0x400 * 0x400 * 0, (u3_t)-1};
 
 struct SDedupApp {
-    llc::vcst_t                 pathToProcess     = DEFAULT_PATH_TO_PROCESS;
-    llc::vcst_t                 targetFolder      = DEFAULT_TARGET_FOLDER;
-    llc::aobj<SFileInfoPair>    exactMatches;
+    llc::aobj<llc::vcst_t>          PathsToProcess;
+    llc::vcst_t                     TargetFolder            = DEFAULT_TARGET_FOLDER;
+    llc::aobj<SFileInfoPair>        ExactMatches;
+    llc::SCommandLineArgs           CommandLineArgs;
+    llc::minmax<u3_t>               FileSizeRangeInBytes    = DEFAULT_FILE_SIZE_RANGE;
 };
 
 #if defined(LLC_WINDOWS)
@@ -241,68 +302,134 @@ static	::llc::error_t	test_base_log_print	(const char * text) {	return Serial ? 
 static	::llc::error_t	test_base_log_print	(const char * text) {	return (::llc::error_t)printf("%s", text); }
 #endif
 
-int main(int argc, char * argv[]) {
-    static_assert(sizeof(FileAttributes) == 4, "Must be exactly 4 bytes");
-	llc::setupLogCallbacks(test_base_log_print, test_base_log_write);
-
-    SDedupApp   appState    = {};
-	if(argc < 3) {
-		info_printf(
-            "\nUsage: %s"
-		    "\nThis program searches for large files in the specified path and identifies potentially duplicated files based on their size."
+llc::err_t displayHelp(SDedupApp & appState) {
+    if(appState.CommandLineArgs.Options.size() <= 1) {
+	    info_printf(
+            "\nUsage: %s [-move=<target-folder>] <source-folder> [<source-folder> ...] "
+            "\nHelp: %s -help [<command> [<command> ...]]"
+		    "\nThis program searches for large files in the specified paths and identifies potentially duplicated files based on their size."
 		    "\nIf duplicates are found, it compares their contents and moves one of the duplicates to a target folder."
-            , argv[0]
+		    , appState.CommandLineArgs.ProgramName.begin()
+		    , appState.CommandLineArgs.ProgramName.begin()
             );
-		return 0;
-	} 
-	else  {
-        appState.pathToProcess   = {argv[1], (u2_t)-1};
-		appState.targetFolder    = {argv[2], (u2_t)-1};
-	}
-    stxp llc::minmax<u3_t>  fileSizeRangeInBytes  = {50*1024*1024, (u3_t)-1};
-	info_printf(
-        "\nPath to process  : \"%s\""
-	    "\nTarget folder    : \"%s\""
-        "\nComparing files of sizes between %llu and %llu"
-        , appState.pathToProcess.begin()
-        , appState.targetFolder .begin()
-        , fileSizeRangeInBytes.Min
-        , fileSizeRangeInBytes.Max
-        );
+        return 0;
+    }
+    info_printf("\nHelp for command line options:");
+    for(const auto & option : appState.CommandLineArgs.Options) {
+        if(option.Key == LLC_CXS("help"))
+			continue;
 
-	llc::aobj<SFileInfo>    largeFiles; // list of large files found in the specified path
-    if_fail_fe(::listFolder(appState.pathToProcess, true, [&largeFiles](const WIN32_FIND_DATAA & entryData, llc::vcst_t folderPath) { 
-        SFileInfo               newInfo         = {};
-        newInfo.Size        = ((uint64_t)entryData.nFileSizeHigh << 32) | entryData.nFileSizeLow;
-		if( newInfo.Size < fileSizeRangeInBytes.Min 
-         || newInfo.Size > fileSizeRangeInBytes.Max
-         ) // if the file is smaller than the minimum Size or larger than the maximum Size, skip it
-            return 0; 
-        memcpy(&newInfo.TimestampCreation   , &entryData.ftCreationTime     , sizeof(uint64_t));
-        memcpy(&newInfo.TimestampLastAccess , &entryData.ftLastAccessTime   , sizeof(uint64_t));
-        verbose_printf("Large file found: %s. Size: %llu. Creation Time: %llu", entryData.cFileName, newInfo.Size, newInfo.TimestampCreation);
-        if_fail_fe(llc::append_strings(newInfo.Path, folderPath));
-        if_fail_fe(llc::append_strings(newInfo.Name, entryData.cFileName));
-        if_fail_fe(largeFiles.push_back(newInfo));
+             if(option.Key == LLC_CXS("move")) info_printf("\n-%s: %s", option.Key.begin(), "[add -move instructions here");
+		else if(option.Key == LLC_CXS("file")) info_printf("\n-%s: %s", option.Key.begin(), "[add -file instructions here");
+		else if(option.Key == LLC_CXS("save")) info_printf("\n-%s: %s", option.Key.begin(), "[add -save instructions here");
+		else if(option.Key == LLC_CXS("show")) info_printf("\n-%s: %s", option.Key.begin(), "[add -show instructions here");
+    }
+    return 0;
+}
+
+#include <filesystem>
+#include <string>
+llc::err_t pathAbsolute(
+    llc::aobj<llc::string>  & outputPaths,
+    llc::vcst_c             & input
+) {
+    if(0 == input.size())
         return 1;
-        }));
 
+    std::string text(input.begin(), input.size());
+    for(char & character : text)
+        if(character == '\\')
+            character = '/';
+
+    try {
+        const auto      path         = std::filesystem::absolute(text).lexically_normal();
+        const auto      rootLength   = path.root_path().generic_string().size();
+
+        text = path.generic_string();
+        while(text.size() > rootLength && text.back() == '/')
+            text.pop_back();
+
+        llc::err_t      index;
+        if_fail_fe(index = outputPaths.push_back({}));
+        llc::string     & normalized    = outputPaths[index];
+        if_fail_fe(llc::append_strings(normalized, llc::vcst_t{text.c_str(), (u2_t)text.size()}));
+    }
+    catch(const std::filesystem::filesystem_error &) { //
+		error_printf("Failed to get absolute path for \"%s\". Not a valid path?", input.begin());
+        return 1;
+    }
+    return 0;
+}
+llc::err_t pathsAbsolute(
+    llc::aobj<llc::string> & outputPaths,
+    llc::view<const llc::vcst_t> inputs
+) {
+    if_fail_fe(inputs.for_each([&outputPaths, inputs](const llc::vcst_t & input) { return pathAbsolute(outputPaths, input); }));
+    return 0;
+}
+
+sttc llc::err_t executeDedup(SDedupApp & appState) {
+    if_fail_fe(filterPathRoots(appState.PathsToProcess, appState.CommandLineArgs.Positionals));
+	info_printf("\nComparing files of sizes between %llu and %llu"
+        , appState.FileSizeRangeInBytes.Min
+        , appState.FileSizeRangeInBytes.Max
+        );
+    appState.PathsToProcess.for_each([](llc::vcst_c & path) { info_printf("Path to process: \"%s\"", path.begin()); return 0; });
+
+
+    llc::aobj<SFileInfo> largeFiles;
+    for(const auto & pathToProcess : appState.PathsToProcess)
+        if_fail_fe(collectLargeFiles(pathToProcess, appState.FileSizeRangeInBytes, largeFiles));
     info_printf("Total large files found: %u", largeFiles.size());
+    
     llc::aobj<SFileInfoPair>    potentiallyDuplicatedFiles;
 	if(largeFiles.size() > 1)
 		if_fail_fe(collectPotentialDuplicates(largeFiles, potentiallyDuplicatedFiles));
-
     info_printf("Total potentially duplicated large files found: %u", potentiallyDuplicatedFiles.size());
-	if_fail_fe(collectExactMatches(potentiallyDuplicatedFiles, appState.exactMatches));
+	
+    if_fail_fe(collectExactMatches(potentiallyDuplicatedFiles, appState.ExactMatches));
+    info_printf("Duplicated large files found: %u", appState.ExactMatches.size());
 
-    for(const auto & pair : appState.exactMatches) {
+    if_fail_vi(0, llc::argsOptionValue(appState.CommandLineArgs, "move", appState.TargetFolder));
+    if_zero_fwf(appState.TargetFolder.size(), "-move requires a destination folder.");
+	info_printf("\nTarget folder    : \"%s\"", appState.TargetFolder.begin());
+
+    llc::aobj<SFileInfo>    filesMoved;
+    for(const auto & pair : appState.ExactMatches) {
         const b8_t          fileToMoveIsFileB 
             = (pair.fileA.Name.size() < pair.fileB.Name.size())
             //|| ((pair.fileB.Name.Size() == 13) && (0 == memcmp(pair.fileB.Name.begin(), "177", 3))) 
             ;
 	    const SFileInfo     & fileToMove    = fileToMoveIsFileB ? pair.fileB : pair.fileA;
-	    if_fail_wf(moveFile(fileToMove, appState.targetFolder), "Failed to move file \"%s\".", fileToMove.Name.begin());
+	    if_fail_wf(moveFile(fileToMove, appState.TargetFolder), "Failed to move file \"%s\".", fileToMove.Name.begin());
+		if_fail_fe(filesMoved.push_back(fileToMove));
     }
+    return 0;
+}
+
+sttc llc::err_t toViews (llc::aobj<vcst_t> & outputViews, u2_t argc, char * argv[]) {
+	for(u2_t iArg = 0; iArg < argc; ++iArg)
+		if_fail_fe(outputViews.push_back({argv[iArg], (u2_t)-1}));
+    return 0;
+}
+
+int main(int argc, char * argv[]) {
+    static_assert(sizeof(FileAttributes) == 4, "Must be exactly 4 bytes");
+	llc::setupLogCallbacks(test_base_log_print, test_base_log_write);
+
+    llc::aobj<vcst_t> arguments;
+	if_fail_fe(::toViews(arguments, (u2_t)argc, argv));
+
+    SDedupApp       appState    = {};
+    if_fail_fe(llc::argsParse(appState.CommandLineArgs, arguments));
+	if(0 <= llc::argsOptionIndex(appState.CommandLineArgs, "help"))
+		return ::displayHelp(appState);
+
+	if(appState.CommandLineArgs.Positionals.size() < 1)
+		return displayHelp(appState);
+
+	if_fail_ve(EXIT_FAILURE, ::executeDedup(appState));
+
     return 0;
 }
 
