@@ -13,11 +13,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LocalDebuggerWorkingDirectory>$(OutDir)</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>-- e:\music e:\musica </LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>-- E:\music E:\Musica "E:\Musica\Cypress Hill" "E:\Musica\Cypress Hill\2000 - Skull &amp; Bones - Bones Disc"</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArgumentsHistory>-- e:\music e:\musica |-- e:\music e:\musica "E:\Musica\Cypress Hill\" "E:\Musica\Cypress Hill\2000 - Skull &amp; Bones - Bones Disc"|-- e:\music e:\musica "E:\Musica\Cypress Hill" "E:\Musica\Cypress Hill\2000 - Skull &amp; Bones - Bones Disc"|-- E:\music E:\Musica "E:\Musica\Cypress Hill" "E:\Musica\Cypress Hill\2000 - Skull &amp; Bones - Bones Disc"|</LocalDebuggerCommandArgumentsHistory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LocalDebuggerWorkingDirectory>$(OutDir)</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
     <LocalDebuggerCommandArguments>-- e:\music e:\musica </LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArgumentsHistory>-- e:\music e:\musica |</LocalDebuggerCommandArgumentsHistory>
   </PropertyGroup>
 </Project>

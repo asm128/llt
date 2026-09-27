@@ -11,6 +11,38 @@ LLC_USING_TYPEINT();
 LLC_USING_APOD();
 LLC_USING_VIEW();
 
+stxp llc::vcst_t                DEFAULT_TARGET_FOLDER       = LLC_CXS("./Duplicated");
+stxp llc::minmax<u3_t>          DEFAULT_FILE_SIZE_RANGE     = {0x400 * 0x400 * 5, (u3_t)-1};
+
+struct SFileInfo {
+	llc::string    Path;
+	llc::string    Name;
+	uint64_t       Size;
+	uint64_t       TimestampCreation;
+	uint64_t       TimestampLastAccess;
+};
+struct SFileInfoPair {
+    SFileInfo       A;
+    SFileInfo       B;
+};
+
+struct SFileInfoMove {
+    s2_t            FileInfoIndex;
+    llc::string     SourcePath;
+    llc::string     FolderPath;
+    llc::string     FileName;
+};
+
+struct SDedupApp {
+    llc::SCommandLineArgs           CommandLineArgs;
+    llc::minmax<u3_t>               FileSizeRangeInBytes    = DEFAULT_FILE_SIZE_RANGE;
+    llc::vcst_t                     TargetFolder            = DEFAULT_TARGET_FOLDER;
+    llc::aobj<llc::string>          PathsToProcess;
+    llc::aobj<SFileInfoPair>        ExactMatches;
+    llc::aobj<SFileInfo>            FilesMoved;
+
+};
+
 stxp u2_c       COMPARISON_CHUNK_SIZE_MAX   = 0x400 * 0x400 * 0x100; 
 
 #pragma pack(push, 1)
@@ -51,11 +83,12 @@ struct FileAttributes {
 // FILE_ATTRIBUTE_NORMAL (0x80): The file has no other attributes set. This flag is only valid if it is used alone.
 // FILE_ATTRIBUTE_REPARSE_POINT (0x400): The file or directory has an associated reparse point, or is a symbolic link/junction point.
 
-llc::err_t listFolder   (llc::vcst_t path, bool recursiveWalk, llc::function<llc::err_t(const WIN32_FIND_DATAA&, llc::vcst_c)> callback) {
-    WIN32_FIND_DATAA    data    = {};
+sttc llc::err_t listFolder   (llc::vcst_t path, bool recursiveWalk, llc::function<llc::err_t(const WIN32_FIND_DATAA&, llc::vcst_c)> callback) {
 	llc::rtrim(path, path, "/\\");
 	llc::string 		 pathStr;
     if_fail_fe(llc::append_strings(pathStr, path, "/*"));
+
+    WIN32_FIND_DATAA    data    = {};
     HANDLE              hFind   = FindFirstFileExA(pathStr, FindExInfoBasic, &data, FindExSearchNameMatch, 0, 0);
     if_true_vif(0, hFind == INVALID_HANDLE_VALUE, "No files found in \"%s\"", path.begin());
 
@@ -71,7 +104,7 @@ llc::err_t listFolder   (llc::vcst_t path, bool recursiveWalk, llc::function<llc
             "\ndwReserved0        (DWORD)    : %u"
             "\ndwReserved1        (DWORD)    : %u"
             "\ncFileName          (CHAR[%u]) : \"%s\""
-            "\ncAlternateFileName (CHAR[14]) : \"%s\""
+            "\ncAlternateFileName (CHAR[14]) : \"%s\"" 
             , data.dwFileAttributes
             , *(const uint64_t*)&data.ftCreationTime
             , *(const uint64_t*)&data.ftLastAccessTime
@@ -103,45 +136,34 @@ llc::err_t listFolder   (llc::vcst_t path, bool recursiveWalk, llc::function<llc
     rtrn filesFound;
 }
 
-struct SFileInfo {
-	llc::string    Path;
-	llc::string    Name;
-	uint64_t       Size;
-	uint64_t       TimestampCreation;
-	uint64_t       TimestampLastAccess;
-};
-    struct SFileInfoPair {
-        SFileInfo fileA;
-        SFileInfo fileB;
-    };
-
-int    compareFileContents(const SFileInfoPair& pair) {
-	struct SAutoCloseFile {
-		FILE* Handle = nullptr;
-		~SAutoCloseFile() { if(Handle) fclose(Handle); }
-	};
-	u2_c            comparisonChunkSize         = (pair.fileA.Size > COMPARISON_CHUNK_SIZE_MAX) ? COMPARISON_CHUNK_SIZE_MAX : (u2_c)pair.fileA.Size;
+sttc llc::err_t compareFileContents(const SFileInfoPair& pair) {
+	u2_c            comparisonChunkSize         = (pair.A.Size > COMPARISON_CHUNK_SIZE_MAX) ? COMPARISON_CHUNK_SIZE_MAX : (u2_c)pair.A.Size;
 	info_printf("\nComparing file contents for: " 
         "\n%s/%s" 
         "\n%s/%s"
         "\nFile  size: %llu bytes."
         "\nChunk size: %llu bytes."
-        , pair.fileA.Path.begin(), pair.fileA.Name.begin(), pair.fileB.Path.begin(), pair.fileB.Name.begin()
-        , pair.fileA.Size, (uint64_t)comparisonChunkSize);
-	static llc::au0_t      bufferA, bufferB;
-    llc::resize(comparisonChunkSize, bufferA, bufferB);
-    SAutoCloseFile  fileA = {}, fileB = {};
+        , pair.A.Path.begin(), pair.A.Name.begin(), pair.B.Path.begin(), pair.B.Name.begin()
+        , pair.A.Size, (uint64_t)comparisonChunkSize
+        );
+	sttc llc::au0_t      bufferA, bufferB;
+    if_fail_fef(llc::resize(comparisonChunkSize, bufferA, bufferB), "comparisonChunkSize:(%u)", comparisonChunkSize);
+	struct SAutoCloseFile {
+		FILE* Handle = nullptr;
+		~SAutoCloseFile() { if(Handle) fclose(Handle); }
+	};
+    SAutoCloseFile  A = {}, B = {};
     llc::string     filePathA, filePathB;
-    llc::append_strings(filePathA, pair.fileA.Path, "/", pair.fileA.Name);
-    llc::append_strings(filePathB, pair.fileB.Path, "/", pair.fileB.Name);
-	if_true_fwf(0 != fopen_s(&fileA.Handle, filePathA, "rb"), "Failed to open file: \"%s\"", filePathA.begin());
-	if_true_fwf(0 != fopen_s(&fileB.Handle, filePathB, "rb"), "Failed to open file: \"%s\"", filePathB.begin());
+    if_fail_fe(llc::append_strings(filePathA, pair.A.Path, "/", pair.A.Name));
+    if_fail_fe(llc::append_strings(filePathB, pair.B.Path, "/", pair.B.Name));
+	if_true_fwf(0 != fopen_s(&A.Handle, filePathA, "rb"), "Failed to open file: \"%s\"", filePathA.begin());
+	if_true_fwf(0 != fopen_s(&B.Handle, filePathB, "rb"), "Failed to open file: \"%s\"", filePathB.begin());
     llc::STimer     timer           = {};
-	u3_t            remainingBytes  = pair.fileA.Size;
+	u3_t            remainingBytes  = pair.A.Size;
 	while(remainingBytes) {
 		u3_c            bytesToRead = (remainingBytes > comparisonChunkSize) ? comparisonChunkSize : remainingBytes;
-		if_true_fe(bytesToRead != fread(bufferA.begin(), 1, bytesToRead, fileA.Handle));
-		if_true_fe(bytesToRead != fread(bufferB.begin(), 1, bytesToRead, fileB.Handle));
+		if_true_fe(bytesToRead != fread(bufferA.begin(), 1, bytesToRead, A.Handle));
+		if_true_fe(bytesToRead != fread(bufferB.begin(), 1, bytesToRead, B.Handle));
 		if_true_vi(1, memcmp(bufferA.begin(), bufferB.begin(), bytesToRead)); // Files are different
 		remainingBytes -= bytesToRead;
         timer.Frame();
@@ -150,44 +172,53 @@ int    compareFileContents(const SFileInfoPair& pair) {
     return 0; // Files are identical
 }
 
-llc::err_t moveFile(const SFileInfo & fileToMove, llc::vcst_c & targetFolder) {
-    llc::string         oldPath         = {}
-        ,               newPath         = {};
-	if_fail_fe(llc::append_strings(oldPath, fileToMove.Path, "/", fileToMove.Name));
-    llc::vstr_t         oldPathView     = fileToMove.Path; 
+sttc llc::err_t movePaths(llc::string & oldPath, llc::string & destinationFolder, llc::vcst_t sourcePath, llc::vcst_t sourceName, llc::vcst_t destinationRoot) {
+	if_fail_fe(llc::append_strings(oldPath, sourcePath, "/", sourceName));
+
+    llc::vcst_t         oldPathView     = sourcePath;
 	llc::ltrim(oldPathView, oldPathView, "\\/");
     s2_t                colonOffset     = oldPathView.find(':', 0);
-    if(colonOffset >= 0)
-		oldPathView[colonOffset] = '_';
-	if_fail_fe(llc::append_strings(newPath, targetFolder, '/', oldPathView.cc(), '/'));
-	if_fail_wf(llc::pathCreate(newPath, '/'), "Failed to create directory \"%s\"", newPath.begin());
-	if_fail_fe(llc::append_strings(newPath, fileToMove.Name));
-    info_printf("Moving duplicated file: \"%s\" to \"%s\"", oldPath.begin(), newPath.begin());
-	if_zero_fwf(MoveFileExA(oldPath.begin(), newPath.begin(), MOVEFILE_COPY_ALLOWED | MOVEFILE_WRITE_THROUGH)
-        , "Failed to move duplicated file \"%s\" to \"%s\"", oldPath.begin(), newPath.begin());
+    llc::string         oldPathDriveLetterFix;
+    if(colonOffset >= 0) {
+        if_fail_fe(llc::append_strings(oldPathDriveLetterFix, oldPathView));
+		oldPathDriveLetterFix[colonOffset] = '_';
+        oldPathView = oldPathDriveLetterFix;
+    }
+	if_fail_fe(llc::append_strings(destinationFolder, destinationRoot, '/', oldPathView.cc(), '/'));
     return 0;
 }
 
-llc::err_t collectExactMatches(llc::view<const SFileInfoPair> potentiallyDuplicatedFiles, llc::aobj<SFileInfoPair> & exactMatches) {
+sttc llc::err_t moveFile(const SFileInfo & fileToMove, llc::vcst_c & destinationRoot) {
+    llc::string         oldPath         = {};
+    llc::string         newPath         = {};
+    if_fail_fe(movePaths(oldPath, newPath, fileToMove.Path, fileToMove.Name, destinationRoot));
+	if_fail_wf(llc::pathCreate(newPath, '/'), "Failed to create directory \"%s\"", newPath.begin());
+	if_fail_fe(llc::append_strings(newPath, fileToMove.Name));
+	if_zero_fwf(MoveFileExA(oldPath.begin(), newPath.begin(), MOVEFILE_COPY_ALLOWED | MOVEFILE_WRITE_THROUGH), "Failed to move duplicated file \"%s\" to \"%s\"", oldPath.begin(), newPath.begin());
+    info_printf("moved: \"%s\" -> \"%s\"", oldPath.begin(), newPath.begin());
+    return 0;
+}
+
+sttc llc::err_t collectExactMatches(llc::view<const SFileInfoPair> potentiallyDuplicatedFiles, llc::aobj<SFileInfoPair> & exactMatches) {
     llc::STimer                 timer;
     for(const auto & pair : potentiallyDuplicatedFiles) {
         verbose_printf("Processing potentially duplicated files with size %llu: %s/%s and %s/%s"
-            , pair.fileA.Size
-            , pair.fileA.Path.begin(), pair.fileA.Name.begin()
-            , pair.fileB.Path.begin(), pair.fileB.Name.begin()
-        );
+            , pair.A.Size
+            , pair.A.Path.begin(), pair.A.Name.begin()
+            , pair.B.Path.begin(), pair.B.Name.begin()
+            );
         
         llc::err_t                  comparisonResult = 0;
 		if_fail_ce(comparisonResult = compareFileContents(pair))
 	    else if(comparisonResult)
 			verbose_printf("Files are different: %s/%s and %s/%s"
-				, pair.fileA.Path.begin(), pair.fileA.Name.begin()
-				, pair.fileB.Path.begin(), pair.fileB.Name.begin()
+				, pair.A.Path.begin(), pair.A.Name.begin()
+				, pair.B.Path.begin(), pair.B.Name.begin()
 			);
         else {
 			info_printf("Files are identical: %s/%s and %s/%s"
-				, pair.fileA.Path.begin(), pair.fileA.Name.begin()
-				, pair.fileB.Path.begin(), pair.fileB.Name.begin()
+				, pair.A.Path.begin(), pair.A.Name.begin()
+				, pair.B.Path.begin(), pair.B.Name.begin()
 			);
 			if_fail_fe(exactMatches.push_back(pair));
 		}
@@ -197,8 +228,8 @@ llc::err_t collectExactMatches(llc::view<const SFileInfoPair> potentiallyDuplica
     return 0;
 }
 
-llc::err_t collectLargeFiles(llc::vcst_t pathToProcess, llc::minmax<u3_t> fileSizeRangeInBytes, llc::aobj<SFileInfo> & largeFiles) {
-    info_printf("Path to process: %s", pathToProcess.begin());
+sttc llc::err_t collectLargeFiles(llc::vcst_t pathToProcess, llc::minmax<u3_t> fileSizeRangeInBytes, llc::aobj<SFileInfo> & largeFiles) {
+    info_printf("Scanning path: \"%.*s\"", pathToProcess.size(), pathToProcess.begin());
     if_fail_fe(::listFolder(pathToProcess, true, [&largeFiles, fileSizeRangeInBytes](const WIN32_FIND_DATAA & entryData, llc::vcst_t folderPath) { 
         SFileInfo               newInfo         = {};
         newInfo.Size        = ((uint64_t)entryData.nFileSizeHigh << 32) | entryData.nFileSizeLow;
@@ -217,7 +248,7 @@ llc::err_t collectLargeFiles(llc::vcst_t pathToProcess, llc::minmax<u3_t> fileSi
     return 0;
 }
 
-llc::err_t collectPotentialDuplicates(llc::view<const SFileInfo> largeFiles, llc::aobj<SFileInfoPair> & potentiallyDuplicatedFiles) {
+sttc llc::err_t collectPotentialDuplicates(llc::view<const SFileInfo> largeFiles, llc::aobj<SFileInfoPair> & potentiallyDuplicatedFiles) {
 	info_printf("Comparing large files...");
     for(uint32_t iFile0 = 0; iFile0 < largeFiles.size() - 1; ++iFile0) 
     for(uint32_t iFile1 = iFile0 + 1; iFile1 < largeFiles.size(); ++iFile1) {
@@ -234,7 +265,7 @@ llc::err_t collectPotentialDuplicates(llc::view<const SFileInfo> largeFiles, llc
     return 0;
 }
 
-static bool discardPath(llc::view<vcst_t> inputs, u2_t index, llc::vcst_c & path) {
+sttc bool discardPath(llc::view<vcst_t> inputs, u2_t index, llc::vcst_c & path) {
     for(u2_t iOther = 0; iOther < inputs.size(); ++iOther) {
         if(iOther == index)
             continue;
@@ -257,52 +288,112 @@ static bool discardPath(llc::view<vcst_t> inputs, u2_t index, llc::vcst_c & path
     return false;
 }
 
-llc::err_t filterPathRoots(
-    llc::aobj<llc::vcst_t> & output,
+sttc llc::err_t filterPathRoots(
+    llc::aobj<llc::string> & output,
     llc::view<llc::vcst_t> inputs
 ) {
     if_fail_fe(inputs.enumerate([&](u2_t index, llc::vcst_c & path) {
-        if(discardPath(inputs, index, path))
-            return 0;
-
+        if_true_vif(1, discardPath(inputs, index, path), "Path discarded: \"%.*s\"", path.size(), path.begin());
         if_fail_fe(output.push_back(path));
         return 0;
     }));
     return 0;
 }
+sttc llc::err_t filterPathRoots(llc::aobj<llc::string> & output, llc::view<llc::string> inputs ) {
+    llc::aobj<vcst_t> views;
+    if_fail_fe(inputs.for_each([&](llc::string & path) { return views.push_back(path); }));
+    return filterPathRoots(output, views);
+}
 
-stxp llc::vcst_t                DEFAULT_TARGET_FOLDER       = LLC_CXS("./Duplicated");
-stxp llc::minmax<u3_t>          DEFAULT_FILE_SIZE_RANGE     = {0x400 * 0x400 * 0, (u3_t)-1};
+#include <filesystem>
+#include <string>
 
-struct SDedupApp {
-    llc::aobj<llc::vcst_t>          PathsToProcess;
-    llc::vcst_t                     TargetFolder            = DEFAULT_TARGET_FOLDER;
-    llc::aobj<SFileInfoPair>        ExactMatches;
-    llc::SCommandLineArgs           CommandLineArgs;
-    llc::minmax<u3_t>               FileSizeRangeInBytes    = DEFAULT_FILE_SIZE_RANGE;
-};
+sttc llc::err_t pathAbsolute
+    ( llc::aobj<llc::string>  & outputPaths
+    , llc::vcst_c             & inputPath
+    , llc::sc_c               separatorChar = '/'
+    ) {
+    if_zero_vw(1, inputPath.size());
 
-#if defined(LLC_WINDOWS)
-static	::llc::error_t	test_base_log_write	(const char * text, uint32_t /*textLen*/) {	OutputDebugStringA(text); return (::llc::error_t)printf("%s", text); }
-#elif defined(LLC_ANDROID)
-static	::llc::error_t	test_base_log_write	(const char * text, uint32_t textLen) {	LOGI("%s", text); return (::llc::error_t)textLen; }
-#elif defined(LLC_ARDUINO)
-static	::llc::error_t	test_base_log_write	(const char * text, uint32_t textLen) {	return ::llc::error_t(Serial ? (::llc::error_t)Serial.write(text, textLen) : (::llc::error_t)textLen); }
-#else
-static	::llc::error_t	test_base_log_write	(const char * text, uint32_t textLen) {	(void)textLen; return (::llc::error_t)printf_s("%s", text, textLen); }
-#endif
+    std::string     text            (inputPath.begin(), inputPath.size());
+    sc_t            charToReplace   = ('/' == separatorChar) ? '\\' : '/';
+    for(char & character : text) {
+        if(character == charToReplace) 
+            character = separatorChar; 
+    }
+    try {
+        std::filesystem::path   absolutePath    = std::filesystem::absolute(text).lexically_normal();
+        u2_c                    rootLength      = (u2_t)absolutePath.root_path().generic_string().size();
+        text                = absolutePath.generic_string();
+        while(text.size() > rootLength && text.back() == separatorChar)
+            text.pop_back();
+    }
+    catch(const std::filesystem::filesystem_error & e) { 
+        error_printf("Failed to resolve path for \"%.*s\":\"%s\"", (int)inputPath.size(), inputPath.begin(), e.what());
+        return 1;
+    }
+    llc::err_t      index;
+    if_fail_fe(index = outputPaths.push_back({}));
+    llc::string     & normalized    = outputPaths[index];
+    if_fail_fe(llc::append_strings(normalized, llc::vcst_t{text.c_str(), (u2_t)text.size()}));
+    info_printf("Normalized path \"%.*s\" -> \"%.*s\"", (int)inputPath.size(), inputPath.begin(), (int)normalized.size(), normalized.begin());
+    return 0;
+}
 
-#if defined(LLC_WINDOWS)
-static	::llc::error_t	test_base_log_print	(const char * text) {	OutputDebugStringA(text); return (::llc::error_t)printf("%s", text); }
-#elif defined(LLC_ANDROID)z
-static	::llc::error_t	test_base_log_print	(const char * text) {	LOGI("%s", text); return (::llc::error_t)strlen(text); }
-#elif defined(LLC_ARDUINO)
-static	::llc::error_t	test_base_log_print	(const char * text) {	return Serial ? (::llc::error_t)Serial.print(text) : (::llc::error_t)strlen(text); }
-#else
-static	::llc::error_t	test_base_log_print	(const char * text) {	return (::llc::error_t)printf("%s", text); }
-#endif
+stin llc::err_t pathListAbsolute(llc::aobj<llc::string> & outputPaths, llc::view<const llc::vcst_t> inputs) {
+    return inputs.for_each([&outputPaths, inputs](const llc::vcst_t & input) { return pathAbsolute(outputPaths, input); });
+}
 
-llc::err_t displayHelp(SDedupApp & appState) {
+sttc llc::err_t executeDedup(SDedupApp & appState) {
+    llc::aobj<llc::string> scanPaths;
+    if_fail_fe(pathListAbsolute(scanPaths, appState.CommandLineArgs.Positionals));
+    if_fail_fe(filterPathRoots(appState.PathsToProcess, scanPaths));
+
+    info_printf("\nComparing files of sizes between %llu and %llu"
+        , appState.FileSizeRangeInBytes.Min
+        , appState.FileSizeRangeInBytes.Max
+        );
+    appState.PathsToProcess.for_each([](llc::vcst_c & path) { info_printf("Path to process: \"%s\"", path.begin()); return 0; });
+
+    llc::aobj<SFileInfo> largeFiles;
+    for(const auto & pathToProcess : appState.PathsToProcess)
+        if_fail_fe(collectLargeFiles(pathToProcess, appState.FileSizeRangeInBytes, largeFiles));
+    info_printf("Total large files found: %u", largeFiles.size());
+    
+    llc::aobj<SFileInfoPair>    potentiallyDuplicatedFiles;
+	if(largeFiles.size() > 1)
+		if_fail_fe(collectPotentialDuplicates(largeFiles, potentiallyDuplicatedFiles));
+    info_printf("Total potentially duplicated large files found: %u", potentiallyDuplicatedFiles.size());
+	
+    if_fail_fe(collectExactMatches(potentiallyDuplicatedFiles, appState.ExactMatches));
+    info_printf("Duplicated files found: %u", appState.ExactMatches.size());
+    //llc::aobj<SFileInfoMove>    filesToMove;
+    //appState.ExactMatches.for_each([&filesToMove](const SFileInfoPair & filePair) { 
+    //    filePair.B;
+    //    filesToMove.;
+    //    return 0; 
+    //    });
+
+    if_fail_vi(1, llc::argsOptionValue(appState.CommandLineArgs, "move", appState.TargetFolder));
+    if_zero_fwf(appState.TargetFolder.size(), "-move requires a destination folder.");
+	info_printf("\nTarget folder    : \"%s\"", appState.TargetFolder.begin());
+
+    for(const auto & pair : appState.ExactMatches) {
+	    const SFileInfo     & fileToMove        = pair.B;
+        //llc::string         destinationFolder   = {};
+	    if_fail_wf(moveFile(fileToMove, appState.TargetFolder), "Failed to move file \"%s\".", fileToMove.Name.begin());
+		if_fail_fe(appState.FilesMoved.push_back(fileToMove));
+    }
+    return 0;
+}
+
+sttc llc::err_t toViews (llc::aobj<vcst_t> & outputViews, u2_t argc, char * argv[]) {
+	for(u2_t iArg = 0; iArg < argc; ++iArg)
+		if_fail_fe(outputViews.push_back({argv[iArg], (u2_t)-1}));
+    return 0;
+}
+
+sttc llc::err_t displayHelp(SDedupApp & appState) {
     if(appState.CommandLineArgs.Options.size() <= 1) {
 	    info_printf(
             "\nUsage: %s [-move=<target-folder>] <source-folder> [<source-folder> ...] "
@@ -327,95 +418,8 @@ llc::err_t displayHelp(SDedupApp & appState) {
     return 0;
 }
 
-#include <filesystem>
-#include <string>
-llc::err_t pathAbsolute(
-    llc::aobj<llc::string>  & outputPaths,
-    llc::vcst_c             & input
-) {
-    if(0 == input.size())
-        return 1;
-
-    std::string text(input.begin(), input.size());
-    for(char & character : text)
-        if(character == '\\')
-            character = '/';
-
-    try {
-        const auto      path         = std::filesystem::absolute(text).lexically_normal();
-        const auto      rootLength   = path.root_path().generic_string().size();
-
-        text = path.generic_string();
-        while(text.size() > rootLength && text.back() == '/')
-            text.pop_back();
-
-        llc::err_t      index;
-        if_fail_fe(index = outputPaths.push_back({}));
-        llc::string     & normalized    = outputPaths[index];
-        if_fail_fe(llc::append_strings(normalized, llc::vcst_t{text.c_str(), (u2_t)text.size()}));
-    }
-    catch(const std::filesystem::filesystem_error &) { //
-		error_printf("Failed to get absolute path for \"%s\". Not a valid path?", input.begin());
-        return 1;
-    }
-    return 0;
-}
-llc::err_t pathsAbsolute(
-    llc::aobj<llc::string> & outputPaths,
-    llc::view<const llc::vcst_t> inputs
-) {
-    if_fail_fe(inputs.for_each([&outputPaths, inputs](const llc::vcst_t & input) { return pathAbsolute(outputPaths, input); }));
-    return 0;
-}
-
-sttc llc::err_t executeDedup(SDedupApp & appState) {
-    if_fail_fe(filterPathRoots(appState.PathsToProcess, appState.CommandLineArgs.Positionals));
-	info_printf("\nComparing files of sizes between %llu and %llu"
-        , appState.FileSizeRangeInBytes.Min
-        , appState.FileSizeRangeInBytes.Max
-        );
-    appState.PathsToProcess.for_each([](llc::vcst_c & path) { info_printf("Path to process: \"%s\"", path.begin()); return 0; });
-
-
-    llc::aobj<SFileInfo> largeFiles;
-    for(const auto & pathToProcess : appState.PathsToProcess)
-        if_fail_fe(collectLargeFiles(pathToProcess, appState.FileSizeRangeInBytes, largeFiles));
-    info_printf("Total large files found: %u", largeFiles.size());
-    
-    llc::aobj<SFileInfoPair>    potentiallyDuplicatedFiles;
-	if(largeFiles.size() > 1)
-		if_fail_fe(collectPotentialDuplicates(largeFiles, potentiallyDuplicatedFiles));
-    info_printf("Total potentially duplicated large files found: %u", potentiallyDuplicatedFiles.size());
-	
-    if_fail_fe(collectExactMatches(potentiallyDuplicatedFiles, appState.ExactMatches));
-    info_printf("Duplicated large files found: %u", appState.ExactMatches.size());
-
-    if_fail_vi(0, llc::argsOptionValue(appState.CommandLineArgs, "move", appState.TargetFolder));
-    if_zero_fwf(appState.TargetFolder.size(), "-move requires a destination folder.");
-	info_printf("\nTarget folder    : \"%s\"", appState.TargetFolder.begin());
-
-    llc::aobj<SFileInfo>    filesMoved;
-    for(const auto & pair : appState.ExactMatches) {
-        const b8_t          fileToMoveIsFileB 
-            = (pair.fileA.Name.size() < pair.fileB.Name.size())
-            //|| ((pair.fileB.Name.Size() == 13) && (0 == memcmp(pair.fileB.Name.begin(), "177", 3))) 
-            ;
-	    const SFileInfo     & fileToMove    = fileToMoveIsFileB ? pair.fileB : pair.fileA;
-	    if_fail_wf(moveFile(fileToMove, appState.TargetFolder), "Failed to move file \"%s\".", fileToMove.Name.begin());
-		if_fail_fe(filesMoved.push_back(fileToMove));
-    }
-    return 0;
-}
-
-sttc llc::err_t toViews (llc::aobj<vcst_t> & outputViews, u2_t argc, char * argv[]) {
-	for(u2_t iArg = 0; iArg < argc; ++iArg)
-		if_fail_fe(outputViews.push_back({argv[iArg], (u2_t)-1}));
-    return 0;
-}
-
 int main(int argc, char * argv[]) {
     static_assert(sizeof(FileAttributes) == 4, "Must be exactly 4 bytes");
-	llc::setupLogCallbacks(test_base_log_print, test_base_log_write);
 
     llc::aobj<vcst_t> arguments;
 	if_fail_fe(::toViews(arguments, (u2_t)argc, argv));
@@ -426,10 +430,9 @@ int main(int argc, char * argv[]) {
 		return ::displayHelp(appState);
 
 	if(appState.CommandLineArgs.Positionals.size() < 1)
-		return displayHelp(appState);
+		return ::displayHelp(appState);
 
 	if_fail_ve(EXIT_FAILURE, ::executeDedup(appState));
 
     return 0;
 }
-

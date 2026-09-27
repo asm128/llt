@@ -9,5 +9,9 @@
     <BuildDependency Project="../llc/llc/llc.vcxproj" />
     <BuildDependency Project="../zlib/contrib/vstudio/vc14/zlibvc.vcxproj" />
   </Project>
+  <Project Path="ilc/ilc.vcxproj" Id="70900e5b-ad95-483a-9842-dcaf0ea3aff9">
+    <BuildDependency Project="../llc/llc/llc.vcxproj" />
+    <BuildDependency Project="../zlib/contrib/vstudio/vc14/zlibvc.vcxproj" />
+  </Project>
   <Project Path="llt/llt.vcxproj" Id="d03f5872-c7d1-413c-9c64-3c433340fdad" />
 </Solution>
