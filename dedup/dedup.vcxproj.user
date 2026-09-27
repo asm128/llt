@@ -22,4 +22,7 @@
     <LocalDebuggerCommandArguments>-- e:\music e:\musica </LocalDebuggerCommandArguments>
     <LocalDebuggerCommandArgumentsHistory>-- e:\music e:\musica |</LocalDebuggerCommandArgumentsHistory>
   </PropertyGroup>
+  <PropertyGroup>
+    <ShowAllFiles>true</ShowAllFiles>
+  </PropertyGroup>
 </Project>

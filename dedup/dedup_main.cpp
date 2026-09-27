@@ -4,8 +4,10 @@
 #include "llc_string.h"
 #include "llc_timer.h"
 #include "llc_minmax.h"
-#include "llc_args.h"
+#include "llc_runtime.h"
 
+sttc	::llc::err_t	dedup_entry_point		(::llc::SRuntimeValues & runtimeValues);
+LLC_SYSTEM_OS_ENTRY_POINT(::dedup_entry_point);
 
 LLC_USING_TYPEINT();
 LLC_USING_APOD();
@@ -44,36 +46,6 @@ struct SDedupApp {
 };
 
 stxp u2_c       COMPARISON_CHUNK_SIZE_MAX   = 0x400 * 0x400 * 0x100; 
-
-#pragma pack(push, 1)
-struct FileAttributes {
-    uint32_t ReadOnly           : 1;  // 0x00000001  Prevents modification through normal file operations
-    uint32_t Hidden             : 1;  // 0x00000002  Normally omitted from directory listings
-    uint32_t System             : 1;  // 0x00000004  Identifies a file used by the operating system
-    uint32_t Reserved0          : 1;  // 0x00000008  Reserved by Windows
-    uint32_t Directory          : 1;  // 0x00000010  Entry represents a directory rather than a file
-    uint32_t Archive            : 1;  // 0x00000020  Marks the file as changed since last backup
-    uint32_t Device             : 1;  // 0x00000040  Reserved; historically used to identify device files
-    uint32_t Normal             : 1;  // 0x00000080  No other attributes are set
-    uint32_t Temporary          : 1;  // 0x00000100  Indicates temporary data; filesystem may avoid writing it to permanent storage
-    uint32_t SparseFile         : 1;  // 0x00000200  File may contain large zero-filled regions that consume little/no disk space
-    uint32_t ReparsePoint       : 1;  // 0x00000400  File has filesystem-specific metadata that changes how Windows accesses it
-    uint32_t Compressed         : 1;  // 0x00000800  File data is transparently compressed by the filesystem
-    uint32_t Offline            : 1;  // 0x00001000  File data is not immediately available locally and may need retrieval
-    uint32_t NotContentIndexed  : 1;  // 0x00002000  Windows Search should not index the file's contents
-    uint32_t Encrypted          : 1;  // 0x00004000  File data is transparently encrypted by the filesystem
-    uint32_t IntegrityStream    : 1;  // 0x00008000  Filesystem maintains integrity information to detect/correct corruption
-    uint32_t Virtual            : 1;  // 0x00010000  Reserved for system use
-    uint32_t NoScrubData        : 1;  // 0x00020000  Storage integrity scrubber should not validate this file's data
-    uint32_t ExtendedAttribute  : 1;  // 0x00040000  File has extended attributes associated with it
-    uint32_t Pinned             : 1;  // 0x00080000  Cloud/storage provider should keep the file locally available
-    uint32_t Unpinned           : 1;  // 0x00100000  Cloud/storage provider should not guarantee local availability
-    uint32_t Reserved1          : 1;  // 0x00200000  Reserved by Windows
-    uint32_t RecallOnOpen       : 1;  // 0x00400000  File data may be recalled from remote storage when the file is opened
-    uint32_t RecallOnDataAccess : 1;  // 0x00800000  File data may be recalled from remote storage when its contents are accessed
-    uint32_t Padding            : 8;  // Remaining unused bits
-};
-#pragma pack(pop)
 
 // FILE_ATTRIBUTE_READONLY (0x1): The file is read-only. Applications can read the file but cannot write to it or delete it.
 // FILE_ATTRIBUTE_HIDDEN (0x2): The file is hidden and not included in an ordinary directory listing.
@@ -387,16 +359,10 @@ sttc llc::err_t executeDedup(SDedupApp & appState) {
     return 0;
 }
 
-sttc llc::err_t toViews (llc::aobj<vcst_t> & outputViews, u2_t argc, char * argv[]) {
-	for(u2_t iArg = 0; iArg < argc; ++iArg)
-		if_fail_fe(outputViews.push_back({argv[iArg], (u2_t)-1}));
-    return 0;
-}
-
 sttc llc::err_t displayHelp(SDedupApp & appState) {
     if(appState.CommandLineArgs.Options.size() <= 1) {
 	    info_printf(
-            "\nUsage: %s [-move=<target-folder>] <source-folder> [<source-folder> ...] "
+            "\nUsage: %s [-move=<target-folder>] [--] <source-folder> [<source-folder> ...] "
             "\nHelp: %s -help [<command> [<command> ...]]"
 		    "\nThis program searches for large files in the specified paths and identifies potentially duplicated files based on their size."
 		    "\nIf duplicates are found, it compares their contents and moves one of the duplicates to a target folder."
@@ -412,21 +378,18 @@ sttc llc::err_t displayHelp(SDedupApp & appState) {
 
              if(option.Key == LLC_CXS("move")) info_printf("\n-%s: %s", option.Key.begin(), "[add -move instructions here");
 		else if(option.Key == LLC_CXS("file")) info_printf("\n-%s: %s", option.Key.begin(), "[add -file instructions here");
-		else if(option.Key == LLC_CXS("save")) info_printf("\n-%s: %s", option.Key.begin(), "[add -save instructions here");
+		else if(option.Key == LLC_CXS("dump")) info_printf("\n-%s: %s", option.Key.begin(), "[add -dump instructions here");
+		else if(option.Key == LLC_CXS("scan")) info_printf("\n-%s: %s", option.Key.begin(), "[add -scan instructions here");
 		else if(option.Key == LLC_CXS("show")) info_printf("\n-%s: %s", option.Key.begin(), "[add -show instructions here");
+		else if(option.Key == LLC_CXS("wipe")) info_printf("\n-%s: %s", option.Key.begin(), "[add -wipe instructions here");
     }
     return 0;
 }
 
-int main(int argc, char * argv[]) {
-    static_assert(sizeof(FileAttributes) == 4, "Must be exactly 4 bytes");
-
-    llc::aobj<vcst_t> arguments;
-	if_fail_fe(::toViews(arguments, (u2_t)argc, argv));
-
+sttc	::llc::err_t	dedup_entry_point		(::llc::SRuntimeValues & runtimeValues) {
     SDedupApp       appState    = {};
-    if_fail_fe(llc::argsParse(appState.CommandLineArgs, arguments));
-	if(0 <= llc::argsOptionIndex(appState.CommandLineArgs, "help"))
+    appState.CommandLineArgs = runtimeValues.EntryPointArgs;
+    if(0 <= llc::argsOptionIndex(appState.CommandLineArgs, "help"))
 		return ::displayHelp(appState);
 
 	if(appState.CommandLineArgs.Positionals.size() < 1)
