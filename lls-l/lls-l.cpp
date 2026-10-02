@@ -1,67 +1,35 @@
 #include "lls-l.h"
 
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
+sttc	HANDLE			pipeHandle			(::lls::pipe_t pipe) { return (HANDLE)pipe; }
 
-namespace
-{
-	sttc	HANDLE		pipeHandle			(::lls::pipe_t pipe) { return (HANDLE)pipe; }
-
-	sttc	::llc::err_t	pipeWriteBytes		(HANDLE pipe, const void * data, ::llc::u2_t byteCount) {
-		::llc::u2_t		bytesWrittenTotal	= 0;
-		while(bytesWrittenTotal < byteCount) {
-			DWORD		bytesWritten		= 0;
-			if_zero_fe(::WriteFile(pipe, (const uint8_t*)data + bytesWrittenTotal, byteCount - bytesWrittenTotal, &bytesWritten, 0));
-			if_zero_fe(bytesWritten);
-			bytesWrittenTotal		+= bytesWritten;
-		}
-		return 0;
+sttc	::llc::err_t	pipeWriteBytes		(HANDLE pipe, const void * data, ::llc::u2_t byteCount) {
+	::llc::u2_t		bytesWrittenTotal	= 0;
+	while(bytesWrittenTotal < byteCount) {
+		DWORD		bytesWritten		= 0;
+		if_zero_fe(::WriteFile(pipe, (const uint8_t*)data + bytesWrittenTotal, byteCount - bytesWrittenTotal, &bytesWritten, 0));
+		if_zero_fe(bytesWritten);
+		bytesWrittenTotal		+= bytesWritten;
 	}
-
-	sttc	::llc::err_t	pipeReadBytes		(HANDLE pipe, void * data, ::llc::u2_t byteCount) {
-		::llc::u2_t		bytesReadTotal		= 0;
-		while(bytesReadTotal < byteCount) {
-			DWORD		bytesRead			= 0;
-			if_zero_fe(::ReadFile(pipe, (uint8_t*)data + bytesReadTotal, byteCount - bytesReadTotal, &bytesRead, 0));
-			if_zero_fe(bytesRead);
-			bytesReadTotal			+= bytesRead;
-		}
-		return 0;
-	}
-}
-
-::llc::err_t	lls::eventMakeCommand		(::llc::SEventSystem & output, LLS_COMMAND type, ::llc::vcu0_t payload) {
-	output.Type			= ::llc::SYSTEM_EVENT_Command;
-	output.Data.clear();
-	return ::llc::eventWrapChild(output, type, payload);
-}
-
-::llc::err_t	lls::eventMakeResult		(::llc::SEventSystem & output, LLS_RESULT type, ::llc::vcu0_t payload) {
-	output.Type			= ::llc::SYSTEM_EVENT_Runtime;
-	output.Data.clear();
-	return ::llc::eventWrapChild(output, type, payload);
-}
-
-::llc::err_t	lls::eventExtractCommand	(const ::llc::SEventSystem & input, SEViewCommand & output) {
-	if_true_ve(::llc::OS_INVALID_PARAMETER, ::llc::SYSTEM_EVENT_Command != input.Type);
-	return input.ExtractChild(output);
-}
-
-::llc::err_t	lls::eventExtractResult		(const ::llc::SEventSystem & input, SEViewResult & output) {
-	if_true_ve(::llc::OS_INVALID_PARAMETER, ::llc::SYSTEM_EVENT_Runtime != input.Type);
-	return input.ExtractChild(output);
-}
-
-::llc::err_t	lls::eventSerialize			(const ::llc::SEventSystem & input, ::llc::au0_t & output) {
-	output.clear();
-	return input.Save(output);
-}
-
-::llc::err_t	lls::eventDeserialize		(::llc::vcu0_t input, ::llc::SEventSystem & output) {
-	llc_necs(output.Load(input));
-	if_true_ve(::llc::OS_INVALID_PARAMETER, input.size());
 	return 0;
 }
+
+sttc	::llc::err_t	pipeReadBytes		(HANDLE pipe, void * data, ::llc::u2_t byteCount) {
+	::llc::u2_t		bytesReadTotal		= 0;
+	while(bytesReadTotal < byteCount) {
+		DWORD		bytesRead			= 0;
+		if_zero_fe(::ReadFile(pipe, (uint8_t*)data + bytesReadTotal, byteCount - bytesReadTotal, &bytesRead, 0));
+		if_zero_fe(bytesRead);
+		bytesReadTotal			+= bytesRead;
+	}
+	return 0;
+}
+
+::llc::err_t	lls::eventMakeCommand		(::llc::SEventSystem & output, LLS_COMMAND type, ::llc::vcu0_t payload) { output.Type = ::llc::SYSTEM_EVENT_Command; output.Data.clear(); return ::llc::eventWrapChild(output, type, payload); }
+::llc::err_t	lls::eventMakeResult		(::llc::SEventSystem & output, LLS_RESULT  type, ::llc::vcu0_t payload) { output.Type = ::llc::SYSTEM_EVENT_Runtime; output.Data.clear(); return ::llc::eventWrapChild(output, type, payload); }
+::llc::err_t	lls::eventExtractCommand	(const ::llc::SEventSystem & input, SEViewCommand & output)				{ if_true_ve(::llc::OS_INVALID_PARAMETER, ::llc::SYSTEM_EVENT_Command != input.Type); return input.ExtractChild(output); }
+::llc::err_t	lls::eventExtractResult		(const ::llc::SEventSystem & input, SEViewResult & output)				{ if_true_ve(::llc::OS_INVALID_PARAMETER, ::llc::SYSTEM_EVENT_Runtime != input.Type); return input.ExtractChild(output); }
+::llc::err_t	lls::eventDeserialize		(::llc::vcu0_t input, ::llc::SEventSystem & output)						{ if_fail_fe(output.Load(input)); if_true_ve(::llc::OS_INVALID_PARAMETER, input.size()); return 0; }
+::llc::err_t	lls::eventSerialize			(const ::llc::SEventSystem & input, ::llc::au0_t & output)				{ output.clear(); return input.Save(output); }
 
 ::llc::err_t	lls::pipeServerCreate		(pipe_t & output) {
 	output				= 0;
@@ -118,28 +86,28 @@ namespace
 ::llc::err_t	lls::pipeWriteEvent			(pipe_t pipe, const ::llc::SEventSystem & eventToWrite) {
 	if_zero_ve(::llc::OS_INVALID_PARAMETER, pipe);
 	::llc::au0_t		payload		= {};
-	llc_necs(eventSerialize(eventToWrite, payload));
+	if_fail_fe(eventSerialize(eventToWrite, payload));
 	if_true_ve(::llc::OS_OVERRUN, payload.size() > FRAME_SIZE_MAX);
 
 	const SFrameHeader	header		= {FRAME_MAGIC, PROTOCOL_VERSION, 0, payload.size()};
-	llc_necs(::pipeWriteBytes(::pipeHandle(pipe), &header, sizeof(header)));
+	if_fail_fe(::pipeWriteBytes(::pipeHandle(pipe), &header, sizeof(header)));
 	if(payload.size())
-		llc_necs(::pipeWriteBytes(::pipeHandle(pipe), payload.begin(), payload.size()));
+		if_fail_fe(::pipeWriteBytes(::pipeHandle(pipe), payload.begin(), payload.size()));
 	return 0;
 }
 
 ::llc::err_t	lls::pipeReadEvent			(pipe_t pipe, ::llc::SEventSystem & eventToRead) {
 	if_zero_ve(::llc::OS_INVALID_PARAMETER, pipe);
 	SFrameHeader		header			= {};
-	llc_necs(::pipeReadBytes(::pipeHandle(pipe), &header, sizeof(header)));
+	if_fail_fe(::pipeReadBytes(::pipeHandle(pipe), &header, sizeof(header)));
 	if_true_ve(::llc::OS_INVALID_PARAMETER, FRAME_MAGIC != header.Magic);
 	if_true_ve(::llc::OS_INVALID_PARAMETER, PROTOCOL_VERSION != header.Version);
 	if_true_ve(::llc::OS_OVERRUN, header.PayloadBytes > FRAME_SIZE_MAX);
 
 	::llc::au0_t		payload		= {};
-	llc_necs(payload.resize(header.PayloadBytes));
+	if_fail_fe(payload.resize(header.PayloadBytes));
 	if(header.PayloadBytes)
-		llc_necs(::pipeReadBytes(::pipeHandle(pipe), payload.begin(), header.PayloadBytes));
+		if_fail_fe(::pipeReadBytes(::pipeHandle(pipe), payload.begin(), header.PayloadBytes));
 	return eventDeserialize(payload, eventToRead);
 }
 

@@ -2,82 +2,64 @@
 
 #include "llc_runtime.h"
 
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-#include <cstring>
-
-sttc	::llc::err_t	lls_entry_point		(::llc::SRuntimeValues & runtimeValues);
-LLC_SYSTEM_OS_ENTRY_POINT(::lls_entry_point);
 
 LLC_USING_TYPEINT();
 LLC_USING_APOD();
 LLC_USING_VIEW();
 
-sttc	::llc::vcu0_t	bytesView			(const void * data, ::llc::u2_t byteCount) {
-	return {(const uint8_t*)data, byteCount};
-}
+sttc	llc::err_t	lls_entry_point		(llc::SRuntimeValues & runtimeValues);
+LLC_SYSTEM_OS_ENTRY_POINT(::lls_entry_point);
 
-sttc	::llc::vcu0_t	textView			(const char * text) {
-	return ::bytesView(text, (::llc::u2_t)::strlen(text));
-}
-
-sttc	::llc::err_t	llsProcessRequest	(const ::llc::SEventSystem & request, ::llc::SEventSystem & response, ::lls::SServiceStatus & status, bool & stopRequested) {
+sttc	llc::err_t	llsProcessRequest	(const llc::SEventSystem & request, llc::SEventSystem & response, ::lls::SServiceStatus & status, bool & stopRequested) {
 	::lls::SEViewCommand	command		= {};
-	if_fail(::lls::eventExtractCommand(request, command))
-		return ::lls::eventMakeResult(response, ::lls::LLS_RESULT_Invalid_request, ::textView("Expected a system command event."));
+	if_fail_ve(::lls::eventMakeResult(response, ::lls::LLS_RESULT_Invalid_request, vcst_t{"Expected a system command event."}), ::lls::eventExtractCommand(request, command)));
 
-	info_printf("Request #%llu: %s", status.RequestCount, ::llc::get_value_namep(command.Type));
+	info_printf("Request #%llu: %s", status.RequestCount, llc::get_value_namep(command.Type));
 	switch(command.Type) {
-	case ::lls::LLS_COMMAND_Ping:
-		return ::lls::eventMakeResult(response, ::lls::LLS_RESULT_Pong, command.Data);
-	case ::lls::LLS_COMMAND_Status:
-		return ::lls::eventMakeResult(response, ::lls::LLS_RESULT_Status, ::bytesView(&status, sizeof(status)));
+	default							: return ::lls::eventMakeResult(response, ::lls::LLS_RESULT_Invalid_request, vcst_t{"Unknown lls command."});
+	case ::lls::LLS_COMMAND_Ping	: return ::lls::eventMakeResult(response, ::lls::LLS_RESULT_Pong, command.Data);
+	case ::lls::LLS_COMMAND_Status	: return ::lls::eventMakeResult(response, ::lls::LLS_RESULT_Status, vcu0_t((u0_c*)&status, sizeof(status)));
 	case ::lls::LLS_COMMAND_Shutdown:
 		stopRequested	= true;
-		return ::lls::eventMakeResult(response, ::lls::LLS_RESULT_Shutting_down, ::textView("lls is shutting down."));
-	default:
-		return ::lls::eventMakeResult(response, ::lls::LLS_RESULT_Invalid_request, ::textView("Unknown lls command."));
+		return ::lls::eventMakeResult(response, ::lls::LLS_RESULT_Shutting_down, vcst_t{"lls is shutting down."});
 	}
 }
 
-sttc	::llc::err_t	lls_entry_point		(::llc::SRuntimeValues & runtimeValues) {
+sttc	llc::err_t	lls_entry_point		(llc::SRuntimeValues & runtimeValues) {
 	(void)runtimeValues;
 	::lls::pipe_t			serverPipe		= 0;
 	llc_necs(::lls::pipeServerCreate(serverPipe));
 
-	const ::llc::u3_t		startedAt		= ::GetTickCount64();
+	const u3_t		startedAt		= ::GetTickCount64();
 	::lls::SServiceStatus	status			= {};
 	status.ProcessId						= ::GetCurrentProcessId();
 	info_printf("lls protocol %u listening at %s (pid %u).", status.ProtocolVersion, ::lls::PIPE_NAME, status.ProcessId);
 
-	bool					stopRequested	= false;
+	bool			stopRequested	= false;
+	llc::err_t		waitResult;
 	while(false == stopRequested) {
-		const ::llc::err_t	waitResult		= ::lls::pipeServerWait(serverPipe);
-		if(::llc::failed(waitResult)) {
-			error_printf("Failed while waiting for an lls client.");
-			::lls::pipeClose(serverPipe);
-			return waitResult;
-		}
+		if_fail_bef(waitResult = ::lls::pipeServerWait(serverPipe), "%s", "Failed while waiting for an lls client.");
 
-		::llc::SEventSystem	request			= {};
-		::llc::SEventSystem	response		= {};
-		const ::llc::err_t	readResult		= ::lls::pipeReadEvent(serverPipe, request);
-		if(::llc::failed(readResult)) {
-			error_printf("Failed to read an lls request.");
-			::lls::pipeServerDisconnect(serverPipe);
-			continue;
+		llc::SEventSystem		request			= {};
+		llc::SEventSystem		response		= {};
+		{
+			llc::err_t			readResult;
+			if_true_block_logf(error_printf, llc::failed(readResult = ::lls::pipeReadEvent(serverPipe, request)), {
+				if_fail_e(::lls::pipeServerDisconnect(serverPipe));
+				continue;
+				}, "%s", "Failed to read an lls request.");
 		}
-
 		++status.RequestCount;
-		status.UptimeMilliseconds			= ::GetTickCount64() - startedAt;
-		llc_necs(::llsProcessRequest(request, response, status, stopRequested));
-		const ::llc::err_t	writeResult		= ::lls::pipeWriteEvent(serverPipe, response);
-		if(::llc::failed(writeResult))
-			error_printf("Failed to write an lls response.");
-		::lls::pipeServerDisconnect(serverPipe);
-	}
+		status.UptimeMilliseconds = ::GetTickCount64() - startedAt; // Use llc::STimer instead of platform-specific GetTickCount64()
+		if_fail_ce(::llsProcessRequest(request, response, status, stopRequested), "%s", "Failed to process request. Skip to next");
+		{
 
-	::lls::pipeClose(serverPipe);
+			llc::err_t	writeResult;
+			if_fail_e(writeResult = ::lls::pipeWriteEvent(serverPipe, response),"Failed to write an lls response.");
+			if_fail_e(::lls::pipeServerDisconnect(serverPipe));
+		}
+	}
+	if_fail_e(::lls::pipeClose(serverPipe));
 	info_printf("lls stopped after %llu requests.", status.RequestCount);
-	return 0;
+	return waitResult;
 }
