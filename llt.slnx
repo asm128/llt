@@ -13,5 +13,18 @@
     <BuildDependency Project="../llc/llc/llc.vcxproj" />
     <BuildDependency Project="../zlib/contrib/vstudio/vc14/zlibvc.vcxproj" />
   </Project>
+  <Project Path="lls-l/lls-l.vcxproj" Id="a27d9742-43a4-4655-a036-bec01a953597">
+    <BuildDependency Project="../zlib/contrib/vstudio/vc14/zlibvc.vcxproj" />
+  </Project>
+  <Project Path="lls-t/lls-t.vcxproj" Id="ef01786b-db63-42ef-87d1-15f4241756f8">
+    <BuildDependency Project="../llc/llc/llc.vcxproj" />
+    <BuildDependency Project="../zlib/contrib/vstudio/vc14/zlibvc.vcxproj" />
+    <BuildDependency Project="lls-l/lls-l.vcxproj" />
+  </Project>
+  <Project Path="lls/lls.vcxproj" Id="93138bfd-026b-47e3-bd1c-1721b5174c7b">
+    <BuildDependency Project="../llc/llc/llc.vcxproj" />
+    <BuildDependency Project="../zlib/contrib/vstudio/vc14/zlibvc.vcxproj" />
+    <BuildDependency Project="lls-l/lls-l.vcxproj" />
+  </Project>
   <Project Path="llt/llt.vcxproj" Id="d03f5872-c7d1-413c-9c64-3c433340fdad" />
 </Solution>
