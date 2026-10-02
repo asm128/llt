@@ -175,7 +175,7 @@
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="lls-l.cpp" />
+    <ClCompile Include="lls-library.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="lls-l.h" />
