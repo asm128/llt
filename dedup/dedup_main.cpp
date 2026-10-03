@@ -257,43 +257,13 @@ sttc llc::err_t filterPathRoots(llc::aobj<llc::string> & output, llc::view<llc::
 	return filterPathRoots(output, views);
 }
 
-#include <filesystem>
-#include <string>
-
-sttc llc::err_t pathAbsolute
-	( llc::aobj<llc::string>  & outputPaths
-	, llc::vcst_c             & inputPath
-	, llc::sc_c               separatorChar = '/'
-	) {
-	if_zero_vw(1, inputPath.size());
-
-	std::string     text            (inputPath.begin(), inputPath.size());
-	sc_t            charToReplace   = ('/' == separatorChar) ? '\\' : '/';
-	for(char & character : text) {
-		if(character == charToReplace) 
-			character = separatorChar; 
-	}
-	try {
-		std::filesystem::path   absolutePath    = std::filesystem::absolute(text).lexically_normal();
-		u2_c                    rootLength      = (u2_t)absolutePath.root_path().generic_string().size();
-		text                = absolutePath.generic_string();
-		while(text.size() > rootLength && text.back() == separatorChar)
-			text.pop_back();
-	}
-	catch(const std::filesystem::filesystem_error & e) { 
-		error_printf("Failed to resolve path for \"%.*s\":\"%s\"", (int)inputPath.size(), inputPath.begin(), e.what());
-		return 1;
-	}
-	llc::err_t      index;
-	if_fail_fe(index = outputPaths.push_back({}));
-	llc::string     & normalized    = outputPaths[index];
-	if_fail_fe(llc::append_strings(normalized, llc::vcst_t{text.c_str(), (u2_t)text.size()}));
-	info_printf("Normalized path \"%.*s\" -> \"%.*s\"", (int)inputPath.size(), inputPath.begin(), (int)normalized.size(), normalized.begin());
-	return 0;
-}
-
 stin llc::err_t pathListAbsolute(llc::aobj<llc::string> & outputPaths, llc::view<const llc::vcst_t> inputs) {
-	return inputs.for_each([&outputPaths, inputs](const llc::vcst_t & input) { return pathAbsolute(outputPaths, input); });
+	return inputs.for_each([&outputPaths](const llc::vcst_t & input) {
+		llc::string		absolute;
+		if_fail_fe(::llc::pathAbsolute(input, absolute));
+		info_printf("Normalized path \"%.*s\" -> \"%.*s\"", (int)input.size(), input.begin(), (int)absolute.size(), absolute.begin());
+		return outputPaths.push_back(absolute);
+	});
 }
 
 sttc llc::err_t executeDedup(SDedupApp & appState) {
