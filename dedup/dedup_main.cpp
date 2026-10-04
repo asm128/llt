@@ -297,7 +297,7 @@ sttc llc::err_t executeDedup(SDedupApp & appState) {
 	//    });
 
 	if_fail_vi(1, llc::argsOptionValue(appState.CommandLineArgs, "move", appState.TargetFolder));
-	if_zero_fwf(appState.TargetFolder.size(), "-move requires a destination folder.");
+	if_zero_fwf(appState.TargetFolder.size(), "%s", "-move requires a destination folder.");
 	info_printf("\nTarget folder    : \"%s\"", appState.TargetFolder.begin());
 
 	for(const auto & pair : appState.ExactMatches) {
