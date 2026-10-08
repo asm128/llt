@@ -9,14 +9,14 @@ LLC_USING_TYPEINT();
 LLC_USING_APOD();
 LLC_USING_VIEW();
 
-stct SILCApp {
+stct SLLCBuildApp {
 	::llc::SCommandLineArgs	CommandLineArgs			= {};
 	::llc::vcst_t			SolutionPath			= {};
 	::llc::vcst_t			ProjectPath			= {};
 	::llc::SXMLFile			ProjectFile			= {};
 };
 
-sttc ::llc::err_t ilcDisplayHelp(cnst SILCApp & appState) {
+sttc ::llc::err_t ilcDisplayHelp(cnst SLLCBuildApp & appState) {
 	always_printf
 		( "Usage: %s [-platform=<platform>] [-configuration=<configuration>] <solution.sln|solution.slnx> <project.vcxproj>"
 		"\nResolves the selected project's OutDir and IntDir using the supplied solution and project paths."
@@ -25,10 +25,10 @@ sttc ::llc::err_t ilcDisplayHelp(cnst SILCApp & appState) {
 	rtrn 0;
 }
 
-sttc ::llc::err_t ilcBuild(SILCApp &) { rtrn 0; }
+sttc ::llc::err_t ilcBuild(SLLCBuildApp &) { rtrn 0; }
 
 sttc	::llc::err_t	ilc_entry_point		(::llc::SRuntimeValues & runtimeValues) {
-	SILCApp appState = {};
+	SLLCBuildApp appState = {};
 	appState.CommandLineArgs = runtimeValues.EntryPointArgs;
 	if(0 <= ::llc::argsOptionIndex(appState.CommandLineArgs, "help") || appState.CommandLineArgs.Positionals.size() < 2)
 		rtrn ::ilcDisplayHelp(appState);

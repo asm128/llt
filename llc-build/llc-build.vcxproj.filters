@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="ilc_main.cpp">
+    <ClCompile Include="llc-build.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
