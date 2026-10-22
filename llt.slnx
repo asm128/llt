@@ -1,5 +1,9 @@
 <Solution>
   <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Debug-MT" />
+    <BuildType Name="Release" />
+    <BuildType Name="Release-MT" />
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
@@ -16,9 +20,14 @@
   </Project>
   <Project Path="../llc/lrt/lrt.vcxproj" Id="a2acd1de-fa4c-4e69-b44b-397bd27d51ae">
     <BuildDependency Project="../llc/llc/llc.vcxproj" />
+    <BuildDependency Project="../llc/llc_engine/llc_engine.vcxproj" />
     <BuildDependency Project="../zlib/contrib/vstudio/vc14/zlibvc.vcxproj" />
   </Project>
-  <Project Path="../zlib/contrib/vstudio/vc14/zlibvc.vcxproj" Id="8fd826f8-3739-44e6-8cc8-997122e53b8d" />
+  <Project Path="../llc/llc_engine/llc_engine.vcxproj" Id="b29f5da4-47fd-496d-be49-9ff25ad28c00" />
+  <Project Path="../zlib/contrib/vstudio/vc14/zlibvc.vcxproj" Id="8fd826f8-3739-44e6-8cc8-997122e53b8d">
+    <BuildType Solution="Debug-MT|*" Project="Debug" />
+    <BuildType Solution="Release-MT|*" Project="Release" />
+  </Project>
   <Project Path="dedup/dedup.vcxproj" Id="46b43e22-f9b7-43bf-b6d5-234f4701ac57">
     <BuildDependency Project="../llc/llc/llc.vcxproj" />
     <BuildDependency Project="../zlib/contrib/vstudio/vc14/zlibvc.vcxproj" />
