@@ -3,7 +3,7 @@
 #include "llc_xml_reader.h"
 
 sttc	::llc::err_t	ilc_entry_point		(::llc::SRuntimeValues & runtimeValues);
-LLC_SYSTEM_OS_ENTRY_POINT(::ilc_entry_point);
+LLC_OS_ENTRY_POINT(::ilc_entry_point);
 
 LLC_USING_TYPEINT();
 LLC_USING_APOD();

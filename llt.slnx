@@ -4,7 +4,7 @@
     <Platform Name="x86" />
   </Configurations>
   <Project Path="../llc/llc/llc.vcxproj" Id="830ab681-b788-47d4-9767-ba4e0792f682" />
-  <Project Path="../llc/llc_test_core/llc_test_core.vcxproj" Id="b3625f28-5c83-4b44-8260-1133b4186fc6">
+  <Project Path="../llc/llc_test_core/llc_test_core.vcxproj" Id="6ac63b34-f2af-481d-9f2f-d7336a272638">
     <BuildDependency Project="../llc/llc/llc.vcxproj" />
     <BuildDependency Project="../zlib/contrib/vstudio/vc14/zlibvc.vcxproj" />
   </Project>
@@ -17,12 +17,17 @@
     <BuildDependency Project="../llc/llc/llc.vcxproj" />
     <BuildDependency Project="../zlib/contrib/vstudio/vc14/zlibvc.vcxproj" />
   </Project>
+  <Project Path="llc_applock/llc_applock.vcxproj" Id="fadf1066-b23e-434a-91b7-5277e0d9bdd5">
+    <BuildDependency Project="../llc/llc/llc.vcxproj" />
+  </Project>
   <Project Path="llc_build/llc_build.vcxproj" Id="583eb508-17dc-40ad-b954-ea2bb402bdd3">
     <BuildDependency Project="../llc/llc/llc.vcxproj" />
     <BuildDependency Project="../zlib/contrib/vstudio/vc14/zlibvc.vcxproj" />
   </Project>
   <Project Path="lls-l/lls-l.vcxproj" Id="a27d9742-43a4-4655-a036-bec01a953597">
+    <BuildDependency Project="../llc/llc/llc.vcxproj" />
     <BuildDependency Project="../zlib/contrib/vstudio/vc14/zlibvc.vcxproj" />
+    <BuildDependency Project="llt/llt.vcxproj" />
   </Project>
   <Project Path="lls-t/lls-t.vcxproj" Id="ef01786b-db63-42ef-87d1-15f4241756f8">
     <BuildDependency Project="../llc/llc/llc.vcxproj" />
@@ -32,7 +37,7 @@
   <Project Path="lls/lls.vcxproj" Id="93138bfd-026b-47e3-bd1c-1721b5174c7b">
     <BuildDependency Project="../llc/llc/llc.vcxproj" />
     <BuildDependency Project="../zlib/contrib/vstudio/vc14/zlibvc.vcxproj" />
-    <BuildDependency Project="lls-l/lls-l.vcxproj" />
+    <BuildDependency Project="llt/llt.vcxproj" />
   </Project>
   <Project Path="llt/llt.vcxproj" Id="d03f5872-c7d1-413c-9c64-3c433340fdad">
     <BuildDependency Project="../llc/llc/llc.vcxproj" />

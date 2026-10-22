@@ -3,7 +3,7 @@
 #include "llc_runtime.h"
 
 sttc	::llc::err_t	ilc_entry_point		(::llc::SRuntimeValues & runtimeValues);
-LLC_SYSTEM_OS_ENTRY_POINT(::ilc_entry_point);
+LLC_OS_ENTRY_POINT(::ilc_entry_point);
 
 using FStreamRead	= ::llc::function<::llc::err_t(::llc::vu0_t)>;
 using FStreamWrite	= ::llc::function<::llc::err_t(::llc::vcu0_t)>;
@@ -23,15 +23,15 @@ sttc	::llc::err_t	ilcHost		(FStreamRead &, FStreamWrite &)							{ rtrn 0; }
 sttc	::llc::err_t	ilcJoin		(FStreamRead &, FStreamWrite &)							{ rtrn 0; }
 
 sttc	::llc::err_t	ilcConfigure	(cnst ::llc::SCommandLineArgs & arguments, SILCApp & appInstance) {
-	cnst bool host = 0 <= ::llc::argsOptionIndex(arguments, LLC_CXS("host"));
-	cnst bool join = 0 <= ::llc::argsOptionIndex(arguments, LLC_CXS("join"));
-	cnst bool tcp  = 0 <= ::llc::argsOptionIndex(arguments, LLC_CXS("tcp" ));
-	cnst bool udp  = 0 <= ::llc::argsOptionIndex(arguments, LLC_CXS("udp" ));
+	cnst bool host = 0 <= ::llc::argsOptionIndex(arguments, "host");
+	cnst bool join = 0 <= ::llc::argsOptionIndex(arguments, "join");
+	cnst bool tcp  = 0 <= ::llc::argsOptionIndex(arguments, "tcp" );
+	cnst bool udp  = 0 <= ::llc::argsOptionIndex(arguments, "udp" );
 	if_true_fef(host == join, "%s", "Choose either -host or -join.");
 	if_true_fef(tcp  == udp , "%s", "Choose either -tcp or -udp.");
 	appInstance.Host = host;
 	appInstance.Open = tcp ? ::ilcTCP : ::ilcUDP;
-	if_fail_fe(::llc::argsOptionValue(arguments, tcp ? LLC_CXS("tcp") : LLC_CXS("udp"), appInstance.Endpoint));
+	if_fail_fe(::llc::argsOptionValue(arguments, tcp ? "tcp" : "udp", appInstance.Endpoint));
 	rtrn 0;
 }
 

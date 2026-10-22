@@ -7,8 +7,7 @@ LLC_USING_APOD();
 LLC_USING_VIEW();
 
 sttc	llc::err_t	lls_terminal_entry_point		(llc::SRuntimeValues & runtimeValues);
-LLC_SYSTEM_OS_ENTRY_POINT(::lls_terminal_entry_point);
-
+LLC_OS_ENTRY_POINT(::lls_terminal_entry_point);
 
 sttc	llc::err_t	lls_terminal_entry_point		(llc::SRuntimeValues & runtimeValues) {
 	(void)runtimeValues;

@@ -7,13 +7,13 @@
 #include "llc_runtime.h"
 
 sttc	::llc::err_t	dedup_entry_point		(::llc::SRuntimeValues & runtimeValues);
-LLC_SYSTEM_OS_ENTRY_POINT(::dedup_entry_point);
+LLC_OS_ENTRY_POINT(::dedup_entry_point);
 
 LLC_USING_TYPEINT();
 LLC_USING_APOD();
 LLC_USING_VIEW();
 
-stxp llc::vcst_t                DEFAULT_TARGET_FOLDER       = LLC_CXS("./Duplicated");
+stxp llc::vcst_t                DEFAULT_TARGET_FOLDER       = "./Duplicated";
 stxp llc::minmax<u3_t>          DEFAULT_FILE_SIZE_RANGE     = {0x400 * 0x400 * 5, (u3_t)-1};
 
 struct SFileInfo {
@@ -323,15 +323,15 @@ sttc llc::err_t displayHelp(SDedupApp & appState) {
 	}
 	info_printf("\nHelp for command line options:");
 	for(const auto & option : appState.CommandLineArgs.Options) {
-		if(option.Key == LLC_CXS("help"))
+		if(option.Key == "help")
 			continue;
 
-			 if(option.Key == LLC_CXS("move")) info_printf("\n-%s: %s", option.Key.begin(), "[add -move instructions here");
-		else if(option.Key == LLC_CXS("file")) info_printf("\n-%s: %s", option.Key.begin(), "[add -file instructions here");
-		else if(option.Key == LLC_CXS("dump")) info_printf("\n-%s: %s", option.Key.begin(), "[add -dump instructions here");
-		else if(option.Key == LLC_CXS("scan")) info_printf("\n-%s: %s", option.Key.begin(), "[add -scan instructions here");
-		else if(option.Key == LLC_CXS("show")) info_printf("\n-%s: %s", option.Key.begin(), "[add -show instructions here");
-		else if(option.Key == LLC_CXS("wipe")) info_printf("\n-%s: %s", option.Key.begin(), "[add -wipe instructions here");
+			 if(option.Key == "move") info_printf("\n-%s: %s", option.Key.begin(), "[add -move instructions here");
+		else if(option.Key == "file") info_printf("\n-%s: %s", option.Key.begin(), "[add -file instructions here");
+		else if(option.Key == "dump") info_printf("\n-%s: %s", option.Key.begin(), "[add -dump instructions here");
+		else if(option.Key == "scan") info_printf("\n-%s: %s", option.Key.begin(), "[add -scan instructions here");
+		else if(option.Key == "show") info_printf("\n-%s: %s", option.Key.begin(), "[add -show instructions here");
+		else if(option.Key == "wipe") info_printf("\n-%s: %s", option.Key.begin(), "[add -wipe instructions here");
 	}
 	return 0;
 }
