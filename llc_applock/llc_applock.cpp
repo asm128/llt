@@ -72,8 +72,3 @@ int WINAPI app_blocker_entry_point(llc::SRuntimeValues & runtimeValues) {
 LLC_OS_ENTRY_POINT(app_blocker_entry_point);
 
 
-
-git clone https://github.com/asm128/gpk
-git clone https://github.com/asm128/gpk_data
-git clone https://github.com/asm128/gpk_games
-git clone https://github.com/asm128/zlib
