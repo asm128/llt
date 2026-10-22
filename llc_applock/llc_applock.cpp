@@ -4,7 +4,7 @@
 LLC_USING_TYPEINT();
 
 stxp llc::vcst_c	ROOT			= "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\";
-stxp llc::vcst_c	BLOCKED[]		= { "node.exe", "nodejs.exe", "python.exe", "python3.exe", "pythonw.exe", "python3w.exe", "py.exe", "pyw.exe", "pip.exe", "pip3.exe"};
+stxp llc::vcst_c	BLOCKED[]		= { "node.exe", "node-repl.exe", "node_repl.exe", "nodejs.exe", "python.exe", "python3.exe", "pythonw.exe", "python3w.exe", "py.exe", "pyw.exe", "pip.exe", "pip3.exe"};
 
 sttc llc::err_t		uninstallKeys	(llc::vcst_t keyPath, llc::vcst_t debugger) {
 	HKEY					key				= {};
