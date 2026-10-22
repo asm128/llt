@@ -6,6 +6,16 @@
   <Project Path="../llc/llc/llc.vcxproj" Id="830ab681-b788-47d4-9767-ba4e0792f682" />
   <Project Path="../llc/llc_test_core/llc_test_core.vcxproj" Id="6ac63b34-f2af-481d-9f2f-d7336a272638">
     <BuildDependency Project="../llc/llc/llc.vcxproj" />
+    <BuildDependency Project="../llc/lrt/lrt.vcxproj" />
+    <BuildDependency Project="../zlib/contrib/vstudio/vc14/zlibvc.vcxproj" />
+  </Project>
+  <Project Path="../llc/llc_test_module/llc_test_module.vcxproj" Id="d0cda2a4-f7af-4cbb-a43b-4b92d37e3e10">
+    <BuildDependency Project="../llc/llc/llc.vcxproj" />
+    <BuildDependency Project="../llc/lrt/lrt.vcxproj" />
+    <BuildDependency Project="../zlib/contrib/vstudio/vc14/zlibvc.vcxproj" />
+  </Project>
+  <Project Path="../llc/lrt/lrt.vcxproj" Id="a2acd1de-fa4c-4e69-b44b-397bd27d51ae">
+    <BuildDependency Project="../llc/llc/llc.vcxproj" />
     <BuildDependency Project="../zlib/contrib/vstudio/vc14/zlibvc.vcxproj" />
   </Project>
   <Project Path="../zlib/contrib/vstudio/vc14/zlibvc.vcxproj" Id="8fd826f8-3739-44e6-8cc8-997122e53b8d" />
@@ -15,10 +25,12 @@
   </Project>
   <Project Path="ilc/ilc.vcxproj" Id="70900e5b-ad95-483a-9842-dcaf0ea3aff9">
     <BuildDependency Project="../llc/llc/llc.vcxproj" />
+    <BuildDependency Project="../llc/lrt/lrt.vcxproj" />
     <BuildDependency Project="../zlib/contrib/vstudio/vc14/zlibvc.vcxproj" />
   </Project>
   <Project Path="llc_applock/llc_applock.vcxproj" Id="fadf1066-b23e-434a-91b7-5277e0d9bdd5">
     <BuildDependency Project="../llc/llc/llc.vcxproj" />
+    <BuildDependency Project="../zlib/contrib/vstudio/vc14/zlibvc.vcxproj" />
   </Project>
   <Project Path="llc_build/llc_build.vcxproj" Id="583eb508-17dc-40ad-b954-ea2bb402bdd3">
     <BuildDependency Project="../llc/llc/llc.vcxproj" />
@@ -36,8 +48,8 @@
   </Project>
   <Project Path="lls/lls.vcxproj" Id="93138bfd-026b-47e3-bd1c-1721b5174c7b">
     <BuildDependency Project="../llc/llc/llc.vcxproj" />
+    <BuildDependency Project="../llc/lrt/lrt.vcxproj" />
     <BuildDependency Project="../zlib/contrib/vstudio/vc14/zlibvc.vcxproj" />
-    <BuildDependency Project="llt/llt.vcxproj" />
   </Project>
   <Project Path="llt/llt.vcxproj" Id="d03f5872-c7d1-413c-9c64-3c433340fdad">
     <BuildDependency Project="../llc/llc/llc.vcxproj" />
