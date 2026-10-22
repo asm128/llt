@@ -43,7 +43,7 @@ sttc llc::err_t configure(bool installLocker) {
 	always_printf("%s Gatewatch's App Locker", installLocker ? "installing" : "uninstalling");
 
 	llc::astsc_t<4096>	executable = {};
-    if_zero_fef(FALSE == GetModuleFileName(nullptr, &executable[0], executable.size() - 1), "%i", GetLastError());
+    if_zero_fef(GetModuleFileName(nullptr, &executable[0], executable.size() - 1), "executable:\"%.*s\"->(%i)", LLC_VIEW_ARGS(executable), GetLastError());
 
     llc::string			keyPath, debugger;
     for (const auto name : BLOCKED) {
