@@ -1,4 +1,5 @@
 #include "llc_app_impl.h"
+#include "lls_app.h"
 #include "llc_cstdio.h"
 #include "llc_json_expression.h"
 #include "llc_mutex.h"
@@ -6,30 +7,9 @@
 #include "llc_stdstring.h"
 #include "llc_timer.h"
 #include "../lcp/lcp_help.h"
+#include "../lcp/lcp_tools.h"
 #include "../lcp/lcp_text.h"
 
-stct SBuildResult {
-	llc::err_t				Status		= {};
-	llc::u2_t				ExitCode	= {};
-	bool					ExitKnown	= {};
-};
-stct SBuildJob {
-	llc::string				Id, Request;
-	llc::vcst_t				State		= "queued";
-	llc::STimer				Timer;
-	SBuildResult			Result;
-};
-
-stct SApplication {
-	::llc::SJSONReader		Reader;
-	::llc::string			Request;
-	llc::aobj<SBuildJob>		Jobs;
-	llc::u2_t				NextJob		= {};
-	::llc::mutex			Lock;
-	::llc::err_t			WorkerResult	= {};
-	bool					Started			= {}, InputClosed = {}, Busy = {};
-	explicit SApplication(::llc::SRuntimeValues &) {}
-};
 LLC_DEFINE_APPLICATION_ENTRY_POINT(SApplication, "LT4 Limb System");
 
 sttc	::llc::err_t	llsWrite			(::llc::vcst_t message, FILE * stream = stdout) {
@@ -78,7 +58,7 @@ sttc llc::err_t llsStatus(cnst llc::SJSONReader & reader, llc::err_t id, SApplic
 	rtrn llsRespond(reader, id, body);
 }
 
-sttc	::llc::err_t	llsToolCall			(cnst ::llc::SJSONReader & reader, ::llc::err_t id, SBuildResult & outcome) {
+sttc	::llc::err_t	llsToolCall			(cnst ::llc::SJSONReader & reader, ::llc::err_t id, SBuildResult & outcome, SApplication & app, llc::u2_t jobIndex) {
 	::llc::vcst_t action = {}, msbuild = {};
 	if_fail_fe(::llc::jsonExpressionResolve("params.arguments.action", reader, 0, action));
 	if(action != "build" && action != "run") rtrn -1;
@@ -96,16 +76,29 @@ sttc	::llc::err_t	llsToolCall			(cnst ::llc::SJSONReader & reader, ::llc::err_t 
 	}
 	::llc::au0_t output = {};
 	::llc::u2_t exitCode = 0;
-	cnst ::llc::err_t status = build
-		? ::llc::SProcessManager{}.Execute(msbuild, command, {}, output, exitCode, {})
-		: ::llc::SProcessManager{}.Launch({}, command, {});
+	{
+		llc::lock_guard guard(app.Lock);
+		if_fail_fe(app.Jobs[jobIndex].Command.append(command));
+		++app.Revision;
+	}
+	cnst llc::err_t status = llsProcess(app, jobIndex, msbuild, command, build, output, exitCode);
+	{
+		llc::lock_guard guard(app.Lock);
+		if_fail_fe(app.Jobs[jobIndex].Output.append({(cnst llc::sc_t*)output.begin(), output.size()}));
+		++app.Revision;
+	}
 	outcome = {status, exitCode, build && llc::succeeded(status)};
 	if_fail_fe(::llsWrite({(cnst ::llc::sc_t*)output.begin(), output.size()}, stderr));
 	if_fail_fe(::llc::append_strings(result, "\"result\":{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"Visual Studio ", action, ": status ", ::llc::str(status), ", exit code ", ::llc::str(exitCode), ". Output is on stderr.\"}],\"isError\":", ::llc::b82vcs(::llc::failed(status) || 0 != exitCode), '}'));
+	{
+		llc::lock_guard guard(app.Lock);
+		if_fail_fe(app.Jobs[jobIndex].Response.append(result));
+	}
 	rtrn ::llsRespond(reader, id, result);
 }
 
 sttc	::llc::err_t	llsRequest			(::llc::SJSONReader & reader, ::llc::vcst_t request, SApplication * app = 0) {
+	if(app) { llc::lock_guard guard(app->Lock); ++app->Requests; }
 	if_fail_fe(reader.Reset());
 	if(::llc::failed(::llc::jsonParse(reader, request, ::llc::JSON_PARSE_STRICT)))
 		rtrn ::llsWrite("{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32700,\"message\":\"Parse error\"}}\n");
@@ -120,7 +113,7 @@ sttc	::llc::err_t	llsRequest			(::llc::SJSONReader & reader, ::llc::vcst_t reque
 	if("ping" == method)
 		rtrn ::llsRespond(reader, id, "\"result\":{\"resultType\":\"complete\"}");
 	if("tools/list" == method)
-		rtrn ::llsRespond(reader, id, "\"result\":{\"resultType\":\"complete\",\"tools\":[{\"name\":\"help\",\"title\":\"Help\",\"description\":\"Browse help indexes and command details by path. Empty path opens the root.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Full space-separated topic path, e.g. vs build or shell cmd. Omit for root.\"}},\"additionalProperties\":false}},{\"name\":\"status\",\"title\":\"Build status\",\"description\":\"Query an original vs request id without waiting for the worker. Returns queued/executing/completed, elapsedMs since acceptance, operation status and known child exitCode (otherwise null). Executing does not prove OS liveness or progress. Records last for this server session; use unique vs request ids.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"id\":{\"type\":[\"integer\",\"string\"],\"description\":\"Original vs JSON-RPC request id; not a PID.\"}},\"required\":[\"id\"],\"additionalProperties\":false}},{\"name\":\"vs\",\"title\":\"Visual Studio\",\"description\":\"Build one solution target with MSBuild or run the solution through devenv.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"action\":{\"type\":\"string\",\"enum\":[\"build\",\"run\"]},\"solution\":{\"type\":\"string\",\"description\":\"Solution path using forward slashes.\"},\"msbuild\":{\"type\":\"string\",\"description\":\"Full MSBuild executable path using forward slashes; required for build.\"},\"project\":{\"type\":\"string\",\"description\":\"MSBuild solution target name, including solution folders when applicable; required for build.\"},\"configuration\":{\"type\":\"string\",\"description\":\"Exact solution configuration such as Debug|x64; required for build.\"}},\"required\":[\"action\",\"solution\"],\"additionalProperties\":false}}],\"ttlMs\":3600000,\"cacheScope\":\"public\"}");
+		rtrn ::llsRespond(reader, id, lcpTools());
 	if("tools/call" == method) {
 		llc::vcst_t name;
 		if_fail_fe(llc::jsonExpressionResolve("params.name", reader, 0, name));
@@ -144,41 +137,77 @@ sttc	::llc::err_t	llsRequest			(::llc::SJSONReader & reader, ::llc::vcst_t reque
 			for(cnst SBuildJob & previous : app->Jobs)
 				if(job.Id == previous.Id)
 					rtrn llsRespond(reader, id, "\"error\":{\"code\":-32602,\"message\":\"Build request id already used in this server session.\"}");
-			rtrn app->Jobs.push_back(job);
+			if_fail_fe(app->Jobs.push_back(job));
+			++app->Revision;
+			rtrn 0;
 		}
 	}
 	rtrn ::llsRespond(reader, id, "\"error\":{\"code\":-32601,\"message\":\"Method not found\"}");
 }
 
+
+
 #ifdef _DEBUG
 sttc ::llc::err_t testSearch();
 #endif
-::llc::err_t setup(SApplication &) {
+::llc::err_t setup(SApplication & app) {
 	if_fail_fe(::llc::setupDefaultLogCallbacks());
+	cnst llc::err_t instance = llsDesktopStart();
+	if_fail_fe(instance);
+	if(instance) { app.Secondary = true; rtrn 0; }
+	if_fail_fe(lcpToolsLoad("lls_tools.json"));
+	if_fail_fe(helpLoad());
+	if_true_fe(setvbuf(stdin, 0, _IONBF, 0));
+	if_fail_fe(llsGUISetup(app));
+	if_fail_fe(llsDesktopAttach(app));
 #ifdef _DEBUG
 	if_fail_fe(::testSearch());
+	if_fail_fe(llsExplorerTest());
 #endif
 	rtrn 0;
 }
-::llc::err_t cleanup(SApplication & app) { rtrn app.WorkerResult; }
+::llc::err_t cleanup(SApplication & app) {
+	if_fail_fe(llsDesktopClose(app));
+	if(app.UI) {
+		if_fail_fe(llc::mainWindowDestroy((*app.UI).Framework.RootWindow));
+	}
+	rtrn app.WorkerResult;
+}
 
 ::llc::err_t update(SApplication & app, bool systemRequestedExit) {
+	if(app.Secondary) rtrn llc::APPLICATION_STATE_EXIT;
 	if(!app.Started) { app.Started = true; rtrn 0; } // Let lrt start draw before reading stdin.
+	app.Closing |= systemRequestedExit;
 	app.InputClosed |= systemRequestedExit;
+	if(app.UI) {
+		if_fail_fe(llsDesktopUpdate(app));
+		cnst llc::err_t guiResult = llsGUIUpdate(app);
+		if_fail_fe(guiResult);
+		if(guiResult) app.Closing = app.InputClosed = true;
+	}
 	{
 		::llc::lock_guard guard(app.Lock);
 		if_fail_fe(app.WorkerResult);
-		if(app.InputClosed && !app.Busy && app.NextJob == app.Jobs.size())
+		if(app.InputClosed && (!app.UI || app.Closing) && !app.Busy && app.NextJob == app.Jobs.size())
 			rtrn ::llc::APPLICATION_STATE_EXIT;
 	}
 	if(app.InputClosed) { ::llc::sleep(1); rtrn 0; }
-	for(int character; EOF != (character = fgetc(stdin));) {
-		if('\n' != character) {
-			if_fail_fe(app.Request.push_back((::llc::sc_t)character));
-			continue;
+	for(llc::u2_t read = 0; read < 4096; ++read) {
+		if(app.UI) {
+			cnst llc::err_t available = llsInputAvailable();
+			if_fail_fe(available);
+			if(!available) rtrn 0;
 		}
-		if_fail_fe(::llsRequest(app.Reader, app.Request, &app));
-		rtrn app.Request.clear();
+		cnst int character = fgetc(stdin);
+		if(character == EOF) break;
+		if('\n' != character) {
+			if_fail_fe(app.Request.push_back((llc::sc_t)character));
+		}
+		else {
+			if_fail_fe(llsRequest(app.Reader, app.Request, &app));
+			rtrn app.Request.clear();
+		}
+		if(read == 4095) rtrn 0;
 	}
 	if_true_ve(::llc::OS_ERROR, ferror(stdin));
 	app.InputClosed = true;
@@ -196,10 +225,10 @@ sttc ::llc::err_t testSearch();
 		if(app.NextJob < app.Jobs.size()) {
 			jobIndex = app.NextJob;
 			if_fail_fe(request.append(app.Jobs[jobIndex].Request));
-			if_fail_fe(app.Jobs[jobIndex].Request.clear());
 			++app.NextJob;
 			app.Jobs[jobIndex].State = "executing";
 			app.Busy = true;
+			++app.Revision;
 		}
 	}
 	if(0 == request.size()) {
@@ -211,7 +240,7 @@ sttc ::llc::err_t testSearch();
 	cnst llc::err_t id = llc::jsonObjectValueGet(reader, 0, "id");
 	if_fail_fe(id);
 	SBuildResult outcome;
-	llc::err_t result = llsToolCall(reader, id, outcome);
+	llc::err_t result = llsToolCall(reader, id, outcome, app, jobIndex);
 	if(llc::failed(result)) {
 		outcome.Status = result;
 		result = llsRespond(reader, id, "\"error\":{\"code\":-32603,\"message\":\"Build request failed; check stderr and status.\"}");
@@ -223,6 +252,7 @@ sttc ::llc::err_t testSearch();
 		app.Jobs[jobIndex].State = "completed";
 		app.WorkerResult = result;
 		app.Busy = false;
+		++app.Revision;
 	}
 	rtrn result;
 }
@@ -418,6 +448,46 @@ struct SSearchCache {
 	rtrn output.size();
 }
 
+llc::err_t llsHelpFind(llc::vcst_t query, llc::au2_t & matches) {
+	sttc llc::aobj<SWordIndices> titles, dictionary;
+	sttc llc::aobj<SItemViews> items;
+	sttc SSearchCache cache;
+	sttc llc::au2_t contents;
+	if(!items.size()) {
+		llc::aobj<llc::vcst_t> paths;
+		if_fail_fe(helpPaths(paths, true));
+		if_fail_fe(items.resize(paths.size()));
+		if_fail_fe(titles.resize(paths.size()));
+		if_fail_fe(dictionary.resize(paths.size()));
+		for(llc::u2_t i = 0; i < paths.size(); ++i) {
+			cnst llc::vcst_t page = help(paths[i], true);
+			llc::vcst_t title, body;
+			if_fail_fe(llc::split<llc::sc_c>('\n', page, title, body));
+			llc::vcst_t family = paths[i], child;
+			llc::split<llc::sc_c>(' ', paths[i], family, child);
+			if_fail_fe(llc::append_strings(titles[i].Text, paths[i], ' ', title, ' ', lcpToolTitle(family)));
+			if_fail_fe(llc::tolower(titles[i].Text));
+			if_fail_fe(titles[i].Indices.push_back(i));
+			if_fail_fe(dictionary[i].Text.append(body));
+			if_fail_fe(llc::tolower(dictionary[i].Text));
+			if_fail_fe(dictionary[i].Indices.push_back(i));
+		}
+	}
+	if(query.size()) {
+		// Keep catalog hierarchy within each tier: titles first, body-only matches last.
+		if_fail_fe(obeSearch(query, titles, items, matches, cache));
+		if_fail_fe(obeSearch(query, dictionary, items, contents, cache));
+		for(llc::u2_t id : contents)
+			if(matches.find(id) < 0) { if_fail_fe(matches.push_back(id)); }
+		rtrn matches.size();
+	}
+	if_fail_fe(matches.clear());
+	for(llc::u2_t i = 0; i < items.size(); ++i) {
+		if_fail_fe(matches.push_back(i));
+	}
+	rtrn matches.size();
+}
+
 #ifdef _DEBUG
 sttc ::llc::err_t testSearch() {
 	SItemViews items[3] = {};
@@ -450,7 +520,19 @@ sttc ::llc::err_t testSearch() {
 	if_true_fef(output.size(), "%s", "Empty dictionary produced matches.");
 	if_fail_fe(::obeSearch("mus", {}, {}, output, cache));
 	if_true_fef(output.size(), "%s", "Empty input produced matches.");
-	info_printf("Search tests: %u cases passed.", (::llc::u2_t)::llc::size(cases) + 2);
+	llc::aobj<llc::vcst_t> paths;
+	if_fail_fe(helpPaths(paths, true));
+	if_fail_fe(llsHelpFind("BuIlD", output));
+	if_true_fe(!output.size() || paths[output[0]] != "vs build");
+	if_fail_fe(llsHelpFind("visu", output));
+	bool foundBuild = false, foundRun = false;
+	for(llc::u2_t id : output) { foundBuild |= paths[id] == "vs build"; foundRun |= paths[id] == "vs run"; }
+	if_true_fe(!foundBuild || !foundRun);
+	for(llc::u2_t i = 0; i < output.size(); ++i)
+		for(llc::u2_t j = i + 1; j < output.size(); ++j) { if_true_fe(output[i] == output[j]); }
+	if_fail_fe(llsHelpFind({}, output));
+	if_true_fe(output.size() != paths.size());
+	info_printf("Search tests: %u cases and help title-priority checks passed.", (::llc::u2_t)::llc::size(cases) + 2);
 	rtrn 0;
 }
 #endif

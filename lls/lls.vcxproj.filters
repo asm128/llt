@@ -18,7 +18,15 @@
     <ClCompile Include="lls_main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="lls_gui.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="lls_gui_build.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="lls_explorer.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="lls_process.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="lls_desktop.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="..\lcp\lcp_help.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lcp\lcp_tools.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -26,8 +34,24 @@
     <ClInclude Include="..\lcp\lcp_help.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="lls_app.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="lls_gui.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="lls_gui_build.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="lls_explorer.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="..\lcp\lcp_tools.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\lcp\lcp_text.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lls_tools.json">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="lls_gui.json"><Filter>Resource Files</Filter></None>
+    <None Include="..\lcp\lcp_help.json">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

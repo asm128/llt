@@ -154,7 +154,7 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>../lls-l; ../../llc/llc;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)../llc/llc; </AdditionalIncludeDirectories>
       <WarningLevel>Level4</WarningLevel>
       <TreatWarningAsError>true</TreatWarningAsError>
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
@@ -176,7 +176,7 @@
       <PreprocessorDefinitions>LLC_AVOID_LOCAL_APPLICATION_MODEL_EXECUTABLE_RUNTIME;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>../lls-l; ../../llc/llc;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)../llc/llc; </AdditionalIncludeDirectories>
       <WarningLevel>Level4</WarningLevel>
       <TreatWarningAsError>true</TreatWarningAsError>
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
@@ -201,7 +201,7 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>../lls-l; ../../llc/llc;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)../llc/llc; </AdditionalIncludeDirectories>
       <WarningLevel>Level4</WarningLevel>
       <TreatWarningAsError>true</TreatWarningAsError>
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
@@ -225,7 +225,7 @@
       <PreprocessorDefinitions>LLC_AVOID_LOCAL_APPLICATION_MODEL_EXECUTABLE_RUNTIME;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>../lls-l; ../../llc/llc;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)../llc/llc; </AdditionalIncludeDirectories>
       <WarningLevel>Level4</WarningLevel>
       <TreatWarningAsError>true</TreatWarningAsError>
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
@@ -248,7 +248,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>../lls-l; ../../llc/llc;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)../llc/llc; </AdditionalIncludeDirectories>
       <WarningLevel>Level4</WarningLevel>
       <TreatWarningAsError>true</TreatWarningAsError>
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
@@ -270,7 +270,7 @@
       <PreprocessorDefinitions>LLC_AVOID_LOCAL_APPLICATION_MODEL_EXECUTABLE_RUNTIME;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>../lls-l; ../../llc/llc;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)../llc/llc; </AdditionalIncludeDirectories>
       <WarningLevel>Level4</WarningLevel>
       <TreatWarningAsError>true</TreatWarningAsError>
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
@@ -295,7 +295,7 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>../lls-l; ../../llc/llc;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)../llc/llc; </AdditionalIncludeDirectories>
       <WarningLevel>Level4</WarningLevel>
       <TreatWarningAsError>true</TreatWarningAsError>
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
@@ -319,7 +319,7 @@
       <PreprocessorDefinitions>LLC_AVOID_LOCAL_APPLICATION_MODEL_EXECUTABLE_RUNTIME;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>../lls-l; ../../llc/llc;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)../llc/llc; </AdditionalIncludeDirectories>
       <WarningLevel>Level4</WarningLevel>
       <TreatWarningAsError>true</TreatWarningAsError>
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
@@ -338,13 +338,34 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="lls_main.cpp" />
+    <ClCompile Include="lls_gui.cpp" />
+    <ClCompile Include="lls_gui_build.cpp" />
+    <ClCompile Include="lls_gui_surface.cpp" />
+    <ClCompile Include="lls_explorer.cpp" />
+    <ClCompile Include="lls_process.cpp" />
+    <ClCompile Include="lls_desktop.cpp" />
     <ClCompile Include="..\lcp\lcp_help.cpp" />
+    <ClCompile Include="..\lcp\lcp_tools.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\lcp\lcp_help.h" />
+    <ClInclude Include="lls_app.h" />
+    <ClInclude Include="lls_gui.h" />
+    <ClInclude Include="lls_gui_build.h" />
+    <ClInclude Include="lls_gui_surface.h" />
+    <ClInclude Include="lls_explorer.h" />
+    <ClInclude Include="..\lcp\lcp_tools.h" />
     <ClInclude Include="..\lcp\lcp_text.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="lls_tools.json" />
+    <None Include="lls_gui.json" />
+    <None Include="..\lcp\lcp_help.json" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Target Name="CopyLLSCatalogs" AfterTargets="Build">
+    <Copy SourceFiles="$(ProjectDir)lls_tools.json;$(ProjectDir)lls_gui.json;$(ProjectDir)..\lcp\lcp_help.json" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+  </Target>
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
 </Project>

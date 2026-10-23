@@ -1,0 +1,81 @@
+{
+  "resultType": "complete",
+  "tools": [
+    {
+      "name": "help",
+      "title": "Help",
+      "description": "Browse help indexes and command details by path. Empty path opens the root.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Full space-separated topic path, e.g. vs build or shell cmd. Omit for root."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "status",
+      "title": "Build status",
+      "description": "Query an original vs request id without waiting for the worker. Returns queued/executing/completed, elapsedMs since acceptance, operation status and known child exitCode (otherwise null). Executing does not prove OS liveness or progress. Records last for this server session; use unique vs request ids.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Original vs JSON-RPC request id; not a PID."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "vs",
+      "title": "Visual Studio",
+      "description": "Build one solution target with MSBuild or run the solution through devenv.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "build",
+              "run"
+            ]
+          },
+          "solution": {
+            "type": "string",
+            "description": "Solution path using forward slashes."
+          },
+          "msbuild": {
+            "type": "string",
+            "description": "Full MSBuild executable path using forward slashes; required for build."
+          },
+          "project": {
+            "type": "string",
+            "description": "MSBuild solution target name, including solution folders when applicable; required for build."
+          },
+          "configuration": {
+            "type": "string",
+            "description": "Exact solution configuration such as Debug|x64; required for build."
+          }
+        },
+        "required": [
+          "action",
+          "solution"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "ttlMs": 3600000,
+  "cacheScope": "public"
+}

@@ -1,0 +1,12 @@
+{
+  "tabs": [
+    { "title": "HELP", "value": 0 },
+    { "title": "ACTIVE PROCESSES", "value": 1 },
+    { "title": "QUEUE", "value": 2 },
+    { "title": "RESULTS", "value": 3 },
+    { "title": "EXPLORER", "value": 4 }
+  ],
+  "explorer": {
+    "root": "D:/enterprise"
+  }
+}
