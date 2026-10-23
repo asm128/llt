@@ -338,6 +338,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="lls_main.cpp" />
+    <ClCompile Include="..\lcp\lcp_help.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\lcp\lcp_help.h" />
+    <ClInclude Include="..\lcp\lcp_text.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -4,11 +4,27 @@
 #include "llc_mutex.h"
 #include "llc_string_compose.h"
 #include "llc_stdstring.h"
+#include "llc_timer.h"
+#include "../lcp/lcp_help.h"
+#include "../lcp/lcp_text.h"
+
+stct SBuildResult {
+	llc::err_t				Status		= {};
+	llc::u2_t				ExitCode	= {};
+	bool					ExitKnown	= {};
+};
+stct SBuildJob {
+	llc::string				Id, Request;
+	llc::vcst_t				State		= "queued";
+	llc::STimer				Timer;
+	SBuildResult			Result;
+};
 
 stct SApplication {
 	::llc::SJSONReader		Reader;
 	::llc::string			Request;
-	::llc::aobj<::llc::string> Pending;
+	llc::aobj<SBuildJob>		Jobs;
+	llc::u2_t				NextJob		= {};
 	::llc::mutex			Lock;
 	::llc::err_t			WorkerResult	= {};
 	bool					Started			= {}, InputClosed = {}, Busy = {};
@@ -32,9 +48,40 @@ sttc	::llc::err_t	llsRespond			(cnst ::llc::SJSONReader & reader, ::llc::err_t i
 	rtrn ::llsWrite(response);
 }
 
-sttc	::llc::err_t	llsToolCall			(cnst ::llc::SJSONReader & reader, ::llc::err_t id) {
+sttc llc::err_t llsStatus(cnst llc::SJSONReader & reader, llc::err_t id, SApplication & app) {
+	cnst llc::err_t field = llc::jsonExpressionResolve("params.arguments.id", reader, 0);
+	if(field < 0)
+		rtrn llsRespond(reader, id, "\"error\":{\"code\":-32602,\"message\":\"Provide the original build request id.\"}");
+	llc::string target, body;
+	if_fail_fe(llc::jsonWrite(reader.Tree[(llc::u2_t)field], reader.View, target));
+	{
+		llc::lock_guard guard(app.Lock);
+		for(cnst SBuildJob & job : app.Jobs) {
+			if(target != job.Id) continue;
+			cnst bool completed = job.State == "completed";
+			llc::STimer timer = job.Timer;
+			if(!completed) timer.Frame();
+			if_fail_fe(llc::append_strings(body, "\"result\":{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"", job.State,
+				"\"}],\"structuredContent\":{\"id\":", job.Id, ",\"state\":\"", job.State, "\",\"elapsedMs\":", llc::str(timer.LastTimeMicroseconds / 1000),
+				",\"status\":"));
+			if(completed) { if_fail_fe(llc::append_strings(body, llc::str(job.Result.Status))); }
+			else { if_fail_fe(body.append("null")); }
+			if_fail_fe(body.append(",\"exitCode\":"));
+			if(completed && job.Result.ExitKnown) { if_fail_fe(llc::append_strings(body, llc::str(job.Result.ExitCode))); }
+			else { if_fail_fe(body.append("null")); }
+			if_fail_fe(body.append("},\"isError\":false}"));
+			break;
+		}
+	}
+	if(0 == body.size())
+		rtrn llsRespond(reader, id, "\"error\":{\"code\":-32602,\"message\":\"Unknown build request id in this server session.\"}");
+	rtrn llsRespond(reader, id, body);
+}
+
+sttc	::llc::err_t	llsToolCall			(cnst ::llc::SJSONReader & reader, ::llc::err_t id, SBuildResult & outcome) {
 	::llc::vcst_t action = {}, msbuild = {};
 	if_fail_fe(::llc::jsonExpressionResolve("params.arguments.action", reader, 0, action));
+	if(action != "build" && action != "run") rtrn -1;
 	cnst bool build = "build" == action;
 	::llc::string command = {}, result = {};
 	if_fail_fe(::llc::jsonStringFormat(build
@@ -52,6 +99,7 @@ sttc	::llc::err_t	llsToolCall			(cnst ::llc::SJSONReader & reader, ::llc::err_t 
 	cnst ::llc::err_t status = build
 		? ::llc::SProcessManager{}.Execute(msbuild, command, {}, output, exitCode, {})
 		: ::llc::SProcessManager{}.Launch({}, command, {});
+	outcome = {status, exitCode, build && llc::succeeded(status)};
 	if_fail_fe(::llsWrite({(cnst ::llc::sc_t*)output.begin(), output.size()}, stderr));
 	if_fail_fe(::llc::append_strings(result, "\"result\":{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"Visual Studio ", action, ": status ", ::llc::str(status), ", exit code ", ::llc::str(exitCode), ". Output is on stderr.\"}],\"isError\":", ::llc::b82vcs(::llc::failed(status) || 0 != exitCode), '}'));
 	rtrn ::llsRespond(reader, id, result);
@@ -72,18 +120,46 @@ sttc	::llc::err_t	llsRequest			(::llc::SJSONReader & reader, ::llc::vcst_t reque
 	if("ping" == method)
 		rtrn ::llsRespond(reader, id, "\"result\":{\"resultType\":\"complete\"}");
 	if("tools/list" == method)
-		rtrn ::llsRespond(reader, id, "\"result\":{\"resultType\":\"complete\",\"tools\":[{\"name\":\"vs\",\"title\":\"Visual Studio\",\"description\":\"Build one solution target with MSBuild or run the solution through devenv.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"action\":{\"type\":\"string\",\"enum\":[\"build\",\"run\"]},\"solution\":{\"type\":\"string\",\"description\":\"Solution path using forward slashes.\"},\"msbuild\":{\"type\":\"string\",\"description\":\"Full MSBuild executable path using forward slashes; required for build.\"},\"project\":{\"type\":\"string\",\"description\":\"MSBuild solution target name, including solution folders when applicable; required for build.\"},\"configuration\":{\"type\":\"string\",\"description\":\"Exact solution configuration such as Debug|x64; required for build.\"}},\"required\":[\"action\",\"solution\"],\"additionalProperties\":false}}],\"ttlMs\":3600000,\"cacheScope\":\"public\"}");
+		rtrn ::llsRespond(reader, id, "\"result\":{\"resultType\":\"complete\",\"tools\":[{\"name\":\"help\",\"title\":\"Help\",\"description\":\"Browse help indexes and command details by path. Empty path opens the root.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Full space-separated topic path, e.g. vs build or shell cmd. Omit for root.\"}},\"additionalProperties\":false}},{\"name\":\"status\",\"title\":\"Build status\",\"description\":\"Query an original vs request id without waiting for the worker. Returns queued/executing/completed, elapsedMs since acceptance, operation status and known child exitCode (otherwise null). Executing does not prove OS liveness or progress. Records last for this server session; use unique vs request ids.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"id\":{\"type\":[\"integer\",\"string\"],\"description\":\"Original vs JSON-RPC request id; not a PID.\"}},\"required\":[\"id\"],\"additionalProperties\":false}},{\"name\":\"vs\",\"title\":\"Visual Studio\",\"description\":\"Build one solution target with MSBuild or run the solution through devenv.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"action\":{\"type\":\"string\",\"enum\":[\"build\",\"run\"]},\"solution\":{\"type\":\"string\",\"description\":\"Solution path using forward slashes.\"},\"msbuild\":{\"type\":\"string\",\"description\":\"Full MSBuild executable path using forward slashes; required for build.\"},\"project\":{\"type\":\"string\",\"description\":\"MSBuild solution target name, including solution folders when applicable; required for build.\"},\"configuration\":{\"type\":\"string\",\"description\":\"Exact solution configuration such as Debug|x64; required for build.\"}},\"required\":[\"action\",\"solution\"],\"additionalProperties\":false}}],\"ttlMs\":3600000,\"cacheScope\":\"public\"}");
 	if("tools/call" == method) {
-		if(app) {
-			::llc::lock_guard guard(app->Lock);
-			rtrn app->Pending.emplace_back(request);
+		llc::vcst_t name;
+		if_fail_fe(llc::jsonExpressionResolve("params.name", reader, 0, name));
+		if(name == "help") {
+			llc::vcst_t path;
+			cnst llc::err_t field = llc::jsonExpressionResolve("params.arguments.path", reader, 0);
+			cnst bool valid = field < 0 || llc::succeeded(llc::jsonObjectGetString(reader, (llc::u2_t)field, path));
+			cnst llc::vcst_t text = valid ? help(path, true) : llc::vcst_t{};
+			llc::string body;
+			if_fail_fe(lcpTextBody(body, text.size() ? text : llc::vcst_t{"Unknown help path or non-string path. Open help with an empty path for the index."}, !text.size()));
+			rtrn llsRespond(reader, id, body);
 		}
-		rtrn ::llsToolCall(reader, id);
+		if(name == "status" && app) rtrn llsStatus(reader, id, *app);
+		if(name != "vs" || !app)
+			rtrn llsRespond(reader, id, "\"error\":{\"code\":-32602,\"message\":\"Unknown tool.\"}");
+		SBuildJob job;
+		if_fail_fe(llc::jsonWrite(reader.Tree[(llc::u2_t)id], reader.View, job.Id));
+		if_fail_fe(job.Request.append(request));
+		{
+			llc::lock_guard guard(app->Lock);
+			for(cnst SBuildJob & previous : app->Jobs)
+				if(job.Id == previous.Id)
+					rtrn llsRespond(reader, id, "\"error\":{\"code\":-32602,\"message\":\"Build request id already used in this server session.\"}");
+			rtrn app->Jobs.push_back(job);
+		}
 	}
 	rtrn ::llsRespond(reader, id, "\"error\":{\"code\":-32601,\"message\":\"Method not found\"}");
 }
 
-::llc::err_t setup(SApplication &) { rtrn ::llc::setupDefaultLogCallbacks(); }
+#ifdef _DEBUG
+sttc ::llc::err_t testSearch();
+#endif
+::llc::err_t setup(SApplication &) {
+	if_fail_fe(::llc::setupDefaultLogCallbacks());
+#ifdef _DEBUG
+	if_fail_fe(::testSearch());
+#endif
+	rtrn 0;
+}
 ::llc::err_t cleanup(SApplication & app) { rtrn app.WorkerResult; }
 
 ::llc::err_t update(SApplication & app, bool systemRequestedExit) {
@@ -92,7 +168,7 @@ sttc	::llc::err_t	llsRequest			(::llc::SJSONReader & reader, ::llc::vcst_t reque
 	{
 		::llc::lock_guard guard(app.Lock);
 		if_fail_fe(app.WorkerResult);
-		if(app.InputClosed && !app.Busy && !app.Pending.size())
+		if(app.InputClosed && !app.Busy && app.NextJob == app.Jobs.size())
 			rtrn ::llc::APPLICATION_STATE_EXIT;
 	}
 	if(app.InputClosed) { ::llc::sleep(1); rtrn 0; }
@@ -114,11 +190,15 @@ sttc	::llc::err_t	llsRequest			(::llc::SJSONReader & reader, ::llc::vcst_t reque
 
 ::llc::err_t draw(SApplication & app) {
 	::llc::string request;
+	llc::u2_t jobIndex = 0;
 	{
 		::llc::lock_guard guard(app.Lock);
-		if(app.Pending.size()) {
-			if_fail_fe(request.append(app.Pending[0]));
-			if_fail_fe(app.Pending.remove(0));
+		if(app.NextJob < app.Jobs.size()) {
+			jobIndex = app.NextJob;
+			if_fail_fe(request.append(app.Jobs[jobIndex].Request));
+			if_fail_fe(app.Jobs[jobIndex].Request.clear());
+			++app.NextJob;
+			app.Jobs[jobIndex].State = "executing";
 			app.Busy = true;
 		}
 	}
@@ -127,9 +207,20 @@ sttc	::llc::err_t	llsRequest			(::llc::SJSONReader & reader, ::llc::vcst_t reque
 		rtrn 0;
 	}
 	::llc::SJSONReader reader;
-	cnst ::llc::err_t result = ::llsRequest(reader, request);
+	if_fail_fe(llc::jsonParse(reader, request, llc::JSON_PARSE_STRICT));
+	cnst llc::err_t id = llc::jsonObjectValueGet(reader, 0, "id");
+	if_fail_fe(id);
+	SBuildResult outcome;
+	llc::err_t result = llsToolCall(reader, id, outcome);
+	if(llc::failed(result)) {
+		outcome.Status = result;
+		result = llsRespond(reader, id, "\"error\":{\"code\":-32603,\"message\":\"Build request failed; check stderr and status.\"}");
+	}
 	{
 		::llc::lock_guard guard(app.Lock);
+		app.Jobs[jobIndex].Result = outcome;
+		app.Jobs[jobIndex].Timer.Frame();
+		app.Jobs[jobIndex].State = "completed";
 		app.WorkerResult = result;
 		app.Busy = false;
 	}
@@ -288,6 +379,81 @@ struct SWordIndices {
 	::llc::string			Text;
 	::llc::au2_t			Indices;
 };
+
+struct SSearchCache {
+	::llc::string				Query;
+	::llc::aobj<::llc::vcst_t>	Words;
+	::llc::au0_t				Matched;
+};
+
+// Indices address items; query and output storage must be separate from the cache.
+[[maybe_unused]] sttc ::llc::err_t obeSearch
+	( ::llc::vcst_t textToFind, ::llc::view<cnst SWordIndices> dictionary, ::llc::view<cnst SItemViews> items
+	, ::llc::au2_t & output, SSearchCache & cache, ::llc::s2_t selectedBarrio = -1
+	) {
+	if_fail_fe(output.clear());
+	if_fail_fe(cache.Words.clear());
+	if_fail_fe(cache.Query.clear());
+	if_fail_fe(cache.Query.append(textToFind));
+	if_fail_fe(::llc::tolower(cache.Query));
+	cnst ::llc::vcst_t query = cache.Query;
+	if_fail_fe(::llc::split(query, ' ', cache.Words));
+	if_fail_fe(cache.Matched.resize(items.size()));
+	cache.Matched.fill(0);
+	for(cnst SWordIndices & word : dictionary)
+		for(::llc::vcst_t toFind : cache.Words) {
+			if(0 > word.Text.find(toFind))
+				continue;
+			for(::llc::u2_t id : word.Indices)
+				cache.Matched[id] = 1;
+			break;
+		}
+	for(::llc::u2_t id = 0; id < items.size(); ++id) {
+		if(!cache.Matched[id])
+			continue;
+		if(selectedBarrio >= 0 && 0 > ::llc::find((::llc::u2_t)selectedBarrio, {items[id].Barrio.begin(), items[id].Barrio.size()}))
+			continue;
+		if_fail_fe(output.push_back(id));
+	}
+	rtrn output.size();
+}
+
+#ifdef _DEBUG
+sttc ::llc::err_t testSearch() {
+	SItemViews items[3] = {};
+	if_fail_fe(items[0].Barrio.push_back(0));
+	if_fail_fe(items[0].Barrio.push_back(1));
+	if_fail_fe(items[1].Barrio.push_back(1));
+	if_fail_fe(items[2].Barrio.push_back(0));
+	cnst SWordIndices dictionary[] = {{"museum", {2, 0}}, {"music", {1, 0}}, {"park", {2}}};
+	cnst struct { ::llc::vcst_t Query; ::llc::s2_t Barrio; ::llc::u2_t Expected[3], Count; } cases[] = {
+		{"MUS", -1, {0, 1, 2}, 3}, {"seu", -1, {0, 2}, 2},
+		{"park music", -1, {0, 1, 2}, 3}, {"mus mus", -1, {0, 1, 2}, 3},
+		{"  MUS   park ", -1, {0, 1, 2}, 3}, {"missing", -1, {}, 0},
+		{"", -1, {}, 0}, {"   ", -1, {}, 0},
+		{"mus", 0, {0, 2}, 2}, {"mus", 1, {0, 1}, 2},
+		{"mus", 99, {}, 0}, {"park", 1, {}, 0}, {"park", 0, {2}, 1},
+		{"mus\tpark", -1, {}, 0}, {"music", -1, {0, 1}, 2},
+	};
+	SSearchCache cache;
+	::llc::au2_t output;
+	for(cnst auto & test : cases) {
+		if_fail_fe(output.push_back(99)); // Every search replaces the previous result.
+		::llc::err_t count;
+		if_fail_fe(count = ::obeSearch(test.Query, dictionary, items, output, cache, test.Barrio));
+		if_true_fef(count != (::llc::err_t)test.Count || output.size() != test.Count, "Search '%.*s', barrio:%i, count:%i, expected:%u.", LLC_VIEW_ARGS(test.Query), test.Barrio, count, test.Count);
+		for(::llc::u2_t i = 0; i < test.Count; ++i) {
+			if_true_fef(output[i] != test.Expected[i], "Search '%.*s', result:%u, id:%u, expected:%u.", LLC_VIEW_ARGS(test.Query), i, output[i], test.Expected[i]);
+		}
+	}
+	if_fail_fe(::obeSearch("mus", {}, items, output, cache));
+	if_true_fef(output.size(), "%s", "Empty dictionary produced matches.");
+	if_fail_fe(::obeSearch("mus", {}, {}, output, cache));
+	if_true_fef(output.size(), "%s", "Empty input produced matches.");
+	info_printf("Search tests: %u cases passed.", (::llc::u2_t)::llc::size(cases) + 2);
+	rtrn 0;
+}
+#endif
 
 static	::llc::error_t	getWordDict			(const ::SItemViews & item, u2_t iItem, ::llc::aobj<::SWordIndices> & wordSet, ::llc::aobj<::llc::string> & cacheItemWords) {
 	if_fail_fe(::getWordList(item, cacheItemWords));
