@@ -1,7 +1,7 @@
 #include "llc_nn_internal.h"
 
 namespace {
- cnst llc::vcst_t Names[] = {"Adaline", "ART1", "BAM", "Boltzmann", "Backpropagation", "Counterpropagation", "Hopfield", "SOM"};
+ cnst llc::vcst_t Names[] = {"Adaline", "ART1", "BAM", "Boltzmann", "Backpropagation", "Counterpropagation", "Hopfield", "SOM", "Image painter"};
  cnst llc::vcst_t Descriptions[] = {
   "Digit recognition | input pixels | metric: maximum error",
   "Pattern clustering | resonating input | metric: winning class",
@@ -10,9 +10,10 @@ namespace {
   "Sunspot forecasting | input window | metric: test NMSE",
   "Rotation detection | input pixels | metric: angle in degrees",
   "Image recall | recalled pixels | metric: unchanged updates",
-  "Pole balancing | learned forces | metric: pole angle in degrees"
+  "Pole balancing | learned forces | metric: pole angle in degrees",
+  "Coordinates -> RGB | fit an image | metric: full-image RGB MSE"
  };
- cnst llc::vcst_t Reports[] = {"ADALINE.txt","ART1.txt","BAM.txt","BOLTZMAN.txt","BPN.txt","CPN.txt","HOPFIELD.txt","SOM.txt"};
+ cnst llc::vcst_t Reports[] = {"ADALINE.txt","ART1.txt","BAM.txt","BOLTZMAN.txt","BPN.txt","CPN.txt","HOPFIELD.txt","SOM.txt", ""};
 }
 llc::vcst_t llc::nnName(u2_t n) { return n < NN_COUNT ? Names[n] : vcst_t{}; }
 llc::vcst_t llc::nnDescription(u2_t n) { return n < NN_COUNT ? Descriptions[n] : vcst_t{}; }
@@ -26,13 +27,20 @@ llc::err_t llc::nnReset(SNN & run) {
  run.LayerUnits = {}; run.Activations = {}; run.ErrorTerms = {};
  run.Target = run.Prediction = run.SampleLoss = 0;
  run.WeightsBefore = {}; run.WeightChanges = {};
+ run.ImageSamples = run.ImagePass = 0; run.ImageCursor = run.ImageNeuron = 0; run.ImageMSE = 0;
  return 0;
 }
-llc::err_t llc::nnBegin(SNN & run, u2_t network) {
+llc::err_t llc::nnBegin(SNN & run, u2_t network, const SNNConfig & config) {
  if_true_fe(network >= NN_COUNT);
+ if_true_fe(!config.HiddenUnits || config.HiddenUnits > 32);
+ if_true_fe(!config.MapSize.x || config.MapSize.x > 25 || !config.MapSize.y || config.MapSize.y > 25);
+ if_true_fe(network != 4 && network != NN_IMAGE && config.HiddenUnits != 10);
+ if_true_fe(network != 7 && (config.MapSize.x != 25 || config.MapSize.y != 25));
+ const SNNConfig requested = config; // config may alias run.Config.
  if_fail_fe(nnReset(run));
+ run.Config = requested;
  run.Network = network;
- sttc err_t (*cnst create[])(SNN &) = {nnCreateAdaline,nnCreateArt1,nnCreateBam,nnCreateBoltzman,nnCreateBpn,nnCreateCpn,nnCreateHopfield,nnCreateSom};
+ sttc err_t (*cnst create[])(SNN &) = {nnCreateAdaline,nnCreateArt1,nnCreateBam,nnCreateBoltzman,nnCreateBpn,nnCreateCpn,nnCreateHopfield,nnCreateSom,nnCreateImage};
  run.Error = create[network](run);
  return run.Error;
 }

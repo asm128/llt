@@ -14,8 +14,8 @@ namespace llc {
    for(u2_t x = 0; x < run.WeightSize.x; ++x)
     run.Weights[y * run.WeightSize.x + x] = weights[y][x];
  }
- template<typename T> err_t nnCreate(SNN & run) {
-  T * state = new(std::nothrow) T{};
+ template<typename T, typename... TArgs> err_t nnCreate(SNN & run, const TArgs &... args) {
+  T * state = new(std::nothrow) T{args...};
   if_null_fe(state);
   run.State = state;
   run.Destroy = [](void * p) { delete (T*)p; };
@@ -43,4 +43,5 @@ namespace llc {
  err_t nnCreateCpn(SNN &);
  err_t nnCreateHopfield(SNN &);
  err_t nnCreateSom(SNN &);
+ err_t nnCreateImage(SNN &);
 }

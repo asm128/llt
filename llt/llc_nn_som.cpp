@@ -89,8 +89,8 @@ llc::f3_t RandomEqualREAL(llc::f3_t Low, llc::f3_t High)
  ******************************************************************************/
 
 
-#define ROWS          25
-#define COLS          25
+llc::s2_t ROWS = 25, COLS = 25;
+SState(const llc::SNNConfig & config) : ROWS((llc::s2_t)config.MapSize.y), COLS((llc::s2_t)config.MapSize.x) {}
 
 #define N             2
 #define C             (ROWS * COLS)
@@ -372,7 +372,11 @@ void TrainUnits(SNet* Net, llc::view<llc::f3_t> argInput, llc::view<llc::f3_t> a
 
 
 SNet Network = {};
-void Snapshot(llc::SNN & run) { llc::nnWeights(run, Network.OutputLayer->Weight); }
+void Snapshot(llc::SNN & run) {
+ llc::nnWeights(run, Network.OutputLayer->Weight);
+ run.Width = (llc::u2_t)COLS; run.Count = (llc::u2_t)C;
+ for(llc::u2_t i = 0; i < run.Count; ++i) run.Values[i] = Network.OutputLayer->Weight[0][i];
+}
 SPole LivePole = {};
 llc::s2_t Phase = 0, Trained = 0, Tick = 0, ReportRow = 0;
 llc::f3_t PreviousAngle = 0, CurrentAngle = 0;
@@ -425,16 +429,16 @@ llc::err_t Step(llc::SNN & run) {
   Phase = 1;
  } else {
   for(llc::s2_t c = 0; c < COLS; ++c) {
-   const auto i = ReportRow * ROWS + c;
+   const auto i = ReportRow * COLS + c;
    fprintf(f, "([%5.1f\xB0, %5.1f\xB0], %5.1fN)    ", Network.KohonenLayer->Weight[i][0], Network.KohonenLayer->Weight[i][1], Network.OutputLayer->Weight[0][i]);
   }
   fprintf(f, "\n"); ++ReportRow;
  }
  run.Width = COLS; run.Count = C; run.Metric = LivePole.w;
- for(llc::u2_t i = 0; i < C; ++i) run.Values[i] = Network.OutputLayer->Weight[0][i];
+ for(llc::u2_t i = 0; i < (llc::u2_t)C; ++i) run.Values[i] = Network.OutputLayer->Weight[0][i];
  rtrn ReportRow == ROWS ? 1 : 0;
 }
 
 };
 } // namespace
-llc::err_t llc::nnCreateSom(SNN & run) { rtrn nnCreate<SState>(run); }
+llc::err_t llc::nnCreateSom(SNN & run) { rtrn nnCreate<SState>(run, run.Config); }

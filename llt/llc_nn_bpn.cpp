@@ -100,6 +100,13 @@ llc::f3_t RandomEqualREAL(llc::f3_t Low, llc::f3_t High)
 #define N             30
 #define M             1
 llc::astatic<llc::s2_t, NUM_LAYERS> Units =  {{N, 10, M}};
+bool ImageMode = false, Painting = true;
+llc::u2_t PaintCursor = 0, SincePaint = 0;
+llc::f3_t PaintError = 0;
+SState(const llc::SNNConfig & config, bool imageMode = false) : ImageMode(imageMode) {
+ Units[1] = (llc::s2_t)config.HiddenUnits;
+ if(ImageMode) { Units[0] = 2; Units[2] = 3; }
+}
 
 #define FIRST_YEAR    1700
 #define NUM_YEARS     280
@@ -466,7 +473,48 @@ void SimulateNet(SNet* Net, llc::view<llc::f3_t> argInput, llc::view<llc::f3_t> 
 
 
 SNet Network = {};
+llc::err_t ImageStep(llc::SNN & run) {
+ const auto size = run.ImageSource.metrics();
+ if_true_fe(!size.x || !size.y);
+ const llc::u2_t count = size.x * size.y;
+ const llc::u2_t budget = Painting ? llc::min(64U, count - PaintCursor) : 1U;
+ for(llc::u2_t unit = 0; unit < budget; ++unit) {
+  const llc::u2_t pixel = Painting ? PaintCursor++ : (llc::u2_t)RandomEqualINT(0, (llc::s2_t)count - 1);
+  const auto source = run.ImageSource.Texels[pixel];
+  llc::astatic<llc::f3_t, 2> coordinates = {{size.x > 1 ? 2.0 * (pixel % size.x) / (size.x - 1) - 1 : 0,
+   size.y > 1 ? 2.0 * (pixel / size.x) / (size.y - 1) - 1 : 0}};
+  llc::astatic<llc::f3_t, 3> target = {{source.r / 255.0, source.g / 255.0, source.b / 255.0}}, output = {};
+  SimulateNet(&Network, coordinates, output, target, !Painting);
+  if(!Painting) { ++run.ImageSamples; continue; }
+  llc::astatic<llc::u0_t, 3> rgb = {}, error = {}, influence = {};
+  for(llc::u2_t channel = 0; channel < 3; ++channel) {
+   const auto difference = output[channel] - target[channel];
+   PaintError += difference * difference;
+   rgb[channel] = (llc::u0_t)(255 * output[channel] + 0.5);
+   error[channel] = (llc::u0_t)(255 * llc::min(1.0, std::abs(difference) * 4));
+   // Exact output with this hidden neuron's weighted contribution removed, bias retained.
+   llc::f3_t sum = Network.OutputLayer->Weight[channel + 1][0];
+   for(llc::u2_t hidden = 1; hidden <= (llc::u2_t)Units[1]; ++hidden)
+    if(hidden != run.ImageNeuron + 1) sum += Network.OutputLayer->Weight[channel + 1][hidden] * Network.Layer[1]->Output[hidden];
+   const auto without = 1 / (1 + exp(-Network.Gain * sum));
+   influence[channel] = (llc::u0_t)(255 * llc::min(1.0, std::abs(output[channel] - without) * 4));
+  }
+  run.ImagePrediction.Texels[pixel] = {rgb[2], rgb[1], rgb[0], 255};
+  run.ImageError.Texels[pixel] = {error[2], error[1], error[0], 255};
+  run.ImageInfluence.Texels[pixel] = {influence[2], influence[1], influence[0], 255};
+ }
+ run.ImageCursor = PaintCursor;
+ if(Painting && PaintCursor == count) {
+  run.ImageMSE = run.Metric = PaintError / (3 * count);
+  ++run.ImagePass; Painting = false; SincePaint = 0;
+ } else if(!Painting && ++SincePaint >= 256) {
+  Painting = true; PaintCursor = 0; PaintError = 0;
+ }
+ rtrn 0;
+}
 void Snapshot(llc::SNN & run) {
+ run.Width = ImageMode ? 2 : 10; run.Count = (llc::u2_t)Units[0];
+ for(llc::u2_t i = 0; i < run.Count; ++i) run.Values[i] = Network.InputLayer->Output[i+1];
  llc::nnWeights(run, Network.Layer[1]->Weight);
  run.Inspected = Inspected; run.Training = LastTraining;
  run.Target = LastTarget; run.Prediction = Network.OutputLayer->Output[1]; run.SampleLoss = Network.Error;
@@ -484,9 +532,12 @@ llc::s2_t Phase = 0, Cursor = 0;
 llc::f3_t MinTestError = HUGE_VAL;
 bool FinalTest = false;
 llc::err_t Begin() {
- InitializeRandoms(); if_fail_fe(GenerateNetwork(&Network)); RandomWeights(&Network); rtrn InitializeApplication(&Network);
+ InitializeRandoms(); if_fail_fe(GenerateNetwork(&Network)); RandomWeights(&Network);
+ if(ImageMode) { Network.Eta = 0.05; rtrn 0; }
+ rtrn InitializeApplication(&Network);
 }
 llc::err_t Step(llc::SNN & run) {
+ if(ImageMode) rtrn ImageStep(run);
  llc::astatic<llc::f3_t, M> prediction = {}, closed = {};
  if(Phase == 0) {
   const auto year = RandomEqualINT(TRAIN_LWB, TRAIN_UPB);
@@ -524,4 +575,42 @@ llc::err_t Step(llc::SNN & run) {
 
 };
 } // namespace
-llc::err_t llc::nnCreateBpn(SNN & run) { rtrn nnCreate<SState>(run); }
+llc::err_t llc::nnCreateBpn(SNN & run) { rtrn nnCreate<SState>(run, run.Config); }
+llc::err_t llc::nnCreateImage(SNN & run) {
+ if(!run.ImageSource.size()) {
+  if_fail_fe(run.ImageSource.resize(n2u2_t{64, 64}));
+  for(u2_t y = 0; y < 64; ++y) for(u2_t x = 0; x < 64; ++x) {
+   const double dx = (x - 31.5) / 32, dy = (y - 31.5) / 32;
+   const double glow = exp(-5 * (dx * dx + dy * dy));
+   run.ImageSource[y][x] = {(u0_t)(220 * glow), (u0_t)(40 + 180 * y / 63), (u0_t)(40 + 180 * x / 63), 255};
+  }
+ }
+ for(auto * image : {&run.ImagePrediction, &run.ImageError, &run.ImageInfluence}) {
+  if_fail_fe(image->resize(run.ImageSource.metrics()));
+  if_fail_fe(image->View.fill(bgra{22, 18, 16, 255}));
+ }
+ rtrn nnCreate<SState>(run, run.Config, true);
+}
+llc::err_t llc::nnImageSource(SNN & run, gc8bgra source) {
+ if_true_fe(run.Network != NN_IMAGE || !source.metrics().x || !source.metrics().y || source.metrics().x > 64 || source.metrics().y > 64);
+ img8bgra copy;
+ if_fail_fe(copy.resize(source.metrics()));
+ for(u2_t i = 0; i < copy.size(); ++i) copy.Texels[i] = source.begin()[i];
+ if_fail_fe(run.ImageSource.resize(copy.metrics()));
+ for(u2_t i = 0; i < copy.size(); ++i) run.ImageSource.Texels[i] = copy.Texels[i];
+ rtrn nnBegin(run, NN_IMAGE, run.Config);
+}
+llc::err_t llc::nnImageInspect(SNN & run, u2_t neuron) {
+ if_true_fe(run.Network != NN_IMAGE || !run.State || neuron >= run.Config.HiddenUnits);
+ run.ImageNeuron = neuron;
+ SState & state = *(SState*)run.State;
+ state.Painting = true; state.PaintCursor = 0; state.PaintError = 0;
+ run.ImageCursor = 0;
+ rtrn run.ImageInfluence.View.fill(bgra{22, 18, 16, 255});
+}
+llc::err_t llc::nnImagePreview(SNN & run) {
+ if_true_fe(run.Network != NN_IMAGE || !run.State);
+ SState & state = *(SState*)run.State;
+ if(state.Painting) { if_fail_fe(state.ImageStep(run)); state.Snapshot(run); }
+ rtrn 0;
+}
