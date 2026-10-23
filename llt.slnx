@@ -67,4 +67,12 @@
     <BuildDependency Project="../llc/llc/llc.vcxproj" />
     <BuildDependency Project="../zlib/contrib/vstudio/vc14/zlibvc.vcxproj" />
   </Project>
+  <Project Path="llc_nn/llc_nn.vcxproj" Id="7b6cb4f2-7d40-40de-a9f2-b3281860f285">
+    <BuildDependency Project="llt/llt.vcxproj" />
+    <BuildDependency Project="../llc/llc/llc.vcxproj" />
+    <BuildDependency Project="../llc/llc_engine/llc_engine.vcxproj" />
+    <BuildDependency Project="../zlib/contrib/vstudio/vc14/zlibvc.vcxproj" />
+    <BuildType Solution="Debug-MT|*" Project="Debug" />
+    <BuildType Solution="Release-MT|*" Project="Release" />
+  </Project>
 </Solution>
