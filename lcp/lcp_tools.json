@@ -58,7 +58,7 @@
     {
       "name": "vs",
       "title": "Visual Studio",
-      "description": "Build one solution target with MSBuild or run the solution through devenv.",
+      "description": "Visual Studio command tree: build, launch, list, ping, close and restart. Open help path 'vs' for the index.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -66,12 +66,17 @@
             "type": "string",
             "enum": [
               "build",
+              "launch",
+              "list",
+              "ping",
+              "close",
+              "restart",
               "run"
             ]
           },
           "solution": {
             "type": "string",
-            "description": "Solution path using forward slashes."
+            "description": "Exact solution path; required for build/launch. Forward slashes."
           },
           "msbuild": {
             "type": "string",
@@ -79,16 +84,24 @@
           },
           "project": {
             "type": "string",
-            "description": "MSBuild solution target name, including solution folders when applicable; required for build."
+            "description": "Required for build/launch. Build: solution target. Launch: unique project name or DTE UniqueName."
           },
           "configuration": {
             "type": "string",
-            "description": "Exact solution configuration such as Debug|x64; required for build."
+            "description": "Exact solution Configuration|Platform; required for build/launch."
+          },
+          "instance": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "IDE process ID from vs list. Required for ping/close/restart; launch may select an existing instance."
+          },
+          "devenv": {
+            "type": "string",
+            "description": "Caller-supplied devenv.exe path to open a new IDE when launch omits instance. No installation-path guessing."
           }
         },
         "required": [
-          "action",
-          "solution"
+          "action"
         ],
         "additionalProperties": false
       }

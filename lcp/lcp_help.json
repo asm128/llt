@@ -8,7 +8,7 @@
       "Use the full space-separated path shown below. Empty path returns here.",
       "",
       "help  - How to navigate and call tools.",
-      "vs    - Visual Studio build/run actions.",
+      "vs    - Visual Studio command tree.",
       "tree  - Directory listing formats.",
       "shell - CMD, PowerShell and WSL.",
       "faq   - Common questions."
@@ -23,7 +23,7 @@
       "Use the full space-separated path shown below. Empty path returns here.",
       "",
       "help   - How to navigate and call tools.",
-      "vs     - Visual Studio build/run actions.",
+      "vs     - Visual Studio command tree.",
       "status - Inspect queued, executing and completed requests.",
       "desktop - Dashboard and read-only Explorer.",
       "faq    - Common questions."
@@ -78,13 +78,18 @@
     "path": "vs",
     "servers": 3,
     "lines": [
-      "vs - index",
-      "vs build - Build one project target through its solution.",
-      "vs run   - Launch the legacy solution startup-project route.",
+      "vs - Visual Studio command index",
+      "vs build   - Build a solution target using MSBuild.",
+      "vs launch  - Select a project/configuration and start through Visual Studio.",
+      "vs list    - List accessible Visual Studio IDE process IDs.",
+      "vs ping    - Inspect one IDE, its solution, configuration and state.",
+      "vs close   - Request a safe close of one idle, saved IDE.",
+      "vs restart - Close and reopen one idle, saved IDE (not the debuggee or LLS).",
+      "vs run     - Compatibility spelling of launch; explicit selection is required.",
       {
         "name": "help",
         "arguments": {
-          "path": "vs build"
+          "path": "vs launch"
         }
       },
       "Parent: <root> (empty path)."
@@ -113,7 +118,7 @@
       "Replace the example MSBuild path with the installed executable.",
       "Builds through the solution, preserving mappings and dependencies.",
       "Result: process-operation status and child exit code; nonzero exit is a build failure.",
-      "Output goes to stderr after capture; stdout contains protocol responses.",
+      "LCP returns captured output as text. LLS retains build output in Results and writes it to stderr.",
       "No build timeout or cancellation. LCP handles calls synchronously.",
       "LLS queues builds; use its status tool with the original request id while waiting.",
       "Parent: vs."
@@ -123,19 +128,9 @@
     "path": "vs run",
     "servers": 3,
     "lines": [
-      "vs run",
-      "Required: action=\"run\", solution.",
-      {
-        "name": "vs",
-        "arguments": {
-          "action": "run",
-          "solution": "D:/enterprise/programming_sciences/codebases/llb/llt/llt.slnx"
-        }
-      },
-      "Legacy route: devenv.exe /Run launches the solution startup project.",
-      "Requires devenv.exe on the process search path; may open Visual Studio.",
-      "Success means launched, NOT application completed. No captured application exit code.",
-      "Explicit executable selection and debugger-launch overrides are not implemented.",
+      "vs run - alias of vs launch",
+      "Uses the launch contract, including project and configuration. It no longer depends on the saved startup selection.",
+      "See help path: vs launch.",
       "Parent: vs."
     ]
   },
@@ -345,6 +340,110 @@
       "Are file-content search/index commands ready?",
       "No; this catalog only describes implemented tools.",
       "Parent: <root> (empty path)."
+    ]
+  },
+  {
+    "path": "vs list",
+    "servers": 3,
+    "lines": [
+      "vs list",
+      "Required: action=\"list\".",
+      {
+        "name": "vs",
+        "arguments": {
+          "action": "list"
+        }
+      },
+      "Returns accessible IDE process IDs, solution paths, active configuration and numeric debugger/build states.",
+      "Debugger: 1=design, 2=break, 3=running. Build: 1=not started, 2=building, 3=done.",
+      "An unavailable entry is not proof the IDE is stopped: it may be busy or inaccessible.",
+      "Discovery is limited to the current Windows session and access level.",
+      "Parent: vs."
+    ]
+  },
+  {
+    "path": "vs ping",
+    "servers": 3,
+    "lines": [
+      "vs ping",
+      "Required: action=\"ping\", instance (IDE process ID from list).",
+      {
+        "name": "vs",
+        "arguments": {
+          "action": "ping",
+          "instance": 1234
+        }
+      },
+      "Reports automation responsiveness and current IDE state, not application health or build success.",
+      "LLS handles list/ping outside its build queue.",
+      "Parent: vs."
+    ]
+  },
+  {
+    "path": "vs launch",
+    "servers": 3,
+    "lines": [
+      "vs launch",
+      "Required: action=\"launch\", solution, project, configuration; select instance OR supply devenv.",
+      {
+        "name": "vs",
+        "arguments": {
+          "action": "launch",
+          "instance": 1234,
+          "solution": "D:/enterprise/programming_sciences/codebases/llb/llt/llt.slnx",
+          "project": "lls",
+          "configuration": "Release-MT|x64"
+        }
+      },
+      "With instance: the requested solution must already be open in that IDE. A mismatched solution is never replaced.",
+      "Without instance: devenv is the full caller-supplied executable path. Opens a new IDE and waits up to 30 seconds for discovery/readiness.",
+      "Selects the existing solution configuration and startup project, then requests Debug.Start (F5).",
+      "Uses project debugger command, arguments, environment and working directory. Does not invent executable paths.",
+      "Refuses a currently building or debugging IDE. Ambiguous project names require the project UniqueName.",
+      "Launch requested is not proof that the application started or completed. Ping afterward.",
+      "If a newly opened IDE is not ready, it is left open; use list and launch with its instance. Do not blindly repeat without instance.",
+      "Parent: vs."
+    ]
+  },
+  {
+    "path": "vs close",
+    "servers": 3,
+    "lines": [
+      "vs close",
+      "Required: action=\"close\", instance (IDE process ID from list).",
+      {
+        "name": "vs",
+        "arguments": {
+          "action": "close",
+          "instance": 1234
+        }
+      },
+      "Requests Quit for exactly that IDE. Does not terminate its process forcibly.",
+      "Refuses active builds/debug sessions or unsaved solution, project or document state.",
+      "Save/discard work yourself first. Prompts or concurrent edits may still prevent closing.",
+      "Close requested is not proof of exit; use list/ping.",
+      "Parent: vs."
+    ]
+  },
+  {
+    "path": "vs restart",
+    "servers": 3,
+    "lines": [
+      "vs restart",
+      "Required: action=\"restart\", instance (IDE process ID from list).",
+      {
+        "name": "vs",
+        "arguments": {
+          "action": "restart",
+          "instance": 1234
+        }
+      },
+      "Restarts the Visual Studio IDE, NOT LLS, LRT or the application being debugged.",
+      "Same safety checks as close. Waits up to 15 seconds for the old IDE to exit before starting a replacement.",
+      "Reuses the selected IDE executable and solution. No application launch is requested.",
+      "Reports the new process ID. Use list/ping for readiness, then launch with explicit project/configuration.",
+      "If exit is blocked, no replacement is started. It never kills the IDE.",
+      "Parent: vs."
     ]
   }
 ]
