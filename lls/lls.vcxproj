@@ -346,6 +346,7 @@
     <ClCompile Include="lls_desktop.cpp" />
     <ClCompile Include="..\lcp\lcp_help.cpp" />
     <ClCompile Include="..\lcp\lcp_tools.cpp" />
+    <ClCompile Include="..\lcp\lcp_vs.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\lcp\lcp_help.h" />
@@ -355,6 +356,7 @@
     <ClInclude Include="lls_gui_surface.h" />
     <ClInclude Include="lls_explorer.h" />
     <ClInclude Include="..\lcp\lcp_tools.h" />
+    <ClInclude Include="..\lcp\lcp_vs.h" />
     <ClInclude Include="..\lcp\lcp_text.h" />
   </ItemGroup>
   <ItemGroup>

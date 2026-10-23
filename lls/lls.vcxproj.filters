@@ -26,6 +26,7 @@
     <ClCompile Include="..\lcp\lcp_help.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\lcp\lcp_vs.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="..\lcp\lcp_tools.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -38,6 +39,7 @@
     <ClInclude Include="lls_gui.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="lls_gui_build.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="lls_explorer.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="..\lcp\lcp_vs.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="..\lcp\lcp_tools.h">
       <Filter>Header Files</Filter>
     </ClInclude>

@@ -335,11 +335,13 @@
   <ItemGroup>
     <ClCompile Include="lcp_help.cpp" />
     <ClCompile Include="lcp_tools.cpp" />
+    <ClCompile Include="lcp_vs.cpp" />
     <ClCompile Include="lcp_main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="lcp_help.h" />
     <ClInclude Include="lcp_tools.h" />
+    <ClInclude Include="lcp_vs.h" />
     <ClInclude Include="lcp_text.h" />
   </ItemGroup>
   <ItemGroup>

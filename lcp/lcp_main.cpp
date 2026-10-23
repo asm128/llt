@@ -1,6 +1,7 @@
 #include "llc_runtime.h"
 #include "lcp_help.h"
 #include "lcp_tools.h"
+#include "lcp_vs.h"
 #include "lcp_text.h"
 #include "llc_process.h"
 #include "llc_path.h"
@@ -234,28 +235,9 @@ sttc	::llc::err_t	lcpToolCall			(cnst ::llc::SJSONReader & reader, ::llc::err_t 
 		rtrn lcpShellCall(reader, id, name);
 	if("vs" != name)
 		rtrn ::lcpRespond(reader, id, "\"error\":{\"code\":-32602,\"message\":\"Unknown tool. Call help for available commands.\"}");
-	::llc::vcst_t action = {}, msbuild = {};
-	if_fail_fe(::llc::jsonExpressionResolve("params.arguments.action", reader, 0, action));
-	cnst bool build = "build" == action;
-	::llc::string command = {}, result = {};
-	if_fail_fe(::llc::jsonStringFormat(build
-		? ::llc::vcst_t{"MSBuild.exe \"{params.arguments.solution}\" /t:\"{params.arguments.project}\""}
-		: ::llc::vcst_t{"devenv.exe /Run \"{params.arguments.solution}\""}, reader, 0, command));
-	if(build) {
-		if_fail_fe(::llc::jsonExpressionResolve("params.arguments.msbuild", reader, 0, msbuild));
-		::llc::vcst_t configuration = {}, platform = {};
-		if_fail_fe(::llc::jsonExpressionResolve("params.arguments.configuration", reader, 0, configuration));
-		if_fail_fe(::llc::split<::llc::sc_c>('|', configuration, configuration, platform));
-		if_fail_fe(::llc::append_strings(command, " /p:Configuration=\"", configuration, "\" /p:Platform=\"", platform, '"'));
-	}
-	::llc::au0_t output = {};
-	::llc::u2_t exitCode = 0;
-	cnst ::llc::err_t status = build
-		? ::llc::SProcessManager{}.Execute(msbuild, command, {}, output, exitCode, {})
-		: ::llc::SProcessManager{}.Launch({}, command, {});
-	if_fail_fe(::lcpWrite({(cnst ::llc::sc_t*)output.begin(), output.size()}, stderr));
-	if_fail_fe(::llc::append_strings(result, "\"result\":{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"Visual Studio ", action, ": status ", ::llc::str(status), ", exit code ", ::llc::str(exitCode), ". Output is on stderr.\"}],\"isError\":", ::llc::b82vcs(::llc::failed(status) || 0 != exitCode), '}'));
-	rtrn ::lcpRespond(reader, id, result);
+	llc::string body;
+	if_fail_fe(lcpVSCall(reader, body));
+	rtrn lcpRespond(reader, id, body);
 }
 
 sttc	::llc::err_t	lcpRequest			(::llc::SJSONReader & reader, ::llc::vcst_t request, ::llc::SPathTree & tree) {

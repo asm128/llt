@@ -8,6 +8,7 @@
 #include "llc_timer.h"
 #include "../lcp/lcp_help.h"
 #include "../lcp/lcp_tools.h"
+#include "../lcp/lcp_vs.h"
 #include "../lcp/lcp_text.h"
 
 LLC_DEFINE_APPLICATION_ENTRY_POINT(SApplication, "LT4 Limb System");
@@ -59,21 +60,17 @@ sttc llc::err_t llsStatus(cnst llc::SJSONReader & reader, llc::err_t id, SApplic
 }
 
 sttc	::llc::err_t	llsToolCall			(cnst ::llc::SJSONReader & reader, ::llc::err_t id, SBuildResult & outcome, SApplication & app, llc::u2_t jobIndex) {
-	::llc::vcst_t action = {}, msbuild = {};
-	if_fail_fe(::llc::jsonExpressionResolve("params.arguments.action", reader, 0, action));
-	if(action != "build" && action != "run") rtrn -1;
-	cnst bool build = "build" == action;
-	::llc::string command = {}, result = {};
-	if_fail_fe(::llc::jsonStringFormat(build
-		? ::llc::vcst_t{"MSBuild.exe \"{params.arguments.solution}\" /t:\"{params.arguments.project}\""}
-		: ::llc::vcst_t{"devenv.exe /Run \"{params.arguments.solution}\""}, reader, 0, command));
-	if(build) {
-		if_fail_fe(::llc::jsonExpressionResolve("params.arguments.msbuild", reader, 0, msbuild));
-		::llc::vcst_t configuration = {}, platform = {};
-		if_fail_fe(::llc::jsonExpressionResolve("params.arguments.configuration", reader, 0, configuration));
-		if_fail_fe(::llc::split<::llc::sc_c>('|', configuration, configuration, platform));
-		if_fail_fe(::llc::append_strings(command, " /p:Configuration=\"", configuration, "\" /p:Platform=\"", platform, '"'));
+	llc::vcst_t action;
+	if_fail_fe(llc::jsonExpressionResolve("params.arguments.action", reader, 0, action));
+	if(action != "build") {
+		llc::string body;
+		if_fail_fe(lcpVSCall(reader, body, &outcome.Status));
+		{ llc::lock_guard guard(app.Lock); if_fail_fe(app.Jobs[jobIndex].Response.append(body)); }
+		rtrn llsRespond(reader, id, body);
 	}
+	cnst bool build = true;
+	llc::string msbuild, command, result;
+	if_fail_fe(lcpVSBuildCommand(reader, msbuild, command));
 	::llc::au0_t output = {};
 	::llc::u2_t exitCode = 0;
 	{
@@ -127,6 +124,15 @@ sttc	::llc::err_t	llsRequest			(::llc::SJSONReader & reader, ::llc::vcst_t reque
 			rtrn llsRespond(reader, id, body);
 		}
 		if(name == "status" && app) rtrn llsStatus(reader, id, *app);
+		if(name == "vs") {
+			llc::vcst_t action;
+			if_fail_fe(llc::jsonExpressionResolve("params.arguments.action", reader, 0, action));
+			if(action == "list" || action == "ping") {
+				llc::string body;
+				if_fail_fe(lcpVSCall(reader, body));
+				rtrn llsRespond(reader, id, body);
+			}
+		}
 		if(name != "vs" || !app)
 			rtrn llsRespond(reader, id, "\"error\":{\"code\":-32602,\"message\":\"Unknown tool.\"}");
 		SBuildJob job;
