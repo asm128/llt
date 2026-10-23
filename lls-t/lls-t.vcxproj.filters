@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="lls-terminal.cpp">
+    <ClCompile Include="lls-t_main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
