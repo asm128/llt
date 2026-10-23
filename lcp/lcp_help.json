@@ -1,5 +1,92 @@
 [
   {
+    "path": "relay",
+    "servers": 3,
+    "lines": [
+      "relay - LCP to persistent LLS",
+      "Launch LCP with --service=Debug or --service=Release. Without this option, LCP runs commands locally.",
+      "Initialize, discovery and the combined tool catalog stay local so lls launch/status/shutdown/restart work while LLS is down.",
+      "Other tool calls and ping go to LLS. The help lls branch stays local.",
+      "Original JSON IDs are preserved and scoped to one connector connection. status uses that connector's job IDs.",
+      "Transport: recovered CGI/BRT handshake and LLC UDP packets, loopback only; Debug port 41998, Release port 41999.",
+      "Messages larger than 60 KiB use a temporary file; the packet carries its absolute path. No multipart encoding.",
+      "Files live in ../.lls-relay/Debug or Release relative to the executable directory. Both binaries must share the bundle parent.",
+      "Receiver deletes a file after reading; sender cleans its remaining files when the connection closes. A process crash may leave files behind.",
+      "This is a trusted local-user transport, not an authenticated or remote administration endpoint. Do not run LLS elevated.",
+      "Commands are not automatically replayed. On transport failure, inspect LLS Results before deciding to retry.",
+      "Parent: <root>."
+    ]
+  },
+  {
+    "path": "lls",
+    "servers": 1,
+    "lines": [
+      "lls - Direct service control (Windows)",
+      "lls launch   - Start LLS without Visual Studio.",
+      "lls status   - Inspect the Debug or Release instance.",
+      "lls shutdown - Finish queued work and exit.",
+      "lls restart  - Stop, wait for exit, then load the binary from disk.",
+      "Always specify configuration: Debug or Release. They have independent singleton identities.",
+      "Launch LCP with --service=Debug or --service=Release to relay tool calls. Lifecycle control remains local.",
+      "Parent: <root>."
+    ]
+  },
+  {
+    "path": "lls launch",
+    "servers": 1,
+    "lines": [
+      "lls launch - Direct launch",
+      "Required: action=launch, configuration, executable (full path).",
+      "Use lls.exe for standalone or lrt.exe to load lls.dll. No arbitrary arguments or installation discovery.",
+      "Working directory is the executable's directory; it must contain lls_tools.json and lcp_help.json, plus lls.dll for LRT.",
+      "Example: {\"name\":\"lls\",\"arguments\":{\"action\":\"launch\",\"configuration\":\"Release\",\"executable\":\"D:/enterprise/programming_sciences/codebases/llb/x64.Release-MT/lrt.exe\"}}",
+      "Existing instance: reports its PID without launching another. Starting/inaccessible/older instances report an error, not permission to duplicate them.",
+      "New host gets no inherited MCP handles or console window. Its dashboard remains available and it outlives LCP.",
+      "Waits up to 10 seconds for this process's LLS control interface. A readiness timeout leaves the process running and reports its PID; inspect before retrying.",
+      "Choose the executable for the requested configuration; a mismatched build cannot satisfy readiness.",
+      "No startup registration, output capture, or automatic launch at boot. Native paths use the existing Windows narrow-character boundary.",
+      "Parent: lls."
+    ]
+  },
+  {
+    "path": "lls status",
+    "servers": 1,
+    "lines": [
+      "lls status - Service presence",
+      "Example: {\"name\":\"lls\",\"arguments\":{\"action\":\"status\",\"configuration\":\"Release\"}}",
+      "Returns JSON text with running and pid. Running means the registered control window exists, not that a job is making progress.",
+      "A singleton without an accessible control window reports starting/inaccessible/older binary, not stopped. Windows desktop/session access restrictions remain in force.",
+      "Parent: lls."
+    ]
+  },
+  {
+    "path": "lls shutdown",
+    "servers": 1,
+    "lines": [
+      "lls shutdown - Graceful stop",
+      "Example: {\"name\":\"lls\",\"arguments\":{\"action\":\"shutdown\",\"configuration\":\"Debug\"}}",
+      "Uses the same shutdown path as the tray's Quit: stop accepting input and finish queued work.",
+      "Waits up to 30 seconds for process exit. Timeout reports shutdown pending; never force-kills a build or LLS.",
+      "Already stopped is a successful no-op. A higher-privilege instance may reject control from a lower-privilege connector.",
+      "Do not target an MCP-host-managed LLS expecting it to stay stopped: its owner may relaunch it. Prefer LCP-managed independent instances.",
+      "Parent: lls."
+    ]
+  },
+  {
+    "path": "lls restart",
+    "servers": 1,
+    "lines": [
+      "lls restart - Reload from disk by restarting the host",
+      "Required: action=restart, configuration, executable. Same path rules as launch; executable must match the running host.",
+      "Example: {\"name\":\"lls\",\"arguments\":{\"action\":\"restart\",\"configuration\":\"Release\",\"executable\":\"D:/enterprise/programming_sciences/codebases/llb/x64.Release-MT/lrt.exe\"}}",
+      "Validates paths before requesting shutdown, drains work, waits up to 30 seconds for actual exit, then starts the selected binary and checks readiness.",
+      "If exit times out, reports an error and does not start a replacement. Use status; retry after shutdown completes.",
+      "Stopped instance: starts it. LRT loads lls.dll from disk; no replacement DLL loader or Visual Studio is involved.",
+      "In-memory session history is reset. Debug and Release are controlled separately. Do not use concurrently with another host managing the same singleton.",
+      "Parent: lls."
+    ]
+  },
+  {
     "path": "",
     "servers": 1,
     "lines": [
@@ -8,9 +95,11 @@
       "Use the full space-separated path shown below. Empty path returns here.",
       "",
       "help  - How to navigate and call tools.",
+      "lls   - Launch, inspect, shut down or restart LLS directly.",
       "vs    - Visual Studio command tree.",
       "tree  - Directory listing formats.",
       "shell - CMD, PowerShell and WSL.",
+      "relay - LCP/service connection and large-message files.",
       "faq   - Common questions."
     ]
   },
@@ -26,6 +115,7 @@
       "vs     - Visual Studio command tree.",
       "status - Inspect queued, executing and completed requests.",
       "desktop - Dashboard and read-only Explorer.",
+      "relay - LCP/service connection and large-message files.",
       "faq    - Common questions."
     ]
   },
@@ -119,7 +209,7 @@
       "Builds through the solution, preserving mappings and dependencies.",
       "Result: process-operation status and child exit code; nonzero exit is a build failure.",
       "LCP returns captured output as text. LLS retains build output in Results and writes it to stderr.",
-      "No build timeout or cancellation. LCP handles calls synchronously.",
+      "LCP handles calls synchronously. Relay waits up to 30 minutes; timeout does not cancel work or replay commands.",
       "LLS queues builds; use its status tool with the original request id while waiting.",
       "Parent: vs."
     ]
@@ -160,7 +250,7 @@
   },
   {
     "path": "tree",
-    "servers": 1,
+    "servers": 3,
     "lines": [
       "tree - index",
       "Native directory scan; no shell or file-content reads.",
@@ -180,7 +270,7 @@
   },
   {
     "path": "tree ascii",
-    "servers": 1,
+    "servers": 3,
     "lines": [
       "tree ascii",
       "Required: path. Optional: files=false, maxDepth=32 (1..32), format=\"ascii\".",
@@ -202,7 +292,7 @@
   },
   {
     "path": "tree json",
-    "servers": 1,
+    "servers": 3,
     "lines": [
       "tree json",
       "Required: path, format=\"json\". Optional: files=false, maxDepth=32 (1..32).",
@@ -228,7 +318,7 @@
   },
   {
     "path": "shell",
-    "servers": 1,
+    "servers": 3,
     "lines": [
       "shell - index",
       "shell cmd        - Execute a CMD script.",
@@ -249,7 +339,7 @@
   },
   {
     "path": "shell cmd",
-    "servers": 1,
+    "servers": 3,
     "lines": [
       "shell cmd",
       "Tool name: cmd. Required: command (string). Optional: elevated=false.",
@@ -270,7 +360,7 @@
   },
   {
     "path": "shell powershell",
-    "servers": 1,
+    "servers": 3,
     "lines": [
       "shell powershell",
       "Tool name: powershell. Required: command (string). Optional: elevated=false.",
@@ -299,7 +389,7 @@
   },
   {
     "path": "shell wsl",
-    "servers": 1,
+    "servers": 3,
     "lines": [
       "shell wsl",
       "Tool name: wsl. Required: command (string).",

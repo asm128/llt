@@ -37,10 +37,12 @@ err_t invoke(IDispatch * object, cnst wchar_t * name, WORD flags, _variant_t & r
 	if_null_ve(E_POINTER, object);
 	DISPID member, put = DISPID_PROPERTYPUT;
 	LPOLESTR memberName = const_cast<LPOLESTR>(name);
-	if_fail_ve(E_FAIL, object->GetIDsOfNames(IID_NULL, &memberName, 1, LOCALE_USER_DEFAULT, &member));
+	HRESULT status = object->GetIDsOfNames(IID_NULL, &memberName, 1, LOCALE_USER_DEFAULT, &member);
+	if_fail_ve(status, status);
 	DISPPARAMS params = {args, flags == DISPATCH_PROPERTYPUT ? &put : 0, count, flags == DISPATCH_PROPERTYPUT ? 1U : 0U};
 	EXCEPINFO exception = {};
-	HRESULT status = object->Invoke(member, IID_NULL, LOCALE_USER_DEFAULT, flags, &params, &result, &exception, 0);
+	result.Clear();
+	status = object->Invoke(member, IID_NULL, LOCALE_USER_DEFAULT, flags, &params, &result, &exception, 0);
 	if(exception.pfnDeferredFillIn) exception.pfnDeferredFillIn(&exception);
 	SysFreeString(exception.bstrSource); SysFreeString(exception.bstrDescription); SysFreeString(exception.bstrHelpFile);
 	rtrn status;
@@ -55,7 +57,7 @@ err_t child(IDispatch * object, cnst wchar_t * name, Dispatch & result) {
 }
 err_t item(IDispatch * collection, long index, Dispatch & result) {
 	_variant_t argument(index), value;
-	if_fail_fe(invoke(collection, L"Item", DISPATCH_PROPERTYGET, value, &argument, 1));
+	if_fail_fe(invoke(collection, L"Item", DISPATCH_METHOD | DISPATCH_PROPERTYGET, value, &argument, 1));
 	if_true_ve(E_NOINTERFACE, value.vt != VT_DISPATCH || !value.pdispVal);
 	result = value.pdispVal;
 	rtrn 0;
@@ -139,7 +141,7 @@ err_t state(SInstance & instance, string & output) {
 	}
 	if_fail_fe(append_strings(output, "{\"instance\":", str(instance.PID), ",\"solution\":"));
 	if_fail_fe(lcpJSONString(output, solutionPath));
-	if_fail_fe(output.append(",\"configuration\":"));
+	if_fail_fe(output.append_string(",\"configuration\":"));
 	string configuration;
 	if(name.size()) { if_fail_fe(append_strings(configuration, name, '|', platform)); }
 	if_fail_fe(lcpJSONString(output, configuration));
@@ -265,8 +267,13 @@ err_t launch(IDispatch * dte, cnst SJSONReader & reader) {
 		if_fail_fe(findProject(project, wanted, projectName, matches));
 	}
 	if_true_vef(OS_NOT_FOUND, matches != 1, "%s", "Project must match exactly one name or UniqueName.");
-	_variant_t result, startup;
-	if_fail_fe(wide(projectName, startup));
+	_variant_t result, projectValue, startup;
+	if_fail_fe(wide(projectName, projectValue));
+	startup.vt = VT_ARRAY | VT_BSTR;
+	startup.parray = SafeArrayCreateVector(VT_BSTR, 0, 1);
+	if_null_ve(E_OUTOFMEMORY, startup.parray);
+	long first = 0;
+	if_fail_fe(SafeArrayPutElement(startup.parray, &first, projectValue.bstrVal));
 	if_fail_fe(invoke(selected, L"Activate", DISPATCH_METHOD, result));
 	if_fail_fe(invoke(build, L"StartupProjects", DISPATCH_PROPERTYPUT, result, &startup, 1));
 	_variant_t args[] = {_variant_t(L""), _variant_t(L"Debug.Start")};
@@ -277,10 +284,12 @@ err_t startIDE(vcst_t executable, vcst_t solution, u2_t & pid) {
 	if_fail_fe(append_strings(command, '"', executable, '"'));
 	if(solution.size()) { if_fail_fe(append_strings(command, " \"", solution, '"')); }
 	SProcessManager processes;
-	cnst err_t id = processes.Launch(executable, command, {});
+	cnst err_t id = processes.Create(executable, command, {});
 	if_fail_fe(id);
+	SProcessManager<>::TProcessScope scope{processes, (u2_t)id};
+	if_fail_fe(processes.Launch(id));
 	pid = processes.PlatformState[id].Info.Id;
-	rtrn processes.Close(id);
+	rtrn scope.Close();
 }
 err_t automation(cnst SJSONReader & reader, vcst_t action, string & text) {
 	SApartment apartment;
@@ -307,6 +316,7 @@ err_t automation(cnst SJSONReader & reader, vcst_t action, string & text) {
 		if_fail_fe(argument(reader, "params.arguments.project", project));
 		if_fail_fe(argument(reader, "params.arguments.configuration", configuration));
 		if_true_fe(!executable.size() || !solution.size() || !project.size() || !configuration.size());
+		for(u2_t i = 0; i < solution.size(); ++i) if(solution[i] == '/') solution[i] = '\\';
 		u2_t started = 0;
 		if_fail_fe(startIDE(executable, solution, started));
 		pid = started;
@@ -317,8 +327,11 @@ err_t automation(cnst SJSONReader & reader, vcst_t action, string & text) {
 			bool ready = false;
 			for(SInstance & candidate : available) {
 				if(candidate.PID != started) continue;
-				string snapshot;
-				ready = succeeded(state(candidate, snapshot));
+				Dispatch loaded;
+				string path;
+				ready = succeeded(child(candidate.DTE, L"Solution", loaded))
+					&& succeeded(propertyText(loaded, L"FullName", path))
+					&& _stricmp(path.begin(), solution.begin()) == 0;
 			}
 			if(ready) break;
 			Sleep(200);

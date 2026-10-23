@@ -11,7 +11,7 @@ llc::err_t lcpToolsLoad(llc::vcst_t fileName) {
 	if_fail_fe(llc::fileToMemory(fileName, file.Bytes));
 	if_fail_fe(llc::jsonParse(file.Reader, file.Bytes, llc::JSON_PARSE_STRICT));
 	if_fail_fe(Tools.clear());
-	if_fail_fe(Tools.append("\"result\":"));
+	if_fail_fe(Tools.append_string("\"result\":"));
 	cnst llc::err_t array = llc::jsonExpressionResolve("tools", file.Reader, 0);
 	if_fail_fe(array);
 	cnst llc::err_t count = llc::jsonArraySize(file.Reader, array);

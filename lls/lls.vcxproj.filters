@@ -36,6 +36,7 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="lls_app.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="lls_control.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="lls_gui.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="lls_gui_build.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="lls_explorer.h"><Filter>Header Files</Filter></ClInclude>
@@ -55,5 +56,11 @@
     <None Include="..\lcp\lcp_help.json">
       <Filter>Resource Files</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\lcp\lcp_relay.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="..\lcp\lcp_commands.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClInclude Include="..\lcp\lcp_relay.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="..\lcp\lcp_commands.h"><Filter>Header Files</Filter></ClInclude>
   </ItemGroup>
 </Project>

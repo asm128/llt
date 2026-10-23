@@ -163,7 +163,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
-      <AdditionalDependencies>llc.lib;</AdditionalDependencies>
+      <AdditionalDependencies>llc.lib;ws2_32.lib;</AdditionalDependencies>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
     <Manifest>
@@ -185,7 +185,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
-      <AdditionalDependencies>llc.lib;</AdditionalDependencies>
+      <AdditionalDependencies>llc.lib;ws2_32.lib;</AdditionalDependencies>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
     <Manifest>
@@ -209,7 +209,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
-      <AdditionalDependencies>llc.lib;</AdditionalDependencies>
+      <AdditionalDependencies>llc.lib;ws2_32.lib;</AdditionalDependencies>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
     <Manifest>
@@ -233,7 +233,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
-      <AdditionalDependencies>llc.lib;</AdditionalDependencies>
+      <AdditionalDependencies>llc.lib;ws2_32.lib;</AdditionalDependencies>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
     <Manifest>
@@ -255,7 +255,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
-      <AdditionalDependencies>llc.lib;</AdditionalDependencies>
+      <AdditionalDependencies>llc.lib;ws2_32.lib;</AdditionalDependencies>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
     <Manifest>
@@ -277,7 +277,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
-      <AdditionalDependencies>llc.lib;</AdditionalDependencies>
+      <AdditionalDependencies>llc.lib;ws2_32.lib;</AdditionalDependencies>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
     <Manifest>
@@ -301,7 +301,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
-      <AdditionalDependencies>llc.lib;</AdditionalDependencies>
+      <AdditionalDependencies>llc.lib;ws2_32.lib;</AdditionalDependencies>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
     <Manifest>
@@ -325,7 +325,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
-      <AdditionalDependencies>llc.lib;</AdditionalDependencies>
+      <AdditionalDependencies>llc.lib;ws2_32.lib;</AdditionalDependencies>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
     <Manifest>
@@ -336,17 +336,30 @@
     <ClCompile Include="lcp_help.cpp" />
     <ClCompile Include="lcp_tools.cpp" />
     <ClCompile Include="lcp_vs.cpp" />
+    <ClCompile Include="lcp_service.cpp" />
     <ClCompile Include="lcp_main.cpp" />
+    <ClCompile Include="lcp_relay.cpp" />
+    <ClCompile Include="lcp_commands.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="lcp_help.h" />
+    <ClInclude Include="lcp_relay.h" />
+    <ClInclude Include="lcp_commands.h" />
     <ClInclude Include="lcp_tools.h" />
     <ClInclude Include="lcp_vs.h" />
+    <ClInclude Include="lcp_service.h" />
+    <ClInclude Include="../lls/lls_control.h" />
     <ClInclude Include="lcp_text.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="lcp_tools.json" />
     <None Include="lcp_help.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\zlib\contrib\vstudio\vc14\zlibvc.vcxproj">
+      <Project>{8FD826F8-3739-44E6-8CC8-997122E53B8D}</Project>
+      <LinkLibraryDependencies>true</LinkLibraryDependencies>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <Target Name="CopyLCPCatalogs" AfterTargets="Build">

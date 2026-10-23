@@ -2,6 +2,42 @@
   "resultType": "complete",
   "tools": [
     {
+      "name": "lls",
+      "title": "LLS service",
+      "description": "Launch, inspect, gracefully shut down or restart LLS directly, without Visual Studio. Open help path 'lls'.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "launch",
+              "status",
+              "shutdown",
+              "restart"
+            ]
+          },
+          "configuration": {
+            "type": "string",
+            "enum": [
+              "Debug",
+              "Release"
+            ],
+            "description": "Explicit service instance; independent of this connector's build."
+          },
+          "executable": {
+            "type": "string",
+            "description": "Full lls.exe or lrt.exe path, required for launch/restart. Uses its directory for catalogs and lls.dll. Restart must match the running host path."
+          }
+        },
+        "required": [
+          "action",
+          "configuration"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
       "name": "tree",
       "title": "Directory tree",
       "description": "Scan a directory natively; return ASCII or compact JSON with file byte sizes. No shell or child process.",
@@ -166,6 +202,27 @@
         },
         "required": [
           "command"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "status",
+      "title": "Build status",
+      "description": "Query an original vs request id without waiting for the worker. Returns queued/executing/completed, elapsedMs since acceptance, operation status and known child exitCode (otherwise null). Executing does not prove OS liveness or progress. Records last for this server session; use unique vs request ids.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Original vs JSON-RPC request id; not a PID."
+          }
+        },
+        "required": [
+          "id"
         ],
         "additionalProperties": false
       }

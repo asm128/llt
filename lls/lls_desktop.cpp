@@ -1,4 +1,5 @@
 #include "lls_app.h"
+#include "lls_control.h"
 
 #ifdef LLC_WINDOWS
 #include <shellapi.h>
@@ -12,8 +13,8 @@ stct SDesktop {
 	HANDLE Instance = 0, Activate = 0;
 	WNDPROC Previous = 0;
 	NOTIFYICONDATAA Icon = {sizeof(NOTIFYICONDATAA)};
-	UINT TaskbarCreated = 0;
-	bool Added = false;
+	UINT TaskbarCreated = 0, Shutdown = 0;
+	bool Added = false, Published = false;
 	~SDesktop() { if(Activate) CloseHandle(Activate); if(Instance) CloseHandle(Instance); }
 } Desktop;
 
@@ -21,11 +22,11 @@ cnst UINT TrayMessage = WM_APP + 42;
 cnst UINT ToggleDashboard = 1001, Quit = 1002;
 cnst char AppProperty[] = "LLS.Application";
 #ifdef _DEBUG
-cnst char InstanceName[] = "Global\\LT4.LLS.Debug.Instance";
+cnst auto & Control = lls::ControlDebug;
 cnst char ActivateName[] = "Global\\LT4.LLS.Debug.Activate";
 cnst char WindowTitle[] = "LLS Debug - Session workspace";
 #else
-cnst char InstanceName[] = "Global\\LT4.LLS.Release.Instance";
+cnst auto & Control = lls::ControlRelease;
 cnst char ActivateName[] = "Global\\LT4.LLS.Release.Activate";
 cnst char WindowTitle[] = "LLS Release - Session workspace";
 #endif
@@ -35,8 +36,17 @@ void showDashboard(HWND window) {
 	SetForegroundWindow(window);
 }
 
+void requestShutdown(SApplication & app, HWND window) {
+	app.Closing = app.InputClosed = true;
+	SetWindowTextA(window, "LLS - Finishing queued work before exit");
+}
+
 LRESULT CALLBACK desktopWindow(HWND window, UINT message, WPARAM wparam, LPARAM lparam) {
 	auto * app = (SApplication*)GetPropA(window, AppProperty);
+	if(message == Desktop.Shutdown && Desktop.Shutdown && app) {
+		requestShutdown(*app, window);
+		rtrn 0;
+	}
 	if(message == WM_SHOWWINDOW && app) (*app->UI).Framework.RootWindow.NoDraw = !wparam;
 	if(message == WM_GETMINMAXINFO) {
 		auto & size = *(MINMAXINFO*)lparam;
@@ -58,8 +68,7 @@ LRESULT CALLBACK desktopWindow(HWND window, UINT message, WPARAM wparam, LPARAM 
 			rtrn 0;
 		}
 		if(LOWORD(wparam) == Quit && app) {
-			app->Closing = app->InputClosed = true;
-			SetWindowTextA(window, "LLS - Finishing queued work before exit");
+			requestShutdown(*app, window);
 			rtrn 0;
 		}
 	}
@@ -90,7 +99,7 @@ llc::err_t llsDesktopStart() {
 	// Access denied is an error, never permission to start a second service.
 	Desktop.Activate = CreateEventA(0, FALSE, FALSE, ActivateName);
 	if_null_ve(llc::OS_ERROR, Desktop.Activate);
-	Desktop.Instance = CreateMutexA(0, FALSE, InstanceName);
+	Desktop.Instance = CreateMutexA(0, FALSE, Control.Instance);
 	cnst DWORD status = GetLastError();
 	if_null_ve(llc::OS_ERROR, Desktop.Instance);
 	if(status == ERROR_ALREADY_EXISTS) {
@@ -115,10 +124,16 @@ llc::err_t llsDesktopAttach(SApplication & app) {
 	lstrcpynA(Desktop.Icon.szTip, WindowTitle, sizeof(Desktop.Icon.szTip));
 	Desktop.Added = Shell_NotifyIconA(NIM_ADD, &Desktop.Icon) != FALSE;
 	if_zero_ve(llc::OS_ERROR, Desktop.Added);
+	Desktop.Shutdown = RegisterWindowMessageA(lls::ShutdownMessage);
+	if_zero_ve(llc::OS_ERROR, Desktop.Shutdown);
 	rtrn 0;
 }
 
 llc::err_t llsDesktopUpdate(SApplication & app) {
+	if(!Desktop.Published) {
+		if_zero_ve(llc::OS_ERROR, SetPropA((*app.UI).Framework.RootWindow.PlatformDetail.WindowHandle, Control.Window, (HANDLE)1));
+		Desktop.Published = true;
+	}
 	if(WaitForSingleObject(Desktop.Activate, 0) == WAIT_OBJECT_0)
 		showDashboard((*app.UI).Framework.RootWindow.PlatformDetail.WindowHandle);
 	rtrn 0;
@@ -131,8 +146,10 @@ llc::err_t llsDesktopClose(SApplication & app) {
 		HWND window = (*app.UI).Framework.RootWindow.PlatformDetail.WindowHandle;
 		if(window && Desktop.Previous) SetWindowLongPtrA(window, GWLP_WNDPROC, (LONG_PTR)Desktop.Previous);
 		if(window) RemovePropA(window, AppProperty);
+		if(window) RemovePropA(window, Control.Window);
 	}
 	Desktop.Previous = 0;
+	Desktop.Published = false;
 	if(Desktop.Activate) { CloseHandle(Desktop.Activate); Desktop.Activate = 0; }
 	if(Desktop.Instance) { CloseHandle(Desktop.Instance); Desktop.Instance = 0; }
 	rtrn 0;

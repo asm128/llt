@@ -19,6 +19,7 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="lcp_vs.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="lcp_service.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="lcp_tools.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -31,6 +32,8 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="lcp_vs.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="lcp_service.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="../lls/lls_control.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="lcp_tools.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -45,5 +48,11 @@
     <None Include="lcp_help.json">
       <Filter>Resource Files</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="lcp_relay.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="lcp_commands.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClInclude Include="lcp_relay.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="lcp_commands.h"><Filter>Header Files</Filter></ClInclude>
   </ItemGroup>
 </Project>

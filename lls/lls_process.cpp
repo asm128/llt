@@ -26,16 +26,21 @@ llc::err_t llsInputAvailable() {
 #endif
 }
 
-llc::err_t llsProcess(SApplication & app, llc::u2_t jobIndex, llc::vcst_t application, llc::vcst_t command, bool build, llc::au0_t & output, llc::u2_t & exitCode) {
+llc::err_t llsProcess(SApplication & app, llc::u2_t jobIndex, llc::vcst_t application, llc::vcst_t command, bool capture, llc::au0_t & output, llc::u2_t & exitCode, llc::vcu0_t input) {
+	{
+		llc::lock_guard guard(app.Lock);
+		if_fail_fe(app.Jobs[jobIndex].Command.append(command));
+		++app.Revision;
+	}
 	llc::SProcessManager processes;
 	llc::u2_t flags = 0;
 #ifdef LLC_WINDOWS
-	if(build) flags = CREATE_NO_WINDOW;
+	if(capture) flags = CREATE_NO_WINDOW;
 #endif
 	cnst llc::err_t id = processes.Create(application, command, {}, flags);
 	if_fail_fe(id);
 	llc::SProcessManager<>::TProcessScope scope{processes, (llc::u2_t)id};
-	if(build) {
+	if(capture) {
 		if_fail_fe(processes.Redirect(id));
 	}
 	if_fail_fe(processes.Launch(id));
@@ -43,7 +48,7 @@ llc::err_t llsProcess(SApplication & app, llc::u2_t jobIndex, llc::vcst_t applic
 		llc::lock_guard guard(app.Lock);
 		SBuildJob & job = app.Jobs[jobIndex];
 		job.ProcessStarted = true;
-		job.Detached = !build;
+		job.Detached = !capture;
 #ifdef LLC_WINDOWS
 		job.PID = processes.PlatformState[id].Info.Id;
 #elif defined(LLC_LINUX)
@@ -51,12 +56,13 @@ llc::err_t llsProcess(SApplication & app, llc::u2_t jobIndex, llc::vcst_t applic
 #endif
 		++app.Revision;
 	}
-	if(build) {
-		// Builds receive no stdin: close the writer, drain output, then reap.
-		if_fail_fe(processes.Write(id, {}));
+	if(capture) {
+		// Close stdin after supplied input, drain output, then reap.
+		if_fail_fe(processes.Write(id, input));
 		if_fail_fe(processes.Read(id, output));
 		if_fail_fe(processes.Wait(id, exitCode));
 		llc::lock_guard guard(app.Lock);
+		if_fail_fe(app.Jobs[jobIndex].Output.append({(cnst char*)output.begin(), output.size()}));
 		app.Jobs[jobIndex].ProcessFinished = true;
 		++app.Revision;
 	}

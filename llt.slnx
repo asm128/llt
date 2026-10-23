@@ -56,6 +56,7 @@
     <BuildDependency Project="lls-l/lls-l.vcxproj" />
   </Project>
   <Project Path="lcp/lcp.vcxproj" Id="da6c5f6c-79d1-43b2-991e-4b8c3b9aef06">
+    <BuildDependency Project="../zlib/contrib/vstudio/vc14/zlibvc.vcxproj" />
     <BuildDependency Project="../llc/llc/llc.vcxproj" />
   </Project>
   <Project Path="lls/lls.vcxproj" Id="93138bfd-026b-47e3-bd1c-1721b5174c7b">

@@ -24,7 +24,7 @@ stin	::llc::err_t	lcpJSONString		(::llc::string & body, ::llc::vcst_t text) {
 
 
 stin llc::err_t lcpTextBody(llc::string & body, llc::vcst_t text, bool isError) {
-	if_fail_fe(body.append("\"result\":{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":"));
+	if_fail_fe(body.append_string("\"result\":{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":"));
 	if_fail_fe(lcpJSONString(body, text));
 	rtrn llc::append_strings(body, "}],\"isError\":", llc::b82vcs(isError), '}');
 }
