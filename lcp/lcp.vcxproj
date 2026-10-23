@@ -334,13 +334,22 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="lcp_help.cpp" />
+    <ClCompile Include="lcp_tools.cpp" />
     <ClCompile Include="lcp_main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="lcp_help.h" />
+    <ClInclude Include="lcp_tools.h" />
     <ClInclude Include="lcp_text.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="lcp_tools.json" />
+    <None Include="lcp_help.json" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Target Name="CopyLCPCatalogs" AfterTargets="Build">
+    <Copy SourceFiles="$(ProjectDir)lcp_tools.json;$(ProjectDir)lcp_help.json" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+  </Target>
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
 </Project>

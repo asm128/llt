@@ -1,5 +1,6 @@
 #include "llc_runtime.h"
 #include "lcp_help.h"
+#include "lcp_tools.h"
 #include "lcp_text.h"
 #include "llc_process.h"
 #include "llc_path.h"
@@ -151,33 +152,6 @@ sttc	::llc::err_t	lcpTreeCall			(cnst ::llc::SJSONReader & reader, ::llc::err_t 
 	rtrn ::lcpText(reader, id, output, incomplete);
 }
 
-sttc llc::err_t lcpShellString(llc::vcst_t & text, llc::string & cache) {
-	if(-1 == text.find('\\')) rtrn 0;
-	for(llc::u2_t i = 0; i < text.size(); ++i) {
-		llc::sc_t value = text[i];
-		if(value == '\\') {
-			if_true_fe(++i >= text.size());
-			value = text[i];
-			if(value == 'u') {
-				llc::u2_t codePoint;
-				if_fail_fe(llc::jsonToCodePoint({text.begin() + i + 1, text.size() - i - 1}, codePoint));
-				if_fail_fe(llc::utf8FromCodePoint(codePoint, cache));
-				i += codePoint > 0xFFFF ? 10 : 4;
-				continue;
-			}
-			switch(value) {
-			case 'b': value = '\b'; break; case 'f': value = '\f'; break;
-			case 'n': value = '\n'; break; case 'r': value = '\r'; break; case 't': value = '\t'; break;
-			case '"': case '\\': case '/': break;
-			default: rtrn -1;
-			}
-		}
-		if_fail_fe(cache.push_back(value));
-	}
-	text = cache;
-	rtrn 0;
-}
-
 sttc llc::err_t lcpShellCall(cnst llc::SJSONReader & reader, llc::err_t id, llc::vcst_t shell) {
 #ifndef LLC_WINDOWS
 	rtrn lcpText(reader, id, "These shell tools require a Windows host; wsl uses the installed WSL distribution.", true);
@@ -186,7 +160,7 @@ sttc llc::err_t lcpShellCall(cnst llc::SJSONReader & reader, llc::err_t id, llc:
 	if(llc::failed(llc::jsonExpressionResolve("params.arguments.command", reader, 0, script)))
 		rtrn lcpText(reader, id, "command is required.", true);
 	llc::string decoded;
-	if(llc::failed(lcpShellString(script, decoded)))
+	if(llc::failed(lcpStringDecode(script, decoded)))
 		rtrn lcpText(reader, id, "Cannot decode command string.", true);
 	if(script.size() && memchr(script.begin(), 0, script.size()))
 		rtrn lcpText(reader, id, "command cannot contain NUL.", true);
@@ -299,7 +273,7 @@ sttc	::llc::err_t	lcpRequest			(::llc::SJSONReader & reader, ::llc::vcst_t reque
 	if("ping" == method)
 		rtrn ::lcpRespond(reader, id, "\"result\":{\"resultType\":\"complete\"}");
 	if("tools/list" == method)
-		rtrn ::lcpRespond(reader, id, "\"result\":{\"resultType\":\"complete\",\"tools\":[{\"name\":\"tree\",\"title\":\"Directory tree\",\"description\":\"Scan a directory natively; return ASCII or compact JSON with file byte sizes. No shell or child process.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Directory path using forward slashes.\"},\"files\":{\"type\":\"boolean\",\"default\":false,\"description\":\"Include files, like DOS tree /F.\"},\"format\":{\"type\":\"string\",\"enum\":[\"ascii\",\"json\"],\"default\":\"ascii\",\"description\":\"JSON text contains root, columns, depth-first entries, truncated and incomplete.\"},\"maxDepth\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":32,\"default\":32,\"description\":\"Maximum directory levels to list; depth cutoffs are marked.\"}},\"required\":[\"path\"],\"additionalProperties\":false}},{\"name\":\"help\",\"title\":\"Help\",\"description\":\"Browse help indexes and command details by path. Empty path opens the root.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Full space-separated topic path, e.g. vs build or shell cmd. Omit for root.\"}},\"additionalProperties\":false}},{\"name\":\"vs\",\"title\":\"Visual Studio\",\"description\":\"Build one solution target with MSBuild or run the solution through devenv.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"action\":{\"type\":\"string\",\"enum\":[\"build\",\"run\"]},\"solution\":{\"type\":\"string\",\"description\":\"Solution path using forward slashes.\"},\"msbuild\":{\"type\":\"string\",\"description\":\"Full MSBuild executable path using forward slashes; required for build.\"},\"project\":{\"type\":\"string\",\"description\":\"MSBuild solution target name, including solution folders when applicable; required for build.\"},\"configuration\":{\"type\":\"string\",\"description\":\"Exact solution configuration such as Debug|x64; required for build.\"}},\"required\":[\"action\",\"solution\"],\"additionalProperties\":false}},{\"name\":\"cmd\",\"title\":\"Command Prompt\",\"description\":\"Execute caller-supplied cmd code. Optional elevation requests UAC; not a sandbox.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"command\":{\"type\":\"string\",\"description\":\"Shell command/script. Normal calls wait and return combined stdout/stderr and exit code.\"},\"elevated\":{\"type\":\"boolean\",\"default\":false,\"description\":\"Request Windows UAC elevation. Launch-only: no captured output or completion status.\"}},\"required\":[\"command\"],\"additionalProperties\":false}},{\"name\":\"powershell\",\"title\":\"PowerShell\",\"description\":\"Execute caller-supplied powershell code. Optional elevation requests UAC; not a sandbox.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"command\":{\"type\":\"string\",\"description\":\"Shell command/script. Normal calls wait and return combined stdout/stderr and exit code.\"},\"elevated\":{\"type\":\"boolean\",\"default\":false,\"description\":\"Request Windows UAC elevation. Launch-only: no captured output or completion status.\"}},\"required\":[\"command\"],\"additionalProperties\":false}},{\"name\":\"wsl\",\"title\":\"WSL Linux\",\"description\":\"Run /bin/sh in the installed default WSL distribution as its configured user. Does not install or convert WSL.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"command\":{\"type\":\"string\",\"description\":\"Shell command/script. Normal calls wait and return combined stdout/stderr and exit code.\"}},\"required\":[\"command\"],\"additionalProperties\":false}}],\"ttlMs\":3600000,\"cacheScope\":\"public\"}");
+		rtrn ::lcpRespond(reader, id, lcpTools());
 	if("tools/call" == method) {
 		rtrn ::lcpToolCall(reader, id, tree);
 	}
@@ -309,6 +283,8 @@ sttc	::llc::err_t	lcpRequest			(::llc::SJSONReader & reader, ::llc::vcst_t reque
 sttc ::llc::err_t lcp_entry_point(::llc::SRuntimeValues & runtimeValues) {
 	(void)runtimeValues;
 	if_fail_fe(::llc::setupDefaultLogCallbacks());
+	if_fail_fe(lcpToolsLoad("lcp_tools.json"));
+	if_fail_fe(helpLoad());
 	::llc::SJSONReader reader;
 	::llc::SPathTree tree;
 	::llc::string request;

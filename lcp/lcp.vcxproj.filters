@@ -18,6 +18,9 @@
     <ClCompile Include="lcp_help.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="lcp_tools.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="lcp_main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -26,8 +29,19 @@
     <ClInclude Include="lcp_help.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="lcp_tools.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="lcp_text.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="lcp_tools.json">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="lcp_help.json">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>
