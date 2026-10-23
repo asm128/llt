@@ -20,6 +20,15 @@ stct SDesktop {
 cnst UINT TrayMessage = WM_APP + 42;
 cnst UINT ToggleDashboard = 1001, Quit = 1002;
 cnst char AppProperty[] = "LLS.Application";
+#ifdef _DEBUG
+cnst char InstanceName[] = "Global\\LT4.LLS.Debug.Instance";
+cnst char ActivateName[] = "Global\\LT4.LLS.Debug.Activate";
+cnst char WindowTitle[] = "LLS Debug - Session workspace";
+#else
+cnst char InstanceName[] = "Global\\LT4.LLS.Release.Instance";
+cnst char ActivateName[] = "Global\\LT4.LLS.Release.Activate";
+cnst char WindowTitle[] = "LLS Release - Session workspace";
+#endif
 
 void showDashboard(HWND window) {
 	ShowWindow(window, SW_RESTORE);
@@ -79,9 +88,9 @@ LRESULT CALLBACK desktopWindow(HWND window, UINT message, WPARAM wparam, LPARAM 
 llc::err_t llsDesktopStart() {
 	// Global objects also exclude a second owner in another Windows session.
 	// Access denied is an error, never permission to start a second service.
-	Desktop.Activate = CreateEventA(0, FALSE, FALSE, "Global\\LT4.LLS.Activate");
+	Desktop.Activate = CreateEventA(0, FALSE, FALSE, ActivateName);
 	if_null_ve(llc::OS_ERROR, Desktop.Activate);
-	Desktop.Instance = CreateMutexA(0, FALSE, "Global\\LT4.LLS.Instance");
+	Desktop.Instance = CreateMutexA(0, FALSE, InstanceName);
 	cnst DWORD status = GetLastError();
 	if_null_ve(llc::OS_ERROR, Desktop.Instance);
 	if(status == ERROR_ALREADY_EXISTS) {
@@ -93,6 +102,7 @@ llc::err_t llsDesktopStart() {
 
 llc::err_t llsDesktopAttach(SApplication & app) {
 	HWND window = (*app.UI).Framework.RootWindow.PlatformDetail.WindowHandle;
+	SetWindowTextA(window, WindowTitle);
 	if_zero_ve(llc::OS_ERROR, SetPropA(window, AppProperty, &app));
 	Desktop.Previous = (WNDPROC)SetWindowLongPtrA(window, GWLP_WNDPROC, (LONG_PTR)desktopWindow);
 	if_null_ve(llc::OS_ERROR, Desktop.Previous);
@@ -102,7 +112,7 @@ llc::err_t llsDesktopAttach(SApplication & app) {
 	Desktop.Icon.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
 	Desktop.Icon.uCallbackMessage = TrayMessage;
 	Desktop.Icon.hIcon = LoadIconA(0, IDI_APPLICATION);
-	lstrcpynA(Desktop.Icon.szTip, "LLS - Session workspace", sizeof(Desktop.Icon.szTip));
+	lstrcpynA(Desktop.Icon.szTip, WindowTitle, sizeof(Desktop.Icon.szTip));
 	Desktop.Added = Shell_NotifyIconA(NIM_ADD, &Desktop.Icon) != FALSE;
 	if_zero_ve(llc::OS_ERROR, Desktop.Added);
 	rtrn 0;
