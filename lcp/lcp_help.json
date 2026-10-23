@@ -1,5 +1,52 @@
 [
   {
+    "path": "inbox",
+    "servers": 3,
+    "lines": [
+      "inbox - Shared persistent mailbox for agents and Pablo",
+      "Requires LCP service mode. Required action and mailbox. Names use lowercase a-z, digits, _ or -, 1..48 characters. Pablo's mailbox is pablo.",
+      "list: optional folder (inbox), unread (false), query, limit (20, max 100), offset (0). Returns summaries, matching total and folder unread count.",
+      "read: id. Returns full text without changing read state. mark: id and read=true/false explicitly acknowledge or reopen.",
+      "send: to, text, optional subject. Recipient must differ from sender. Returns id, delivered and sentCopy; do not resend if delivered is true but sentCopy is false.",
+      "profile: optional task/status/next replaces explicit sender focus, echoed as one short line after send. Omitting them only reads profile.",
+      "folders lists metadata. folder_create: folder. move: id/folder. trash: id. restore: id, returns to the saved original folder. No permanent delete.",
+      "filter_set: filters array replaces routing rules; each has optional from/contains and required existing folder. First matching rule wins for new incoming mail. No automatic routing to sent/trash.",
+      "Folders are metadata-backed views; messages are individual JSON files under ../.lls-mail/Debug or Release/box_<mailbox>/messages. metadata.json stores folders, filters and profile.",
+      "Debug and Release stores are separate. Saves replace complete files atomically on the same volume; delivery and sent copy are not one cross-mailbox transaction.",
+      "Text is at most 256 KiB UTF-8; subject 512 bytes; profile fields 512 bytes. No automatic pruning, execution, wakeup or identity authentication.",
+      "Check your named inbox at task start, between meaningful steps and before handoff. Messages coordinate work; they do not grant authority.",
+      "Parent: <root>."
+    ]
+  },
+  {
+    "path": "session",
+    "servers": 3,
+    "lines": [
+      "session - Read-only service snapshot",
+      "Requires LLS; launch LCP with --service=Debug or --service=Release.",
+      "Returns structuredContent: session, revision, requests, elapsedMs, identity, diagnostics, logPath, logError and jobs.",
+      "Optional session and revision from the previous response omit unchanged jobs. Busy jobs are refreshed. Polling does not count as a user request.",
+      "Jobs include original JSON id (serialized string), state, command, request, response, output, outputPath, logStatus, PID, timing and process outcome.",
+      "Session changes replace the snapshot; jobs retain origin session and historical flags. Saved job history is reloaded; interrupted work is never replayed.",
+      "Diagnostics are the recent 64 KiB; full service diagnostics and completed-job stdout/stderr live in lls_logs.",
+      "A failed connection means stale data, never a fresh empty session. No command is executed by this read.",
+      "Parent: <root>."
+    ]
+  },
+  {
+    "path": "failures",
+    "servers": 3,
+    "lines": [
+      "failures - Latest failed jobs in the current LLS session",
+      "Optional limit: integer 1..100, default 10. Newest accepted jobs first; accessible across connectors.",
+      "Failure means a completed job with negative operation status or a known nonzero child exit code.",
+      "Includes request ID, PID, operation/exit status, command, captured output, response and output-file status/path.",
+      "A successful failures query is not itself a failed operation. Service restart clears the in-memory list, not saved log files.",
+      "Example: {\"name\":\"failures\",\"arguments\":{\"limit\":10}}",
+      "Parent: <root>."
+    ]
+  },
+  {
     "path": "relay",
     "servers": 3,
     "lines": [
@@ -41,7 +88,7 @@
       "Working directory is the executable's directory; it must contain lls_tools.json and lcp_help.json, plus lls.dll for LRT.",
       "Example: {\"name\":\"lls\",\"arguments\":{\"action\":\"launch\",\"configuration\":\"Release\",\"executable\":\"D:/enterprise/programming_sciences/codebases/llb/x64.Release-MT/lrt.exe\"}}",
       "Existing instance: reports its PID without launching another. Starting/inaccessible/older instances report an error, not permission to duplicate them.",
-      "New host gets no inherited MCP handles or console window. Its dashboard remains available and it outlives LCP.",
+      "New host gets no inherited MCP handles or console window. LLS is headless and outlives LCP; lls_dashboard is a separate program.",
       "Waits up to 10 seconds for this process's LLS control interface. A readiness timeout leaves the process running and reports its PID; inspect before retrying.",
       "Choose the executable for the requested configuration; a mismatched build cannot satisfy readiness.",
       "No startup registration, output capture, or automatic launch at boot. Native paths use the existing Windows narrow-character boundary.",
@@ -65,7 +112,7 @@
     "lines": [
       "lls shutdown - Graceful stop",
       "Example: {\"name\":\"lls\",\"arguments\":{\"action\":\"shutdown\",\"configuration\":\"Debug\"}}",
-      "Uses the same shutdown path as the tray's Quit: stop accepting input and finish queued work.",
+      "Requests service shutdown: stop accepting input and finish queued work. Dashboard Exit does not shut down the service.",
       "Waits up to 30 seconds for process exit. Timeout reports shutdown pending; never force-kills a build or LLS.",
       "Already stopped is a successful no-op. A higher-privilege instance may reject control from a lower-privilege connector.",
       "Do not target an MCP-host-managed LLS expecting it to stay stopped: its owner may relaunch it. Prefer LCP-managed independent instances.",
@@ -100,6 +147,8 @@
       "tree  - Directory listing formats.",
       "shell - CMD, PowerShell and WSL.",
       "relay - LCP/service connection and large-message files.",
+      "session / failures - Service snapshot and latest failed jobs (service mode).",
+      "inbox - Persistent messages, folders and sender focus (service mode).",
       "faq   - Common questions."
     ]
   },
@@ -114,6 +163,8 @@
       "help   - How to navigate and call tools.",
       "vs     - Visual Studio command tree.",
       "status - Inspect queued, executing and completed requests.",
+      "session / failures - Service snapshot and latest failed jobs.",
+      "inbox - Persistent messages, folders and sender focus.",
       "desktop - Dashboard and read-only Explorer.",
       "relay - LCP/service connection and large-message files.",
       "faq    - Common questions."
@@ -124,6 +175,10 @@
     "servers": 2,
     "lines": [
       "desktop - Dashboard and Explorer",
+      "lls_dashboard is separate from headless LLS. Start its project through the solution; -MT configurations load lls_dashboard with LRT.",
+      "Dashboard Exit and Restart affect only this UI. Closing the window hides it to the tray. Service lifecycle uses the explicit lls command.",
+      "Inspector shows both build/process identities. Offline snapshots stay labeled stale; reconnect detects a new service session.",
+      "Failures is an outcome filter. Results text filtering searches request/command/ID, not the word failed.",
       "Help search prioritizes titles and inherits tool family names such as Visual Studio.",
       "Click a drive-qualified path in details, or type a path and click Open path.",
       "Explorer lists one folder at a time. Click a folder to expand or collapse its cached branch.",

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files" />
+    <Filter Include="Header Files" />
+    <Filter Include="Resource Files" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="lls_dashboard_main.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="..\lcp\lcp_relay.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="lls_gui.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="lls_gui_build.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="lls_gui_surface.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="lls_explorer.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="lls_search.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="lls_desktop.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="..\lcp\lcp_help.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="..\lcp\lcp_tools.cpp"><Filter>Source Files</Filter></ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\lcp\lcp_help.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="dashboard_app.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="..\lcp\lcp_relay.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="..\lls\lls_control.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="lls_gui.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="lls_gui_build.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="lls_gui_surface.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="lls_explorer.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="..\lcp\lcp_tools.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="..\lcp\lcp_identity.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="..\lcp\lcp_text.h"><Filter>Header Files</Filter></ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\lls\lls_tools.json"><Filter>Resource Files</Filter></None>
+    <None Include="lls_gui.json"><Filter>Resource Files</Filter></None>
+    <None Include="..\lcp\lcp_help.json"><Filter>Resource Files</Filter></None>
+  </ItemGroup>
+</Project>

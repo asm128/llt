@@ -27,5 +27,5 @@ llc::err_t relayConnect(SRelayPeer & peer, bool debug);
 llc::err_t relayPump(SRelayPeer & peer);
 llc::err_t relayQueue(SRelayPeer & peer, llc::vcst_t message);
 llc::err_t relayClose(SRelayPeer & peer);
-llc::err_t relayCall(SRelayPeer & peer, bool debug, llc::vcst_t request, llc::string & response);
+llc::err_t relayCall(SRelayPeer & peer, bool debug, llc::vcst_t request, llc::string & response, llc::u2_t timeoutMs = 1800000);
 #endif

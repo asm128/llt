@@ -1,5 +1,5 @@
-#include "lls_app.h"
-#include "lls_control.h"
+#include "dashboard_app.h"
+#include "../lls/lls_control.h"
 
 #ifdef LLC_WINDOWS
 #include <shellapi.h>
@@ -22,13 +22,13 @@ cnst UINT TrayMessage = WM_APP + 42;
 cnst UINT ToggleDashboard = 1001, Quit = 1002;
 cnst char AppProperty[] = "LLS.Application";
 #ifdef _DEBUG
-cnst auto & Control = lls::ControlDebug;
-cnst char ActivateName[] = "Global\\LT4.LLS.Debug.Activate";
-cnst char WindowTitle[] = "LLS Debug - Session workspace";
+cnst lls::SControlNames Control = {"Local\\LT4.Dashboard.Debug.Instance", "LT4.Dashboard.Debug.Control", ""};
+cnst char ActivateName[] = "Local\\LT4.Dashboard.Debug.Activate";
+cnst char WindowTitle[] = "LLS Dashboard Debug";
 #else
-cnst auto & Control = lls::ControlRelease;
-cnst char ActivateName[] = "Global\\LT4.LLS.Release.Activate";
-cnst char WindowTitle[] = "LLS Release - Session workspace";
+cnst lls::SControlNames Control = {"Local\\LT4.Dashboard.Release.Instance", "LT4.Dashboard.Release.Control", ""};
+cnst char ActivateName[] = "Local\\LT4.Dashboard.Release.Activate";
+cnst char WindowTitle[] = "LLS Dashboard Release";
 #endif
 
 void showDashboard(HWND window) {
@@ -37,8 +37,8 @@ void showDashboard(HWND window) {
 }
 
 void requestShutdown(SApplication & app, HWND window) {
-	app.Closing = app.InputClosed = true;
-	SetWindowTextA(window, "LLS - Finishing queued work before exit");
+	app.Closing = true;
+	SetWindowTextA(window, "LLS Dashboard - Closing");
 }
 
 LRESULT CALLBACK desktopWindow(HWND window, UINT message, WPARAM wparam, LPARAM lparam) {
@@ -79,7 +79,7 @@ LRESULT CALLBACK desktopWindow(HWND window, UINT message, WPARAM wparam, LPARAM 
 			if(!menu) rtrn 0;
 			AppendMenuA(menu, MF_STRING, ToggleDashboard, IsWindowVisible(window) ? "Hide dashboard" : "Show dashboard");
 			AppendMenuA(menu, MF_SEPARATOR, 0, 0);
-			AppendMenuA(menu, MF_STRING, Quit, "Quit (finish queued work)");
+			AppendMenuA(menu, MF_STRING, Quit, "Quit dashboard (service stays running)");
 			POINT point = {};
 			GetCursorPos(&point);
 			SetForegroundWindow(window);
@@ -95,8 +95,8 @@ LRESULT CALLBACK desktopWindow(HWND window, UINT message, WPARAM wparam, LPARAM 
 }
 
 llc::err_t llsDesktopStart() {
-	// Global objects also exclude a second owner in another Windows session.
-	// Access denied is an error, never permission to start a second service.
+	// One dashboard per build in this Windows session; service ownership is separate.
+	// Access denied is an error, never permission to start a duplicate dashboard.
 	Desktop.Activate = CreateEventA(0, FALSE, FALSE, ActivateName);
 	if_null_ve(llc::OS_ERROR, Desktop.Activate);
 	Desktop.Instance = CreateMutexA(0, FALSE, Control.Instance);
@@ -124,7 +124,7 @@ llc::err_t llsDesktopAttach(SApplication & app) {
 	lstrcpynA(Desktop.Icon.szTip, WindowTitle, sizeof(Desktop.Icon.szTip));
 	Desktop.Added = Shell_NotifyIconA(NIM_ADD, &Desktop.Icon) != FALSE;
 	if_zero_ve(llc::OS_ERROR, Desktop.Added);
-	Desktop.Shutdown = RegisterWindowMessageA(lls::ShutdownMessage);
+	Desktop.Shutdown = RegisterWindowMessageA("LT4.Dashboard.Quit.v1");
 	if_zero_ve(llc::OS_ERROR, Desktop.Shutdown);
 	rtrn 0;
 }

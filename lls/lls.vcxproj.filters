@@ -18,11 +18,13 @@
     <ClCompile Include="lls_main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="lls_gui.cpp"><Filter>Source Files</Filter></ClCompile>
-    <ClCompile Include="lls_gui_build.cpp"><Filter>Source Files</Filter></ClCompile>
-    <ClCompile Include="lls_explorer.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="lls_session.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="lls_failures.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="lls_log.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="lls_mail.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="lls_history.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="lls_process.cpp"><Filter>Source Files</Filter></ClCompile>
-    <ClCompile Include="lls_desktop.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="lls_host.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="..\lcp\lcp_help.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -37,9 +39,10 @@
     </ClInclude>
     <ClInclude Include="lls_app.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="lls_control.h"><Filter>Header Files</Filter></ClInclude>
-    <ClInclude Include="lls_gui.h"><Filter>Header Files</Filter></ClInclude>
-    <ClInclude Include="lls_gui_build.h"><Filter>Header Files</Filter></ClInclude>
-    <ClInclude Include="lls_explorer.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="lls_log.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="lls_mail.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="lls_store.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="..\lcp\lcp_identity.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="..\lcp\lcp_vs.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="..\lcp\lcp_tools.h">
       <Filter>Header Files</Filter>
@@ -52,7 +55,6 @@
     <None Include="lls_tools.json">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="lls_gui.json"><Filter>Resource Files</Filter></None>
     <None Include="..\lcp\lcp_help.json">
       <Filter>Resource Files</Filter>
     </None>

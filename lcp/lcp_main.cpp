@@ -69,7 +69,7 @@ sttc	::llc::err_t	lcpToolCall			(cnst ::llc::SJSONReader & reader, ::llc::err_t 
 		if_fail_fe(lcpShellCall(reader, body, name));
 		rtrn lcpRespond(reader, id, body);
 	}
-	if(name == "status") rtrn lcpText(reader, id, "Use --service=Debug or --service=Release for service job status.", true);
+	if(name == "status" || name == "session" || name == "failures" || name == "inbox") rtrn lcpText(reader, id, "Use --service=Debug or --service=Release for service status and inboxes.", true);
 	if("vs" != name)
 		rtrn ::lcpRespond(reader, id, "\"error\":{\"code\":-32602,\"message\":\"Unknown tool. Call help for available commands.\"}");
 	llc::string body;

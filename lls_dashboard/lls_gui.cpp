@@ -1,8 +1,11 @@
-#include "lls_app.h"
+#include "dashboard_app.h"
 #include "../lcp/lcp_help.h"
 #include "llc_string_compose.h"
 #include "llc_system_key.h"
 #include <limits.h>
+#include <algorithm>
+#include "llc_chrono.h"
+#include "llc_runtime_module.h"
 
 sttc llc::err_t llsControl(llc::SGUI & gui, llc::cid_t & id, llc::vcst_t text, bool label = false) {
 	rtrn llsControl(gui, id, text, SGUIFamily{}, label);
@@ -50,7 +53,10 @@ sttc llc::err_t llsLayout(SLLSGUI & ui) {
 	cnst llc::s1_t left = llc::min((llc::s1_t)320, (llc::s1_t)(width / 3));
 	cnst llc::s1_t bottom = height - 46 - (ui.ShowKeyboard ? 230 : 0);
 	cnst llc::s1_t top = ui.Tab == 4 ? 202 : 166;
-	if_fail_fe(llsPlace(gui, ui.Title, 18, 12, width - 36, 30));
+	if_fail_fe(llsPlace(gui, ui.Title, 18, 12, width - 380, 30));
+	if_fail_fe(llsPlace(gui, ui.Exit, width - 176, 12, 158, 30));
+	if_fail_fe(llsPlace(gui, ui.Restart, width - 360, 12, 176, 30));
+	if_fail_fe(llsPlace(gui, ui.Benchmark, width - 162, 164, 144, 28));
 	if_fail_fe(llsPlace(gui, ui.Statistics, 18, 44, width - 36, 26));
 	cnst llc::s1_t tabWidth = (llc::s1_t)llc::min(164U, (llc::u2_t)(width - 36) / llc::max(1U, ui.Tabs.size()));
 	for(llc::u2_t i = 0; i < ui.Tabs.size(); ++i)
@@ -87,21 +93,46 @@ sttc llc::err_t llsSessionView(SApplication & app) {
 	llc::lock_guard guard(app.Lock);
 	llc::u2_t queued = 0, active = 0, completed = 0, failed = 0;
 	llc::u3_t bytes = 0;
-	for(cnst SBuildJob & job : app.Jobs) {
+	for(cnst SDashboardJob & job : app.Jobs) {
 		queued += job.State == "queued";
-		active += job.ProcessStarted && !job.ProcessFinished && !job.Detached && job.State != "completed";
+		active += !job.Historical && job.ProcessStarted && !job.ProcessFinished && !job.Detached && job.State != "completed";
 		completed += job.State == "completed";
 		failed += job.State == "completed" && (job.Result.Status < 0 || (job.Result.ExitKnown && job.Result.ExitCode));
 		bytes += job.Output.size();
 	}
-	auto timer = app.Session;
-	timer.Frame();
 	if_fail_fe(ui.Stats.clear());
-	if_fail_fe(llc::append_strings(ui.Stats, "SESSION ", llc::str((llc::u3_t)(timer.LastTimeMicroseconds / 1000000)),
-		"s   |   Requests ", llc::str(app.Requests), "   Active ", llc::str(active), "   Queued ", llc::str(queued),
-		"   Done ", llc::str(completed), "   Failed ", llc::str(failed), "   Output ", llc::str(bytes), " B"));
+	if_fail_fe(llc::append_strings(ui.Stats, "SESSION ", llc::str(app.ElapsedMs / 1000),
+		"s   |   ", app.Connection, "   |   Requests ", llc::str(app.Requests), "   Active ", llc::str(active), "   Queued ", llc::str(queued),
+		"   Done ", llc::str(completed), "   Failed ", llc::str(failed), "   Output ", llc::str(bytes), " B   History status ", llc::str(app.HistoryError)));
 	if_fail_fe(llc::controlTextSet(*ui.Framework.GUI, ui.Statistics, ui.Stats));
 	if(!ui.Dirty && ui.Revision == app.Revision && (ui.Tab == 0 || ui.Tab == 3)) rtrn 0;
+	if(ui.SessionId != app.SessionId) {
+		ui.SessionId = app.SessionId;
+		ui.Selected = (llc::u2_t)-1;
+		ui.ListOffset = ui.LineOffset = 0;
+		ui.Dirty = true;
+	}
+	if(ui.Tab == 6 || ui.Tab == 7) {
+		if_fail_fe(ui.Matches.clear());
+		if_fail_fe(ui.Detail.clear());
+		if(ui.Tab == 6) {
+			cnst llc::vcst_t serviceIdentity = app.ServiceIdentity;
+			if_fail_fe(llc::append_strings(ui.Detail, "DASHBOARD / SELF\n", app.Identity, "\nSERVICE / ", app.Service, "\n", app.Connection,
+				"\nSession: ", llc::str(app.SessionId), "\nSnapshot age: ",
+				llc::str(app.LastSnapshot ? ((llc::u3_t)llc::timeCurrentInUs() - app.LastSnapshot) / 1000000 : 0), " s\n",
+				serviceIdentity.size() ? serviceIdentity : llc::vcst_t{"No service identity received."}));
+		}
+		else {
+			if_fail_fe(llc::append_strings(ui.Detail, "RENDER PERFORMANCE\nBackend: CPU / LLC guiDraw (no D3D device)\nTarget: ",
+				llc::str((llc::u2_t)ui.LastSize.x), " x ", llc::str((llc::u2_t)ui.LastSize.y),
+				" BGRA8\nLast draw: ", llc::str(ui.RenderUs), " us\nDraws measured: ", llc::str(ui.RenderCount),
+				"\nMean draw: ", llc::str(ui.RenderCount ? ui.RenderTotalUs / ui.RenderCount : 0), " us\nPeak draw: ", llc::str(ui.RenderPeakUs),
+				" us\n\nCPU draw timing excludes window presentation.\nFrame pacing includes UI update and intentional sleep.\n",
+				"Benchmark: use the Benchmark button (100 draws, current size/content).\nLast benchmark mean: ", llc::str(ui.BenchmarkUs), " us"));
+		}
+		ui.Dirty = false;
+		rtrn llsLines(ui);
+	}
 	if(ui.Tab == 4) {
 		if(!ui.Dirty) rtrn 0;
 		if_fail_fe(ui.Matches.clear());
@@ -125,13 +156,14 @@ sttc llc::err_t llsSessionView(SApplication & app) {
 		for(llc::u2_t i = 0; i < app.Jobs.size(); ++i) {
 			cnst auto & job = app.Jobs[i];
 			cnst bool included = ui.Tab == 1
-				? job.ProcessStarted && !job.ProcessFinished && !job.Detached && job.State != "completed"
-				: ui.Tab == 2 ? job.State == "queued" : job.State == "completed";
+				? !job.Historical && job.ProcessStarted && !job.ProcessFinished && !job.Detached && job.State != "completed"
+				: ui.Tab == 2 ? job.State == "queued" : ui.Tab == 5 ? job.State == "completed" && (job.Result.Status < 0 || (job.Result.ExitKnown && job.Result.ExitCode)) : job.State == "completed" || job.State == "interrupted";
 			if(included && (!ui.Query.size() || job.Id.find(ui.Query) >= 0 || job.Command.find(ui.Query) >= 0 || job.Request.find(ui.Query) >= 0)) {
 				if_fail_fe(ui.Matches.push_back(i));
 			}
 		}
 	}
+	if(ui.Tab == 5) std::reverse(ui.Matches.begin(), ui.Matches.end());
 	if(ui.Matches.find(ui.Selected) < 0)
 		ui.Selected = ui.Matches.size() ? ui.Matches[0] : (llc::u2_t)-1;
 	if_fail_fe(ui.Detail.clear());
@@ -145,16 +177,16 @@ sttc llc::err_t llsSessionView(SApplication & app) {
 	}
 	else {
 		cnst auto & job = app.Jobs[ui.Selected];
-		auto elapsed = job.Timer;
-		if(job.State != "completed") elapsed.Frame();
 		if_fail_fe(llc::append_strings(ui.Detail, "REQUEST ", job.Id, "  /  ", job.State, "\nPID ", llc::str(job.PID),
-			"   Elapsed ", llc::str((llc::u3_t)(elapsed.LastTimeMicroseconds / 1000)), " ms\n"));
+			"   Elapsed ", llc::str(job.ElapsedMs), " ms\n"));
+		if_fail_fe(llc::append_strings(ui.Detail, "Origin session ", llc::str(job.OriginSession), job.Historical ? llc::vcst_t{" / restored history\n"} : llc::vcst_t{" / current\n"}));
+		if(job.State == "interrupted") { if_fail_fe(ui.Detail.append_string("Interrupted / outcome unknown. Not replayed.\n")); }
 		if(job.State == "completed") {
 			if_fail_fe(llc::append_strings(ui.Detail, "Operation status ", llc::str(job.Result.Status), "   Exit "));
 			if(job.Result.ExitKnown) { if_fail_fe(llc::append_strings(ui.Detail, llc::str(job.Result.ExitCode))); }
-			else { if_fail_fe(ui.Detail.append("unknown")); }
+			else { if_fail_fe(ui.Detail.append_string("unknown")); }
 		}
-		if(job.Detached) { if_fail_fe(ui.Detail.append("\nLaunch only: completion is not tracked.")); }
+		if(job.Detached) { if_fail_fe(ui.Detail.append_string("\nLaunch only: completion is not tracked.")); }
 		cnst llc::vcst_t captured = job.Output;
 		if_fail_fe(llc::append_strings(ui.Detail, "\n\nCOMMAND\n", job.Command, "\n\nREQUEST\n", job.Request,
 			"\n\nOUTPUT\n", captured.size() ? captured : llc::vcst_t{"No captured output yet."},
@@ -213,11 +245,14 @@ llc::err_t llsGUISetup(SApplication & app) {
 		linkPalette = palette;
 		linkPalette[llc::UI_CONTROL_AREA_TEXT_FACE] = {240, 200, 112, 255};
 	}
-	if_fail_fe(llsControl(gui, ui.Title, "LLS   /   SESSION WORKSPACE", true));
+	if_fail_fe(llsControl(gui, ui.Title, app.Title, true));
 	if_fail_fe(llsControl(gui, ui.Statistics, "", true));
 	if_fail_fe(llsControl(gui, ui.Hint, "Type to filter. Select a result to inspect. Enter opens the first match. Mouse wheel scrolls details.", true));
 	if_fail_fe(llsControlPool(gui, ui.Tabs, ui.TabText.size(), ui.Family));
 	for(llc::u2_t i = 0; i < ui.Tabs.size(); ++i) { if_fail_fe(llc::controlTextSet(gui, ui.Tabs[i], ui.TabText[i])); }
+	if_fail_fe(llsControl(gui, ui.Exit, "Exit dashboard"));
+	if_fail_fe(llsControl(gui, ui.Restart, "Restart dashboard"));
+	if_fail_fe(llsControl(gui, ui.Benchmark, "Benchmark"));
 	if_fail_fe(llsControl(gui, ui.Keyboard, "Keyboard"));
 	if_fail_fe(llsControl(gui, ui.OpenPath, "Open path"));
 	if_fail_fe(llsControl(gui, ui.ListPrev, "< List"));
@@ -246,6 +281,20 @@ llc::err_t llsGUIUpdate(SApplication & app) {
 	auto & window = ui.Framework.RootWindow;
 	cnst llc::err_t updated = llc::updateFramework(ui.Framework);
 	if(updated) rtrn updated;
+#ifdef LLC_WINDOWS
+	{
+		llc::string title;
+		{ llc::lock_guard guard(app.Lock); if_fail_fe(llc::append_strings(title, app.Title, " | ", app.Connection, " | Session ", llc::str(app.SessionId))); }
+		SetWindowTextA(window.PlatformDetail.WindowHandle, title.begin());
+	}
+#endif
+	if(gui.Controls.IsAction(ui.Exit) || gui.Controls.IsAction(ui.Restart)) {
+		app.Restart = gui.Controls.IsAction(ui.Restart);
+		app.Closing = true;
+		rtrn llc::APPLICATION_STATE_EXIT;
+	}
+	gui.Controls.SetHidden(ui.Benchmark, ui.Tab != 7);
+	if(gui.Controls.IsAction(ui.Benchmark)) ui.BenchmarkLeft = 100;
 	if(gui.Controls.IsAction(ui.Keyboard)) { ui.ShowKeyboard = !ui.ShowKeyboard; ui.LastSize = {}; }
 	for(llc::u2_t tab = 0; tab < ui.Tabs.size(); ++tab) {
 		if(gui.Controls.IsAction(ui.Tabs[tab])) {
@@ -321,7 +370,7 @@ llc::err_t llsGUIUpdate(SApplication & app) {
 		if(ui.LineOffset + ui.VisibleLines < ui.DetailLines.size()) ui.LineOffset += ui.VisibleLines;
 	if(ui.LastSize != window.Size) { if_fail_fe(llsLayout(ui)); ui.Dirty = true; }
 	if_fail_fe(llc::controlTextSet(gui, ui.Hint, ui.Tab == 4
-		? llc::vcst_t{"Enter a path to browse. Click folders to expand, files for details, breadcrumbs to navigate."}
+		? llc::vcst_t{"PATH (not search): enter a folder path. Click folders to expand; breadcrumbs navigate."}
 		: llc::vcst_t{"Type to filter. Click paths in details to browse. Open path uses the text box. Mouse wheel scrolls."}));
 	ui.Refresh += ui.Framework.FrameInfo.Seconds.LastFrame;
 	if(ui.Dirty || ui.Refresh >= .2) { if_fail_fe(llsSessionView(app)); ui.Refresh = 0; }
@@ -360,7 +409,17 @@ llc::err_t llsGUIUpdate(SApplication & app) {
 	if(!window.NoDraw) {
 		if_fail_fe(window.BackBuffer->resize(window.Size.u2()));
 		if_fail_fe(window.BackBuffer->Color.View.fill(llc::bgra{25, 20, 17, 255}));
+		cnst auto start = llc::timeCurrentInUs();
 		if_fail_fe(llc::guiDraw(gui, window.BackBuffer->Color.View));
+		ui.RenderUs = llc::timeCurrentInUs() - start;
+		++ui.RenderCount;
+		ui.RenderTotalUs += ui.RenderUs;
+		ui.RenderPeakUs = llc::max(ui.RenderPeakUs, ui.RenderUs);
+		if(ui.BenchmarkLeft) {
+			if(ui.BenchmarkLeft == 100) ui.BenchmarkTotalUs = 0;
+			ui.BenchmarkTotalUs += ui.RenderUs;
+			if(!--ui.BenchmarkLeft) { ui.BenchmarkUs = ui.BenchmarkTotalUs / 100; ui.Dirty = true; }
+		}
 	}
 	llc::sleep(window.NoDraw ? 50 : 8);
 	rtrn 0;

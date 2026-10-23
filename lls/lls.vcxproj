@@ -163,7 +163,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
-      <AdditionalDependencies>lls-l.lib; llc.lib; </AdditionalDependencies>
+      <AdditionalDependencies>llc.lib;ws2_32.lib;</AdditionalDependencies>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
     <Manifest>
@@ -207,10 +207,10 @@
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
-      <AdditionalDependencies>lls-l.lib; llc.lib; </AdditionalDependencies>
+      <AdditionalDependencies>llc.lib;ws2_32.lib;</AdditionalDependencies>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
     <Manifest>
@@ -232,7 +232,7 @@
     </ClCompile>
     <Link>
       <ModuleDefinitionFile>$(SolutionDir)../llc/llc/llc_module_exports.def</ModuleDefinitionFile>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <AdditionalDependencies>llc.lib;ws2_32.lib;</AdditionalDependencies>
@@ -257,7 +257,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
-      <AdditionalDependencies>lls-l.lib; llc.lib; </AdditionalDependencies>
+      <AdditionalDependencies>llc.lib;ws2_32.lib;</AdditionalDependencies>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
     <Manifest>
@@ -301,10 +301,10 @@
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
-      <AdditionalDependencies>lls-l.lib; llc.lib; </AdditionalDependencies>
+      <AdditionalDependencies>llc.lib;ws2_32.lib;</AdditionalDependencies>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
     <Manifest>
@@ -326,7 +326,7 @@
     </ClCompile>
     <Link>
       <ModuleDefinitionFile>$(SolutionDir)../llc/llc/llc_module_exports.def</ModuleDefinitionFile>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <AdditionalDependencies>llc.lib;ws2_32.lib;</AdditionalDependencies>
@@ -338,14 +338,15 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="lls_main.cpp" />
+    <ClCompile Include="lls_mail.cpp" />
+    <ClCompile Include="lls_history.cpp" />
+    <ClCompile Include="lls_session.cpp" />
+    <ClCompile Include="lls_failures.cpp" />
+    <ClCompile Include="lls_log.cpp" />
     <ClCompile Include="..\lcp\lcp_relay.cpp" />
     <ClCompile Include="..\lcp\lcp_commands.cpp" />
-    <ClCompile Include="lls_gui.cpp" />
-    <ClCompile Include="lls_gui_build.cpp" />
-    <ClCompile Include="lls_gui_surface.cpp" />
-    <ClCompile Include="lls_explorer.cpp" />
     <ClCompile Include="lls_process.cpp" />
-    <ClCompile Include="lls_desktop.cpp" />
+    <ClCompile Include="lls_host.cpp" />
     <ClCompile Include="..\lcp\lcp_help.cpp" />
     <ClCompile Include="..\lcp\lcp_tools.cpp" />
     <ClCompile Include="..\lcp\lcp_vs.cpp" />
@@ -353,20 +354,19 @@
   <ItemGroup>
     <ClInclude Include="..\lcp\lcp_help.h" />
     <ClInclude Include="lls_app.h" />
+    <ClInclude Include="lls_mail.h" />
+    <ClInclude Include="lls_store.h" />
+    <ClInclude Include="lls_log.h" />
+    <ClInclude Include="..\lcp\lcp_identity.h" />
     <ClInclude Include="..\lcp\lcp_relay.h" />
     <ClInclude Include="..\lcp\lcp_commands.h" />
     <ClInclude Include="lls_control.h" />
-    <ClInclude Include="lls_gui.h" />
-    <ClInclude Include="lls_gui_build.h" />
-    <ClInclude Include="lls_gui_surface.h" />
-    <ClInclude Include="lls_explorer.h" />
     <ClInclude Include="..\lcp\lcp_tools.h" />
     <ClInclude Include="..\lcp\lcp_vs.h" />
     <ClInclude Include="..\lcp\lcp_text.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="lls_tools.json" />
-    <None Include="lls_gui.json" />
     <None Include="..\lcp\lcp_help.json" />
   </ItemGroup>
   <ItemGroup>
@@ -377,7 +377,7 @@
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <Target Name="CopyLLSCatalogs" AfterTargets="Build">
-    <Copy SourceFiles="$(ProjectDir)lls_tools.json;$(ProjectDir)lls_gui.json;$(ProjectDir)..\lcp\lcp_help.json" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(ProjectDir)lls_tools.json;$(ProjectDir)..\lcp\lcp_help.json" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
   </Target>
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

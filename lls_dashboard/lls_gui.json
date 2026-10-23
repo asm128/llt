@@ -4,7 +4,10 @@
     { "title": "ACTIVE PROCESSES", "value": 1 },
     { "title": "QUEUE", "value": 2 },
     { "title": "RESULTS", "value": 3 },
-    { "title": "EXPLORER", "value": 4 }
+    { "title": "EXPLORER", "value": 4 },
+    { "title": "FAILURES", "value": 5 },
+    { "title": "INSPECTOR", "value": 6 },
+    { "title": "PERFORMANCE", "value": 7 }
   ],
   "explorer": {
     "root": "D:/enterprise"

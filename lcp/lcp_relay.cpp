@@ -291,7 +291,7 @@ sttc err_t relayProbe(SRelayPeer & peer) {
 }
 #endif
 
-err_t relayCall(SRelayPeer & peer, bool debug, vcst_t request, string & response) {
+err_t relayCall(SRelayPeer & peer, bool debug, vcst_t request, string & response, u2_t timeoutMs) {
 #ifdef LLC_WINDOWS
 	if(peer.Connection.State == UDP_CONNECTION_STATE_IDLE && failed(relayProbe(peer))) {
 		if_fail_fe(relayClose(peer));
@@ -302,7 +302,7 @@ err_t relayCall(SRelayPeer & peer, bool debug, vcst_t request, string & response
 	}
 	peer.LastPong = timeCurrentInUs();
 	if_fail_fe(relayQueue(peer, request));
-	cnst s3_t deadline = timeCurrentInUs() + 1800000000LL;
+	cnst s3_t deadline = timeCurrentInUs() + (s3_t)timeoutMs * 1000;
 	u3_t heartbeat = 0;
 	while(timeCurrentInUs() < deadline) {
 		if_fail_fe(relayPump(peer));
@@ -324,7 +324,7 @@ err_t relayCall(SRelayPeer & peer, bool debug, vcst_t request, string & response
 	if_fail_fe(relayClose(peer));
 	rtrn -1; // Delivery/completion is unknown. Never retry the application command.
 #else
-	(void)peer; (void)debug; (void)request; (void)response;
+	(void)peer; (void)debug; (void)request; (void)response; (void)timeoutMs;
 	rtrn -1;
 #endif
 }

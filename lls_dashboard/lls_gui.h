@@ -10,7 +10,9 @@
 stct SLLSGUI {
 	llc::SFramework		Framework;
 	SLLSGUISurface Surface;
-	llc::cid_t Host = -1;
+	llc::cid_t Host = -1, Exit = -1, Restart = -1, Benchmark = -1;
+	llc::u3_t SessionId = 0, RenderUs = 0, RenderCount = 0, RenderTotalUs = 0, RenderPeakUs = 0, BenchmarkUs = 0, BenchmarkTotalUs = 0;
+	llc::u2_t BenchmarkLeft = 0;
 	llc::SInputBox		Input;
 	llc::acid			Rows, Lines, Processable, Tabs, Breadcrumbs;
 	llc::aobj<llc::string> RowText, TabText;
