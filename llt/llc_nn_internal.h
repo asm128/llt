@@ -5,22 +5,22 @@
 #include "llc_array_obj.h"
 #include "llc_ptr_obj.h"
 #include <cstdio>
-#include <new>
 
 namespace llc {
  template<typename TCell> void nnWeights(SNN & run, const img<TCell> & weights) {
-  run.WeightSize = {min(weights.metrics().x, 32U), min(weights.metrics().y, 32U)};
-  for(u2_t y = 0; y < run.WeightSize.y; ++y)
-   for(u2_t x = 0; x < run.WeightSize.x; ++x)
-    run.Weights[y * run.WeightSize.x + x] = weights[y][x];
+  ++run.Inspection.Revision;
+  run.Inspection.WeightSize = {min(weights.metrics().x, 32U), min(weights.metrics().y, 32U)};
+  for(u2_t y = 0; y < run.Inspection.WeightSize.y; ++y)
+   for(u2_t x = 0; x < run.Inspection.WeightSize.x; ++x)
+    run.Inspection.Weights[y * run.Inspection.WeightSize.x + x] = weights[y][x];
  }
  template<typename T, typename... TArgs> err_t nnCreate(SNN & run, const TArgs &... args) {
-  T * state = new(std::nothrow) T{args...};
-  if_null_fe(state);
-  run.State = state;
-  run.Destroy = [](void * p) { delete (T*)p; };
-  run.Advance = [](void * p, SNN & output) -> err_t {
-   T & data = *(T*)p;
+  gref<T> * state = {};
+  if_null_fe(ref_create(&state, args...));
+  run.Model.State = state;
+  run.Model.Destroy = [](void * p) -> err_t { gref<T> * reference = (gref<T>*)p; rtrn ref_release(&reference); };
+  run.Model.Advance = [](void * p, SNN & output) -> err_t {
+   T & data = *((gref<T>*)p)->Instance;
    cnst err_t result = data.Step(output);
    data.Snapshot(output);
    if_true_fe(data.f && ferror(data.f));
@@ -30,9 +30,9 @@ namespace llc {
    }
    return result;
   };
-  cnst err_t result = state->Begin();
+  cnst err_t result = state->Instance->Begin();
   if(result < 0) { nnReset(run); run.Error = result; }
-  else state->Snapshot(run);
+  else state->Instance->Snapshot(run);
   return result;
  }
  err_t nnCreateAdaline(SNN &);

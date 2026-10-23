@@ -474,18 +474,18 @@ void SimulateNet(SNet* Net, llc::view<llc::f3_t> argInput, llc::view<llc::f3_t> 
 
 SNet Network = {};
 llc::err_t ImageStep(llc::SNN & run) {
- const auto size = run.ImageSource.metrics();
+ const auto size = run.Painter->Source.metrics();
  if_true_fe(!size.x || !size.y);
  const llc::u2_t count = size.x * size.y;
  const llc::u2_t budget = Painting ? llc::min(64U, count - PaintCursor) : 1U;
  for(llc::u2_t unit = 0; unit < budget; ++unit) {
   const llc::u2_t pixel = Painting ? PaintCursor++ : (llc::u2_t)RandomEqualINT(0, (llc::s2_t)count - 1);
-  const auto source = run.ImageSource.Texels[pixel];
+  const auto source = run.Painter->Source.Texels[pixel];
   llc::astatic<llc::f3_t, 2> coordinates = {{size.x > 1 ? 2.0 * (pixel % size.x) / (size.x - 1) - 1 : 0,
    size.y > 1 ? 2.0 * (pixel / size.x) / (size.y - 1) - 1 : 0}};
   llc::astatic<llc::f3_t, 3> target = {{source.r / 255.0, source.g / 255.0, source.b / 255.0}}, output = {};
   SimulateNet(&Network, coordinates, output, target, !Painting);
-  if(!Painting) { ++run.ImageSamples; continue; }
+  if(!Painting) { ++run.Painter->Samples; continue; }
   llc::astatic<llc::u0_t, 3> rgb = {}, error = {}, influence = {};
   for(llc::u2_t channel = 0; channel < 3; ++channel) {
    const auto difference = output[channel] - target[channel];
@@ -495,36 +495,38 @@ llc::err_t ImageStep(llc::SNN & run) {
    // Exact output with this hidden neuron's weighted contribution removed, bias retained.
    llc::f3_t sum = Network.OutputLayer->Weight[channel + 1][0];
    for(llc::u2_t hidden = 1; hidden <= (llc::u2_t)Units[1]; ++hidden)
-    if(hidden != run.ImageNeuron + 1) sum += Network.OutputLayer->Weight[channel + 1][hidden] * Network.Layer[1]->Output[hidden];
+    if(hidden != run.Painter->Neuron + 1) sum += Network.OutputLayer->Weight[channel + 1][hidden] * Network.Layer[1]->Output[hidden];
    const auto without = 1 / (1 + exp(-Network.Gain * sum));
    influence[channel] = (llc::u0_t)(255 * llc::min(1.0, std::abs(output[channel] - without) * 4));
   }
-  run.ImagePrediction.Texels[pixel] = {rgb[2], rgb[1], rgb[0], 255};
-  run.ImageError.Texels[pixel] = {error[2], error[1], error[0], 255};
-  run.ImageInfluence.Texels[pixel] = {influence[2], influence[1], influence[0], 255};
+  run.Painter->Prediction.Texels[pixel] = {rgb[2], rgb[1], rgb[0], 255};
+  run.Painter->Error.Texels[pixel] = {error[2], error[1], error[0], 255};
+  run.Painter->Influence.Texels[pixel] = {influence[2], influence[1], influence[0], 255};
  }
- run.ImageCursor = PaintCursor;
+ run.Painter->Cursor = PaintCursor;
  if(Painting && PaintCursor == count) {
-  run.ImageMSE = run.Metric = PaintError / (3 * count);
-  ++run.ImagePass; Painting = false; SincePaint = 0;
+  run.Painter->MSE = run.Metric = PaintError / (3 * count);
+  ++run.Painter->Pass; Painting = false; SincePaint = 0;
  } else if(!Painting && ++SincePaint >= 256) {
   Painting = true; PaintCursor = 0; PaintError = 0;
  }
  rtrn 0;
 }
 void Snapshot(llc::SNN & run) {
- run.Width = ImageMode ? 2 : 10; run.Count = (llc::u2_t)Units[0];
- for(llc::u2_t i = 0; i < run.Count; ++i) run.Values[i] = Network.InputLayer->Output[i+1];
+ // Preview evaluation must not replace the last published training operation.
+ if(ImageMode && Inspected && !LastTraining) rtrn;
+ run.Inspection.Width = ImageMode ? 2 : 10; run.Inspection.Count = (llc::u2_t)Units[0];
+ for(llc::u2_t i = 0; i < run.Inspection.Count; ++i) run.Inspection.Values[i] = Network.InputLayer->Output[i+1];
  llc::nnWeights(run, Network.Layer[1]->Weight);
- run.Inspected = Inspected; run.Training = LastTraining;
- run.Target = LastTarget; run.Prediction = Network.OutputLayer->Output[1]; run.SampleLoss = Network.Error;
- run.Activations = {}; run.ErrorTerms = {};
+ run.Inspection.Inspected = Inspected; run.Inspection.Training = LastTraining;
+ run.Inspection.Target = LastTarget; run.Inspection.Prediction = Network.OutputLayer->Output[1]; run.Inspection.SampleLoss = Network.Error;
+ run.Inspection.Activations = {}; run.Inspection.ErrorTerms = {};
  for(llc::u2_t l = 0; l < NUM_LAYERS; ++l) {
-  run.LayerUnits[l] = (llc::u2_t)Network.Layer[l]->Units;
-  for(llc::u2_t unit = 0; unit < run.LayerUnits[l] && unit < 32; ++unit) {
-   run.Activations[l * 32 + unit] = Network.Layer[l]->Output[unit + 1];
+  run.Inspection.LayerUnits[l] = (llc::u2_t)Network.Layer[l]->Units;
+  for(llc::u2_t unit = 0; unit < run.Inspection.LayerUnits[l] && unit < 32; ++unit) {
+   run.Inspection.Activations[l * 32 + unit] = Network.Layer[l]->Output[unit + 1];
    // Hidden errors are stale during evaluation; never expose those as current.
-   if(l && (LastTraining || l == NUM_LAYERS - 1)) run.ErrorTerms[l * 32 + unit] = Network.Layer[l]->Error[unit + 1];
+   if(l && (LastTraining || l == NUM_LAYERS - 1)) run.Inspection.ErrorTerms[l * 32 + unit] = Network.Layer[l]->Error[unit + 1];
   }
  }
 }
@@ -568,8 +570,8 @@ llc::err_t Step(llc::SNN & run) {
   fprintf(f, "%d       %0.3f                   %0.3f                     %0.3f\n", FIRST_YEAR + Cursor, Sunspots[Cursor], prediction[0], closed[0]);
   ++Cursor;
  }
- run.Width = 10; run.Count = N;
- for(llc::u2_t i = 0; i < N; ++i) run.Values[i] = Network.InputLayer->Output[i+1];
+ run.Inspection.Width = 10; run.Inspection.Count = N;
+ for(llc::u2_t i = 0; i < N; ++i) run.Inspection.Values[i] = Network.InputLayer->Output[i+1];
  rtrn Phase == 2 && Cursor > EVAL_UPB ? 1 : 0;
 }
 
@@ -577,40 +579,41 @@ llc::err_t Step(llc::SNN & run) {
 } // namespace
 llc::err_t llc::nnCreateBpn(SNN & run) { rtrn nnCreate<SState>(run, run.Config); }
 llc::err_t llc::nnCreateImage(SNN & run) {
- if(!run.ImageSource.size()) {
-  if_fail_fe(run.ImageSource.resize(n2u2_t{64, 64}));
+ if(!run.Painter.get_ref()) if_null_fe(run.Painter.create());
+ if(!run.Painter->Source.size()) {
+  if_fail_fe(run.Painter->Source.resize(n2u2_t{64, 64}));
   for(u2_t y = 0; y < 64; ++y) for(u2_t x = 0; x < 64; ++x) {
    const double dx = (x - 31.5) / 32, dy = (y - 31.5) / 32;
    const double glow = exp(-5 * (dx * dx + dy * dy));
-   run.ImageSource[y][x] = {(u0_t)(220 * glow), (u0_t)(40 + 180 * y / 63), (u0_t)(40 + 180 * x / 63), 255};
+   run.Painter->Source[y][x] = {(u0_t)(220 * glow), (u0_t)(40 + 180 * y / 63), (u0_t)(40 + 180 * x / 63), 255};
   }
  }
- for(auto * image : {&run.ImagePrediction, &run.ImageError, &run.ImageInfluence}) {
-  if_fail_fe(image->resize(run.ImageSource.metrics()));
+ for(auto * image : {&run.Painter->Prediction, &run.Painter->Error, &run.Painter->Influence}) {
+  if_fail_fe(image->resize(run.Painter->Source.metrics()));
   if_fail_fe(image->View.fill(bgra{22, 18, 16, 255}));
  }
  rtrn nnCreate<SState>(run, run.Config, true);
 }
 llc::err_t llc::nnImageSource(SNN & run, gc8bgra source) {
- if_true_fe(run.Network != NN_IMAGE || !source.metrics().x || !source.metrics().y || source.metrics().x > 64 || source.metrics().y > 64);
+ if_true_fe(run.Network != NN_IMAGE || !run.Painter.get_ref() || !source.metrics().x || !source.metrics().y || source.metrics().x > 64 || source.metrics().y > 64);
  img8bgra copy;
  if_fail_fe(copy.resize(source.metrics()));
  for(u2_t i = 0; i < copy.size(); ++i) copy.Texels[i] = source.begin()[i];
- if_fail_fe(run.ImageSource.resize(copy.metrics()));
- for(u2_t i = 0; i < copy.size(); ++i) run.ImageSource.Texels[i] = copy.Texels[i];
+ if_fail_fe(run.Painter->Source.resize(copy.metrics()));
+ for(u2_t i = 0; i < copy.size(); ++i) run.Painter->Source.Texels[i] = copy.Texels[i];
  rtrn nnBegin(run, NN_IMAGE, run.Config);
 }
 llc::err_t llc::nnImageInspect(SNN & run, u2_t neuron) {
- if_true_fe(run.Network != NN_IMAGE || !run.State || neuron >= run.Config.HiddenUnits);
- run.ImageNeuron = neuron;
- SState & state = *(SState*)run.State;
+ if_true_fe(run.Network != NN_IMAGE || !run.Model.State || neuron >= run.Config.HiddenUnits);
+ run.Painter->Neuron = neuron;
+ SState & state = *((gref<SState>*)run.Model.State)->Instance;
  state.Painting = true; state.PaintCursor = 0; state.PaintError = 0;
- run.ImageCursor = 0;
- rtrn run.ImageInfluence.View.fill(bgra{22, 18, 16, 255});
+ run.Painter->Cursor = 0;
+ rtrn run.Painter->Influence.View.fill(bgra{22, 18, 16, 255});
 }
 llc::err_t llc::nnImagePreview(SNN & run) {
- if_true_fe(run.Network != NN_IMAGE || !run.State);
- SState & state = *(SState*)run.State;
- if(state.Painting) { if_fail_fe(state.ImageStep(run)); state.Snapshot(run); }
+ if_true_fe(run.Network != NN_IMAGE || !run.Model.State);
+ SState & state = *((gref<SState>*)run.Model.State)->Instance;
+ if(state.Painting) if_fail_fe(state.ImageStep(run));
  rtrn 0;
 }

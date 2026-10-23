@@ -374,8 +374,8 @@ void TrainUnits(SNet* Net, llc::view<llc::f3_t> argInput, llc::view<llc::f3_t> a
 SNet Network = {};
 void Snapshot(llc::SNN & run) {
  llc::nnWeights(run, Network.OutputLayer->Weight);
- run.Width = (llc::u2_t)COLS; run.Count = (llc::u2_t)C;
- for(llc::u2_t i = 0; i < run.Count; ++i) run.Values[i] = Network.OutputLayer->Weight[0][i];
+ run.Inspection.Width = (llc::u2_t)COLS; run.Inspection.Count = (llc::u2_t)C;
+ for(llc::u2_t i = 0; i < run.Inspection.Count; ++i) run.Inspection.Values[i] = Network.OutputLayer->Weight[0][i];
 }
 SPole LivePole = {};
 llc::s2_t Phase = 0, Trained = 0, Tick = 0, ReportRow = 0;
@@ -434,8 +434,8 @@ llc::err_t Step(llc::SNN & run) {
   }
   fprintf(f, "\n"); ++ReportRow;
  }
- run.Width = COLS; run.Count = C; run.Metric = LivePole.w;
- for(llc::u2_t i = 0; i < (llc::u2_t)C; ++i) run.Values[i] = Network.OutputLayer->Weight[0][i];
+ run.Inspection.Width = COLS; run.Inspection.Count = C; run.Metric = LivePole.w;
+ for(llc::u2_t i = 0; i < (llc::u2_t)C; ++i) run.Inspection.Values[i] = Network.OutputLayer->Weight[0][i];
  rtrn ReportRow == ROWS ? 1 : 0;
 }
 

@@ -322,8 +322,8 @@ llc::err_t Step(llc::SNN & run) {
   else resonance = true;
  }
  if(resonance) AdjustWeights(&Network);
- run.Width = N; run.Count = N; run.Metric = Network.Winner;
- for(llc::u2_t i = 0; i < N; ++i) run.Values[i] = Network.F1->Output[i];
+ run.Inspection.Width = N; run.Inspection.Count = N; run.Metric = Network.Winner;
+ for(llc::u2_t i = 0; i < N; ++i) run.Inspection.Values[i] = Network.F1->Output[i];
  if(resonance || exhausted) { WriteOutput(&Network, Output[Cursor]); ++Cursor; Started = false; }
  rtrn Cursor == NUM_DATA ? 1 : 0;
 }

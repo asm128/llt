@@ -176,7 +176,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="llc_nn_main.cpp" />
-    <ClCompile Include="llc_nn_verify.cpp" />
+    <ClCompile Include="llc_nn_view.cpp" />
+    <ClInclude Include="llc_nn_view.h" />
+    <ClInclude Include="llc_nn_log.h" />
   </ItemGroup>
   
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

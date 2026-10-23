@@ -3,24 +3,42 @@
 #include "llc_n2.h"
 #include "llc_img_color.h"
 #include "llc_grid_color.h"
+#include "llc_ptr_obj.h"
 
 namespace llc {
+ enum NN_TYPE : u2_t {
+  NN_ADALINE, NN_ART1, NN_BAM, NN_BOLTZMANN, NN_BACKPROPAGATION,
+  NN_COUNTERPROPAGATION, NN_HOPFIELD, NN_SOM, NN_IMAGE, NN_COUNT
+ };
  stct SNNConfig {
   u2_t HiddenUnits = 10; // BPN only; input/output dimensions belong to the dataset.
   n2u2_t MapSize = {25, 25}; // SOM columns/rows.
  };
- stct SNN {
-  SNNConfig Config = {};
-  img8bgra ImageSource = {}, ImagePrediction = {}, ImageError = {}, ImageInfluence = {};
-  u3_t ImageSamples = {}, ImagePass = {};
-  u2_t ImageCursor = {}, ImageNeuron = {};
-  f3_t ImageMSE = {};
+ stct SNN;
+ stct SNNModel {
+  // Type-erased LLC reference. Creation/release stay in the typed algorithm adapter.
   void * State = {};
   err_t (*Advance)(void *, SNN &) = {};
-  void (*Destroy)(void *) = {};
-  u2_t Network = {}, Width = {}, Count = {};
-  u3_t Steps = {};
-  f3_t Metric = {};
+  err_t (*Destroy)(void *) = {};
+  SNNModel() = default;
+  SNNModel(cnst SNNModel &) = delete;
+  SNNModel & operator=(cnst SNNModel &) = delete;
+  ~SNNModel() { Clear(); }
+  err_t Clear() {
+   cnst err_t result = Destroy ? Destroy(State) : 0;
+   State = {}; Advance = {}; Destroy = {};
+   rtrn result;
+  }
+ };
+ stct SNNPainter {
+  img8bgra Source = {}, Prediction = {}, Error = {}, Influence = {};
+  u3_t Samples = {}, Pass = {};
+  u2_t Cursor = {}, Neuron = {};
+  f3_t MSE = {};
+ };
+ stct SNNInspection {
+  u3_t Revision = {};
+  u2_t Width = {}, Count = {};
   astatic<f3_t, 625> Values = {};
   astatic<f3_t, 1024> Weights = {};
   astatic<f3_t, 1024> WeightsBefore = {}, WeightChanges = {};
@@ -31,14 +49,21 @@ namespace llc {
   astatic<u2_t, 3> LayerUnits = {};
   f3_t Target = {}, Prediction = {}, SampleLoss = {};
   bool Inspected = {}, Training = {};
+ };
+ stct SNN {
+  SNNConfig Config = {};
+  SNNModel Model = {};
+  SNNInspection Inspection = {};
+  pobj<SNNPainter> Painter = {};
+  u2_t Network = {};
+  u3_t Steps = {};
+  f3_t Metric = {};
   bool Complete = {};
   err_t Error = {};
   SNN() = default;
   SNN(cnst SNN &) = delete;
   SNN & operator=(cnst SNN &) = delete;
-  ~SNN() { if(Destroy) Destroy(State); }
  };
- stxp u2_t NN_IMAGE = 8, NN_COUNT = 9;
  vcst_t nnName(u2_t network);
  vcst_t nnDescription(u2_t network);
  vcst_t nnReport(u2_t network);

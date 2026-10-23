@@ -319,8 +319,8 @@ llc::err_t Step(llc::SNN & run) {
   for(llc::u2_t j = 0; j < N; ++j) Network.On[j] = Network.Off[j] = 0;
   Cursor = 0;
  }
- run.Width = NUM_CITIES; run.Count = N; run.Metric = complete ? LengthOfTour(&Network) : Network.Temperature;
- for(llc::u2_t j = 0; j < N; ++j) run.Values[j] = Network.Output[j];
+ run.Inspection.Width = NUM_CITIES; run.Inspection.Count = N; run.Metric = complete ? LengthOfTour(&Network) : Network.Temperature;
+ for(llc::u2_t j = 0; j < N; ++j) run.Inspection.Values[j] = Network.Output[j];
  rtrn complete ? 1 : 0;
 }
 

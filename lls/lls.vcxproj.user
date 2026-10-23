@@ -39,5 +39,6 @@
     <LocalDebuggerCommand>$(OutDir)lrt.exe</LocalDebuggerCommand>
     <LocalDebuggerCommandArguments>$(ProjectName)</LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommandArgumentsHistory>lls|</LocalDebuggerCommandArgumentsHistory>
   </PropertyGroup>
 </Project>

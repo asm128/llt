@@ -536,10 +536,10 @@ llc::err_t Begin() {
 }
 llc::err_t Step(llc::SNN & run) {
  SimulateNet(&Network, Cursor < NUM_DATA ? Input[Cursor] : Input_[Cursor - NUM_DATA]);
- run.Width = X; run.Count = N;
+ run.Inspection.Width = X; run.Inspection.Count = N;
  run.Metric = atan2(Network.OutstarLayer->Output[0], Network.OutstarLayer->Output[1]) / PI * 180;
  if(run.Metric < 0) run.Metric += 360;
- for(llc::u2_t i = 0; i < N; ++i) run.Values[i] = Network.InputLayer->Output[i];
+ for(llc::u2_t i = 0; i < N; ++i) run.Inspection.Values[i] = Network.InputLayer->Output[i];
  rtrn ++Cursor == 2 * NUM_DATA ? 1 : 0;
 }
 

@@ -355,8 +355,8 @@ llc::err_t Step(llc::SNN & run) {
   Unchanged = 0; Started = true;
  }
  if(PropagateUnit(&Network, RandomEqualINT(0, Network.Units - 1))) Unchanged = 0; else ++Unchanged;
- run.Width = X; run.Count = N; run.Metric = Unchanged;
- for(llc::u2_t i = 0; i < N; ++i) run.Values[i] = Network.Output[i];
+ run.Inspection.Width = X; run.Inspection.Count = N; run.Metric = Unchanged;
+ for(llc::u2_t i = 0; i < N; ++i) run.Inspection.Values[i] = Network.Output[i];
  if(Unchanged == 10 * N) { GetOutput(&Network, Result); ++Cursor; Started = false; }
  rtrn Cursor == 2 * NUM_DATA ? 1 : 0;
 }

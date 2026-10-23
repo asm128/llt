@@ -19,25 +19,24 @@ llc::vcst_t llc::nnName(u2_t n) { return n < NN_COUNT ? Names[n] : vcst_t{}; }
 llc::vcst_t llc::nnDescription(u2_t n) { return n < NN_COUNT ? Descriptions[n] : vcst_t{}; }
 llc::vcst_t llc::nnReport(u2_t n) { return n < NN_COUNT ? Reports[n] : vcst_t{}; }
 llc::err_t llc::nnReset(SNN & run) {
- if(run.Destroy) run.Destroy(run.State);
- run.State = {}; run.Destroy = {}; run.Advance = {};
- run.Count = run.Width = 0; run.Steps = 0; run.Metric = 0; run.Complete = false; run.Error = 0;
- run.WeightSize = {};
- run.BeforeSize = {}; run.Inspected = run.Training = false;
- run.LayerUnits = {}; run.Activations = {}; run.ErrorTerms = {};
- run.Target = run.Prediction = run.SampleLoss = 0;
- run.WeightsBefore = {}; run.WeightChanges = {};
- run.ImageSamples = run.ImagePass = 0; run.ImageCursor = run.ImageNeuron = 0; run.ImageMSE = 0;
+ if_fail_fe(run.Model.Clear());
+ run.Inspection = {};
+ run.Steps = 0; run.Metric = 0; run.Complete = false; run.Error = 0;
+ if(run.Painter.get_ref()) {
+  run.Painter->Samples = run.Painter->Pass = 0;
+  run.Painter->Cursor = run.Painter->Neuron = 0; run.Painter->MSE = 0;
+ }
  return 0;
 }
 llc::err_t llc::nnBegin(SNN & run, u2_t network, const SNNConfig & config) {
  if_true_fe(network >= NN_COUNT);
  if_true_fe(!config.HiddenUnits || config.HiddenUnits > 32);
  if_true_fe(!config.MapSize.x || config.MapSize.x > 25 || !config.MapSize.y || config.MapSize.y > 25);
- if_true_fe(network != 4 && network != NN_IMAGE && config.HiddenUnits != 10);
- if_true_fe(network != 7 && (config.MapSize.x != 25 || config.MapSize.y != 25));
+ if_true_fe(network != llc::NN_BACKPROPAGATION && network != NN_IMAGE && config.HiddenUnits != 10);
+ if_true_fe(network != llc::NN_SOM && (config.MapSize.x != 25 || config.MapSize.y != 25));
  const SNNConfig requested = config; // config may alias run.Config.
  if_fail_fe(nnReset(run));
+ if(network != NN_IMAGE) if_fail_fe(run.Painter.clear());
  run.Config = requested;
  run.Network = network;
  sttc err_t (*cnst create[])(SNN &) = {nnCreateAdaline,nnCreateArt1,nnCreateBam,nnCreateBoltzman,nnCreateBpn,nnCreateCpn,nnCreateHopfield,nnCreateSom,nnCreateImage};
@@ -48,15 +47,20 @@ llc::err_t llc::nnStep(SNN & run, u2_t budget) {
  if(run.Error < 0) return run.Error;
  if(run.Complete) return 1;
  if(!budget) return 0;
- if_true_fe(!run.State || !run.Advance);
+ if_true_fe(!run.Model.State || !run.Model.Advance);
  for(u2_t i = 0; i < budget; ++i) {
-  run.BeforeSize = run.WeightSize;
-  run.WeightsBefore = run.Weights;
-  cnst err_t result = run.Advance(run.State, run);
-  run.WeightChanges = {};
-  if(run.BeforeSize == run.WeightSize)
-   for(u2_t cell = 0; cell < run.WeightSize.x * run.WeightSize.y; ++cell)
-    run.WeightChanges[cell] = run.Weights[cell] - run.WeightsBefore[cell];
+  cnst auto previousSize = run.Inspection.WeightSize;
+  cnst auto previousWeights = run.Inspection.Weights;
+  cnst auto previousRevision = run.Inspection.Revision;
+  cnst err_t result = run.Model.Advance(run.Model.State, run);
+  if(run.Inspection.Revision != previousRevision) {
+   run.Inspection.BeforeSize = previousSize;
+   run.Inspection.WeightsBefore = previousWeights;
+   run.Inspection.WeightChanges = {};
+   if(run.Inspection.BeforeSize == run.Inspection.WeightSize)
+    for(u2_t cell = 0; cell < run.Inspection.WeightSize.x * run.Inspection.WeightSize.y; ++cell)
+     run.Inspection.WeightChanges[cell] = run.Inspection.Weights[cell] - run.Inspection.WeightsBefore[cell];
+  }
   ++run.Steps;
   if(result < 0) { run.Error = result; return result; }
   if(result == 1) { run.Complete = true; return 1; }

@@ -293,8 +293,8 @@ llc::err_t Step(llc::SNN & run) {
  }
  const bool stable1 = PropagateLayer(from, to);
  const bool stable2 = PropagateLayer(to, from);
- run.Width = BITS_PER_CHAR; run.Count = M; run.Metric = Cursor;
- for(llc::u2_t i = 0; i < M; ++i) run.Values[i] = Network.Y->Output[i];
+ run.Inspection.Width = BITS_PER_CHAR; run.Inspection.Count = M; run.Metric = Cursor;
+ for(llc::u2_t i = 0; i < M; ++i) run.Inspection.Values[i] = Network.Y->Output[i];
  if(stable1 && stable2) {
   if(reverse) GetOutput(from, ResultOutput); else GetOutput(from, ResultInput);
   fprintf(f, " -> ");

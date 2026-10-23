@@ -424,8 +424,8 @@ llc::err_t Step(llc::SNN & run) {
   SimulateNet(&Network, Input[Cursor], Output[Cursor], false, true);
   ++Cursor;
  }
- run.Width = X; run.Count = N;
- for(llc::u2_t i = 0; i < N; ++i) run.Values[i] = Network.InputLayer->Output[i+1];
+ run.Inspection.Width = X; run.Inspection.Count = N;
+ for(llc::u2_t i = 0; i < N; ++i) run.Inspection.Values[i] = Network.InputLayer->Output[i+1];
  rtrn Phase == 2 && Cursor == NUM_DATA ? 1 : 0;
 }
 
