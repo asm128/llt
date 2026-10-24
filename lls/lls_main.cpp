@@ -69,7 +69,7 @@ sttc llc::err_t llsStatus(cnst llc::SJSONReader & reader, llc::err_t id, SApplic
 	rtrn llsRespond(reader, id, body, peer);
 }
 
-sttc	::llc::err_t	llsToolCall			(cnst ::llc::SJSONReader & reader, SBuildResult & outcome, SApplication & app, llc::u2_t jobIndex, SRelayPeer * peer) {
+sttc	::llc::err_t	llsToolCall			(cnst ::llc::SJSONReader & reader, SBuildResult & outcome, SApplication & app, llc::u2_t jobIndex, SRelayPeer *) {
 	llc::vcst_t name, action;
 	if_fail_fe(llc::jsonExpressionResolve("params.name", reader, 0, name));
 	if(name != "vs") {
@@ -100,14 +100,9 @@ sttc	::llc::err_t	llsToolCall			(cnst ::llc::SJSONReader & reader, SBuildResult 
 	::llc::u2_t exitCode = 0;
 	cnst llc::err_t status = llsProcess(app, jobIndex, msbuild, command, build, output, exitCode);
 	outcome = {status, exitCode, build && llc::succeeded(status)};
-	if(!peer) { if_fail_fe(::llsWrite({(cnst ::llc::sc_t*)output.begin(), output.size()}, stderr)); }
-	if_fail_fe(::llc::append_strings(result, "\"result\":{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"Visual Studio ", action, ": status ", ::llc::str(status), ", exit code ", ::llc::str(exitCode), ". Output is on stderr.\"}],\"isError\":", ::llc::b82vcs(::llc::failed(status) || 0 != exitCode), '}'));
-	if(peer) {
-		llc::string text;
-		if_fail_fe(llc::append_strings(text, "Visual Studio build: status ", llc::str(status), ", exit code ", llc::str(exitCode), '\n', llc::vcst_t{(cnst char*)output.begin(), output.size()}));
-		if_fail_fe(result.clear());
-		if_fail_fe(lcpTextBody(result, text, llc::failed(status) || exitCode != 0));
-	}
+	llc::string text;
+	if_fail_fe(lcpVSBuildSummary({(cnst char*)output.begin(), output.size()}, status, exitCode, text));
+	if_fail_fe(lcpTextBody(result, text, llc::failed(status) || exitCode != 0));
 	{
 		llc::lock_guard guard(app.Lock);
 		if_fail_fe(app.Jobs[jobIndex].Response.append(result));
@@ -157,9 +152,10 @@ sttc	::llc::err_t	llsRequest			(::llc::SJSONReader & reader, ::llc::vcst_t reque
 			llc::vcst_t path;
 			cnst llc::err_t field = llc::jsonExpressionResolve("params.arguments.path", reader, 0);
 			cnst bool valid = field < 0 || llc::succeeded(llc::jsonObjectGetString(reader, (llc::u2_t)field, path));
-			cnst llc::vcst_t text = valid ? help(path, true) : llc::vcst_t{};
-			llc::string body;
-			if_fail_fe(lcpTextBody(body, text.size() ? text : llc::vcst_t{"Unknown help path or non-string path. Open help with an empty path for the index."}, !text.size()));
+			llc::string text, body;
+			if_true_fe(!valid);
+			if_fail_fe(lcpToolsAvailable(path, text));
+			if_fail_fe(lcpTextBody(body, text, false));
 			rtrn llsRespond(reader, id, body, peer);
 		}
 		if(name == "status" && app) rtrn llsStatus(reader, id, *app, peer);

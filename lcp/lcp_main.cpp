@@ -51,8 +51,9 @@ sttc	::llc::err_t	lcpToolCall			(cnst ::llc::SJSONReader & reader, ::llc::err_t 
 		cnst llc::err_t field = llc::jsonExpressionResolve("params.arguments.path", reader, 0);
 		if(field >= 0 && llc::failed(llc::jsonObjectGetString(reader, (llc::u2_t)field, path)))
 			rtrn lcpText(reader, id, "Help path must be a string.", true);
-		cnst llc::vcst_t text = help(path);
-		rtrn lcpText(reader, id, text.size() ? text : llc::vcst_t{"Unknown help path. Open help with an empty path for the index."}, !text.size());
+		llc::string text;
+		if_fail_fe(lcpToolsAvailable(path, text));
+		rtrn lcpText(reader, id, text, false);
 	}
 	if("tree" == name) {
 		llc::string body;

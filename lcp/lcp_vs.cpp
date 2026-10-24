@@ -16,6 +16,51 @@ llc::err_t lcpVSBuildCommand(cnst llc::SJSONReader & reader, llc::string & appli
 	rtrn llc::append_strings(command, " /p:Configuration=\"", configuration, "\" /p:Platform=\"", platform, '"');
 }
 
+namespace {
+llc::vcst_t buildLineTrim(llc::vcst_t line) {
+	while(line.size() && (line[0] == ' ' || line[0] == '\t' || line[0] == '\r')) line = {line.begin() + 1, line.size() - 1};
+	while(line.size() && (line[line.size() - 1] == ' ' || line[line.size() - 1] == '\t' || line[line.size() - 1] == '\r')) line = {line.begin(), line.size() - 1};
+	rtrn line;
+}
+
+llc::err_t buildDiagnosticSanitize(llc::vcst_t line, llc::string & summary) {
+	cnst llc::err_t project = line.find(" [");
+	if(project >= 0) line = {line.begin(), (llc::u2_t)project};
+	cnst llc::err_t location = line.find('(');
+	if(location > 0) {
+		cnst llc::vcst_t source = {line.begin(), (llc::u2_t)location};
+		cnst llc::err_t backslash = source.rfind('\\'), slash = source.rfind('/');
+		cnst llc::err_t separator = llc::max(backslash, slash);
+		if(separator >= 0) line = {line.begin() + separator + 1, line.size() - (llc::u2_t)(separator + 1)};
+	}
+	rtrn summary.append(line);
+}
+
+llc::err_t buildDiagnosticFind(llc::vcst_t output, bool located, llc::string & summary) {
+	while(output.size()) {
+		llc::vcst_t line, remaining;
+		cnst llc::err_t split = llc::split<llc::sc_c>('\n', output, line, remaining);
+		if(llc::failed(split)) { line = output; remaining = {}; }
+		line = buildLineTrim(line);
+		cnst bool error = line.find(": error ") >= 0 || line.find(": fatal error ") >= 0;
+		cnst bool source = line.find('(') >= 0 && (line.find("): error ") >= 0 || line.find(") : error ") >= 0 || line.find("): fatal error ") >= 0 || line.find(") : fatal error ") >= 0);
+		if(error && (!located || source)) rtrn buildDiagnosticSanitize(line, summary);
+		if(!remaining.size()) break;
+		output = remaining;
+	}
+	rtrn 0;
+}
+}
+
+llc::err_t lcpVSBuildSummary(llc::vcst_t output, llc::err_t status, llc::u2_t exitCode, llc::string & summary) {
+	if_fail_fe(summary.clear());
+	if(llc::succeeded(status) && !exitCode) rtrn summary.append_string("Build succeeded.");
+	if_fail_fe(buildDiagnosticFind(output, true, summary));
+	if(!summary.size()) { if_fail_fe(buildDiagnosticFind(output, false, summary)); }
+	if(!summary.size()) { if_fail_fe(llc::append_strings(summary, "Build failed (", llc::str(status), "/", llc::str(exitCode), ").")); }
+	rtrn summary.size();
+}
+
 #ifdef LLC_WINDOWS
 #include <comdef.h>
 #include <objbase.h>
@@ -393,7 +438,7 @@ llc::err_t lcpVSCall(cnst llc::SJSONReader & reader, llc::string & body, llc::er
 		llc::au0_t output;
 		llc::u2_t exitCode = 0;
 		if(llc::succeeded(status)) status = llc::SProcessManager{}.Execute(application, command, {}, output, exitCode, {});
-		if_fail_fe(llc::append_strings(text, "Build status ", llc::str(status), ", exit code ", llc::str(exitCode), '\n', llc::vcst_t{(cnst llc::sc_t*)output.begin(), output.size()}));
+		if_fail_fe(lcpVSBuildSummary({(cnst llc::sc_t*)output.begin(), output.size()}, status, exitCode, text));
 		if(operationStatus) *operationStatus = llc::failed(status) ? status : exitCode ? -1 : 0;
 		rtrn lcpTextBody(body, text, llc::failed(status) || exitCode != 0);
 	}
