@@ -350,6 +350,7 @@
     <ClCompile Include="..\lcp\lcp_help.cpp" />
     <ClCompile Include="..\lcp\lcp_tools.cpp" />
     <ClCompile Include="..\lcp\lcp_vs.cpp" />
+    <ClCompile Include="..\lcp\lcp_metrics.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\lcp\lcp_help.h" />
@@ -364,6 +365,7 @@
     <ClInclude Include="..\lcp\lcp_tools.h" />
     <ClInclude Include="..\lcp\lcp_vs.h" />
     <ClInclude Include="..\lcp\lcp_text.h" />
+    <ClInclude Include="..\lcp\lcp_metrics.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="lls_tools.json" />

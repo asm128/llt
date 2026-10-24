@@ -1,4 +1,5 @@
 #include "../lcp/lcp_relay.h"
+#include "../lcp/lcp_metrics.h"
 #include "llc_runtime.h"
 #include "llc_json.h"
 #include "llc_mutex.h"
@@ -33,6 +34,7 @@ stct SApplication {
 	llc::u3_t SessionId = 0;
 	llc::string Identity;
 	SServiceLog Log;
+	SCommunicationMetrics Metrics;
 	llc::string HistoryRoot;
 	llc::err_t HistoryError = 0;
 	bool				NetworkStarted = false;

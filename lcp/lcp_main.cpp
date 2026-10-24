@@ -6,10 +6,12 @@
 #include "lcp_commands.h"
 #include "lcp_relay.h"
 #include "lcp_text.h"
+#include "lcp_metrics.h"
 #include "llc_process.h"
 #include "llc_path.h"
 #include "llc_file.h"
 #include "llc_cstdio.h"
+#include "llc_chrono.h"
 #include "llc_json_expression.h"
 #include "llc_string_compose.h"
 #include "llc_encoding.h"
@@ -27,6 +29,7 @@ sttc	::llc::err_t	lcpWrite			(::llc::vcst_t message, FILE * stream = stdout) {
 	if_zero_vw(0, message.size());
 	if_true_ve(::llc::OS_ERROR, message.size() != fwrite(message.begin(), 1, message.size(), stream));
 	if_true_ve(::llc::OS_ERROR, fflush(stream));
+	if(stream == stdout) { if_fail_fe(lcpMetricsRecord(COMMUNICATION_CHANNEL::Stdio, false, message)); }
 	rtrn message.size();
 }
 
@@ -122,6 +125,11 @@ sttc ::llc::err_t lcp_entry_point(::llc::SRuntimeValues & runtimeValues) {
 	SRelayPeer * relay = service.size() ? &peer : nullptr;
 	if(relay) { if_fail_fe(llc::tcpipInitialize()); }
 	if_fail_fe(::llc::setupDefaultLogCallbacks());
+#ifdef _DEBUG
+	if_fail_fe(lcpVSBuildSummaryTest());
+#endif
+	SCommunicationMetrics metrics;
+	if_fail_fe(lcpMetricsStart(metrics, "lcp", llc::timeCurrentInUs()));
 	if_true_fe(setvbuf(stdin, 0, _IONBF, 0));
 	if_fail_fe(lcpToolsLoad("lcp_tools.json"));
 	if_fail_fe(helpLoad());
@@ -133,13 +141,15 @@ sttc ::llc::err_t lcp_entry_point(::llc::SRuntimeValues & runtimeValues) {
 			if_fail_fe(request.push_back((::llc::sc_t)character));
 			continue;
 		}
+		if_fail_fe(lcpMetricsRecord(COMMUNICATION_CHANNEL::Stdio, true, request, request.size() + 1));
 		if_fail_fe(::lcpRequest(reader, request, tree, relay, service == "Debug"));
 		if_fail_fe(request.clear());
 	}
 	if_true_ve(::llc::OS_ERROR, ferror(stdin));
 	if(request.size()) {
+		if_fail_fe(lcpMetricsRecord(COMMUNICATION_CHANNEL::Stdio, true, request));
 		if_fail_fe(::lcpRequest(reader, request, tree, relay, service == "Debug"));
 	}
 	if(relay) { if_fail_fe(relayClose(peer)); if_fail_fe(llc::tcpipShutdown()); }
-	rtrn 0;
+	rtrn lcpMetricsStop(metrics);
 }

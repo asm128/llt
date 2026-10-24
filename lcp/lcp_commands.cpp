@@ -1,4 +1,5 @@
 #include "lcp_commands.h"
+#include "lcp_metrics.h"
 #include "lcp_help.h"
 #include "lcp_tools.h"
 #include "lcp_vs.h"
@@ -196,7 +197,12 @@ llc::err_t lcpShellCall(cnst llc::SJSONReader & reader, llc::string & body, llc:
 		status = execute(command, stdinBytes, output, exitCode);
 	else {
 		cnst llc::err_t process = processes.Create({}, command, {}, CREATE_NO_WINDOW);
-		status = llc::failed(process) ? process : processes.Execute((llc::u2_t)process, stdinBytes, output, exitCode);
+		if(llc::failed(process)) status = process;
+		else {
+			if_fail_fe(lcpMetricsRecord(COMMUNICATION_CHANNEL::Process, false, stdinBytes));
+			status = processes.Execute((llc::u2_t)process, stdinBytes, output, exitCode);
+			if_fail_fe(lcpMetricsRecord(COMMUNICATION_CHANNEL::Process, true, output));
+		}
 	}
 	if_fail_fe(llc::append_strings(result, "status ", llc::str(status), ", exit code ", llc::str(exitCode), '\n', llc::vcst_t{(cnst llc::sc_t*)output.begin(), output.size()}));
 	rtrn lcpTextBody(body, result, llc::failed(status) || exitCode != 0);

@@ -62,7 +62,9 @@
   <ItemGroup>
     <ClCompile Include="..\lcp\lcp_relay.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="..\lcp\lcp_commands.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="..\lcp\lcp_metrics.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClInclude Include="..\lcp\lcp_relay.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="..\lcp\lcp_commands.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="..\lcp\lcp_metrics.h"><Filter>Header Files</Filter></ClInclude>
   </ItemGroup>
 </Project>

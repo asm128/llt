@@ -2,11 +2,13 @@ param(
     [Parameter(Mandatory)][string]$Tool,
     [hashtable]$Arguments = @{},
     [ValidateSet('Debug','Release')][string]$Configuration = 'Release',
+    [ValidateSet('Default','Debug','Debug-MT','Release','Release-MT')][string]$ClientConfiguration = 'Default',
     [ValidateRange(1,3600)][int]$TimeoutSeconds = 1800
 )
 $ErrorActionPreference = 'Stop'
 # Same MCP connector and service as the app integration; no local command fallback.
-$directory = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "../../x64.$Configuration-MT"))
+$client = if($ClientConfiguration -ne 'Default') { $ClientConfiguration } else { "$Configuration-MT" }
+$directory = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "../../x64.$client"))
 $start = [Diagnostics.ProcessStartInfo]::new((Join-Path $directory 'lcp.exe'))
 $start.WorkingDirectory = $directory
 $start.Arguments = "--service=$Configuration"

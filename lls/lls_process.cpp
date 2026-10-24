@@ -58,7 +58,9 @@ llc::err_t llsProcess(SApplication & app, llc::u2_t jobIndex, llc::vcst_t applic
 	}
 	if(capture) {
 		// Drain output concurrently with supplied input, preserving the published child PID.
+		if_fail_fe(lcpMetricsRecord(COMMUNICATION_CHANNEL::Process, false, input));
 		if_fail_fe(processes.Communicate(id, input, output));
+		if_fail_fe(lcpMetricsRecord(COMMUNICATION_CHANNEL::Process, true, output));
 		if_fail_fe(processes.Wait(id, exitCode));
 		llc::lock_guard guard(app.Lock);
 		if_fail_fe(app.Jobs[jobIndex].Output.append({(cnst char*)output.begin(), output.size()}));

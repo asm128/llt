@@ -28,6 +28,7 @@ sttc	::llc::err_t	llsWrite			(::llc::vcst_t message, FILE * stream = stdout) {
 	::llc::lock_guard guard(lock);
 	if_true_ve(::llc::OS_ERROR, message.size() != fwrite(message.begin(), 1, message.size(), stream));
 	if_true_ve(::llc::OS_ERROR, fflush(stream));
+	if(stream == stdout) { if_fail_fe(lcpMetricsRecord(COMMUNICATION_CHANNEL::Stdio, false, message)); }
 	rtrn message.size();
 }
 
@@ -208,6 +209,7 @@ sttc	::llc::err_t	llsRequest			(::llc::SJSONReader & reader, ::llc::vcst_t reque
 	if(instance) { app.Secondary = true; rtrn 0; }
 	app.SessionId = llc::timeCurrentInUs();
 	if_fail_fe(llsLogStart(app.Log, app.SessionId));
+	if_fail_fe(lcpMetricsStart(app.Metrics, "lls", app.SessionId));
 	if_fail_fe(lcpIdentity(app.Identity));
 	always_printf("%s", app.Identity.begin());
 	app.HistoryError = llsHistoryLoad(app);
@@ -281,6 +283,7 @@ sttc	::llc::err_t	llsRequest			(::llc::SJSONReader & reader, ::llc::vcst_t reque
 			if_fail_fe(app.Request.push_back((llc::sc_t)character));
 		}
 		else {
+			if_fail_fe(lcpMetricsRecord(COMMUNICATION_CHANNEL::Stdio, true, app.Request, app.Request.size() + 1));
 			if_fail_fe(llsRequest(app.Reader, app.Request, &app));
 			rtrn app.Request.clear();
 		}
@@ -289,6 +292,7 @@ sttc	::llc::err_t	llsRequest			(::llc::SJSONReader & reader, ::llc::vcst_t reque
 	if_true_ve(::llc::OS_ERROR, ferror(stdin));
 	app.InputClosed = true;
 	if(app.Request.size()) {
+		if_fail_fe(lcpMetricsRecord(COMMUNICATION_CHANNEL::Stdio, true, app.Request));
 		if_fail_fe(::llsRequest(app.Reader, app.Request, &app));
 	}
 	rtrn app.Request.clear();

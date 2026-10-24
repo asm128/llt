@@ -5,6 +5,7 @@
 #include "llc_system_key.h"
 #include <limits.h>
 #include "llc_chrono.h"
+#include "llc_event_input.h"
 #include "llc_runtime_module.h"
 
 sttc llc::err_t llsControl(llc::SGUI & gui, llc::cid_t & id, llc::vcst_t text, bool label = false) {
@@ -19,6 +20,23 @@ sttc llc::err_t llsPlace(llc::SGUI & gui, llc::cid_t id, llc::s1_t x, llc::s1_t 
 sttc llc::err_t llsTextRelease(SLLSGUI & ui, cnst llc::acid & controls) {
 	// controlTextSet borrows storage and compares the old view. Detach before its owner changes.
 	for(cnst auto id : controls) { if_fail_fe(llc::controlTextSet(*ui.Framework.GUI, id, {})); }
+	rtrn 0;
+}
+
+sttc llc::err_t llsDoubleClick(cnst llc::TQueueSystemEvent & events, bool & doubleClick) {
+	doubleClick = false;
+	for(llc::u2_t iEvent = 0; iEvent < events.size(); ++iEvent) {
+		cnst llc::pobj<llc::SEventSystem> & eventSystem = events[iEvent];
+		if(!eventSystem.get_ref() || eventSystem->Type != llc::SYSTEM_EVENT_Mouse) continue;
+		llc::SEView<llc::EVENT_MOUSE> eventMouse = {};
+		if_fail_fe(eventSystem->ExtractChild(eventMouse));
+		if(eventMouse.Type != llc::EVENT_MOUSE_DoubleClick) continue;
+		llc::vcu0_t input = eventMouse.Data;
+		llc::u0_t button = 0;
+		if_fail_fe(llc::loadPOD(input, button));
+		if_true_fe(input.size());
+		if(!button) doubleClick = true;
+	}
 	rtrn 0;
 }
 
@@ -66,7 +84,8 @@ sttc llc::err_t llsLayout(SLLSGUI & ui) {
 	cnst llc::s1_t left = llc::min((llc::s1_t)320, (llc::s1_t)(width / 3));
 	cnst llc::s1_t bottom = height - 46 - (ui.ShowKeyboard ? 230 : 0);
 	cnst llc::s1_t top = ui.Tab == 4 ? 202 : 166;
-	if_fail_fe(llsPlace(gui, ui.Title, 18, 12, width - 380, 30));
+	if_fail_fe(llsPlace(gui, ui.Title, 18, 12, width - 556, 30));
+	if_fail_fe(llsPlace(gui, ui.StopService, width - 536, 12, 166, 30));
 	if_fail_fe(llsPlace(gui, ui.Exit, width - 176, 12, 158, 30));
 	if_fail_fe(llsPlace(gui, ui.Restart, width - 360, 12, 176, 30));
 	if_fail_fe(llsPlace(gui, ui.Benchmark, width - 162, 164, 144, 28));
@@ -145,6 +164,7 @@ sttc llc::err_t llsSessionView(SApplication & app) {
 			if_fail_fe(llc::append_strings(ui.Detail, "DASHBOARD\nSERVICE / ", app.Service, "\n", app.Connection,
 				"\nSession: ", llc::str(app.SessionId), "\nSnapshot age: ",
 				llc::str(app.LastSnapshot ? ((llc::u3_t)llc::timeCurrentInUs() - app.LastSnapshot) / 1000000 : 0), " s"));
+			if(app.ServiceResponse.size()) { if_fail_fe(llc::append_strings(ui.Detail, "\n\nSERVICE CONTROL\n", app.ServiceResponse)); }
 		}
 		else {
 			if_fail_fe(llc::append_strings(ui.Detail, "RENDER PERFORMANCE\nBackend: CPU / LLC guiDraw (no D3D device)\nTarget: ",
@@ -158,12 +178,14 @@ sttc llc::err_t llsSessionView(SApplication & app) {
 		rtrn llsLines(ui);
 	}
 	if(ui.Tab == 4) {
-		if(!ui.Dirty) rtrn 0;
+		if(!ui.Dirty && ui.Revision == app.Revision) rtrn 0;
+		ui.Revision = app.Revision;
 		if_fail_fe(ui.Matches.clear());
 		for(llc::u2_t i = 0; i < ui.Explorer.Rows.size(); ++i) { if_fail_fe(ui.Matches.push_back(i)); }
 		ui.Selected = ui.Explorer.Selected;
 		if_fail_fe(llsDetailClear(ui));
 		ui.Detail = ui.Explorer.Summary;
+		if(app.ServiceResponse.size()) { if_fail_fe(llc::append_strings(ui.Detail, "\n\nSERVICE CONTROL\n", app.ServiceResponse)); }
 		if(ui.ListOffset >= ui.Matches.size()) ui.ListOffset = 0;
 		for(llc::u2_t i = 0; i < ui.Rows.size() && i + ui.ListOffset < ui.Matches.size(); ++i) {
 			if_fail_fe(llc::controlTextSet(*ui.Framework.GUI, ui.Rows[i], {}));
@@ -288,6 +310,7 @@ llc::err_t llsGUISetup(SApplication & app) {
 	for(llc::u2_t i = 0; i < ui.Tabs.size(); ++i) { if_fail_fe(llc::controlTextSet(gui, ui.Tabs[i], ui.TabText[i])); }
 	if_fail_fe(llsControl(gui, ui.Exit, "Exit dashboard"));
 	if_fail_fe(llsControl(gui, ui.Restart, "Restart dashboard"));
+	if_fail_fe(llsControl(gui, ui.StopService, "Stop service"));
 	if_fail_fe(llsControl(gui, ui.Benchmark, "Benchmark"));
 	if_fail_fe(llsControl(gui, ui.Keyboard, "Keyboard"));
 	if_fail_fe(llsControl(gui, ui.OpenPath, "Open path"));
@@ -320,6 +343,8 @@ llc::err_t llsGUIUpdate(SApplication & app) {
 		if(llc::failed(updated)) error_printf("Dashboard framework failed: %i.", updated);
 		rtrn updated;
 	}
+	bool doubleClick = false;
+	if_fail_fe(llsDoubleClick(window.EventQueue, doubleClick));
 #ifdef LLC_WINDOWS
 	{
 		llc::string title;
@@ -332,6 +357,25 @@ llc::err_t llsGUIUpdate(SApplication & app) {
 		app.Restart = gui.Controls.IsAction(ui.Restart);
 		app.Closing = true;
 		rtrn llc::APPLICATION_STATE_EXIT;
+	}
+	bool serviceControlBusy = false;
+	{
+		llc::lock_guard guard(app.Lock);
+		serviceControlBusy = app.ServiceCommandPending || app.ServiceCommandBusy;
+	}
+	gui.Controls.SetDisabled(ui.StopService, serviceControlBusy);
+	if(gui.Controls.IsAction(ui.StopService)) {
+		cnst llc::err_t queued = llsServiceQueue(app, "shutdown");
+		if(llc::failed(queued)) {
+			llc::lock_guard guard(app.Lock);
+			if_fail_fe(app.ServiceResponse.clear());
+			if_fail_fe(app.ServiceResponse.append_string("A service control operation is already running."));
+			++app.Revision;
+		}
+		ui.Tab = 6;
+		ui.Selected = (llc::u2_t)-1;
+		ui.ListOffset = ui.LineOffset = 0;
+		ui.Dirty = true;
 	}
 	gui.Controls.SetHidden(ui.Benchmark, ui.Tab != 7);
 	if(gui.Controls.IsAction(ui.Benchmark)) ui.BenchmarkLeft = 100;
@@ -390,10 +434,19 @@ llc::err_t llsGUIUpdate(SApplication & app) {
 		ui.Dirty = true;
 	}
 	for(llc::u2_t i = 0; i < ui.Rows.size(); ++i)
-		if(gui.Controls.IsAction(ui.Rows[i]) && i + ui.ListOffset < ui.Matches.size()) {
+		if((gui.Controls.IsAction(ui.Rows[i]) || (doubleClick && gui.Controls.IsHovered(ui.Rows[i]))) && i + ui.ListOffset < ui.Matches.size()) {
 			if(ui.Tab == 4) {
 				if_fail_fe(llsTextRelease(ui, ui.Breadcrumbs));
 				if_fail_fe(llsExplorerSelect(ui.Explorer, i + ui.ListOffset));
+				if(doubleClick && gui.Controls.IsHovered(ui.Rows[i]) && !ui.Explorer.SelectedFolder && ui.Explorer.SelectedPath.size()) {
+					cnst llc::err_t queued = llsServiceQueue(app, "launch", ui.Explorer.SelectedPath);
+					if(llc::failed(queued)) {
+						llc::lock_guard guard(app.Lock);
+						if_fail_fe(app.ServiceResponse.clear());
+						if_fail_fe(app.ServiceResponse.append_string("A service control operation is already running."));
+						++app.Revision;
+					}
+				}
 			}
 			ui.Selected = ui.Matches[i + ui.ListOffset];
 			if(ui.Tab == 8) {
@@ -430,7 +483,7 @@ llc::err_t llsGUIUpdate(SApplication & app) {
 	if_fail_fe(llc::controlTextSet(gui, ui.Hint, ui.Tab == 8
 		? llc::vcst_t{"Choose a template to load it. Edit the JSON if needed; Enter or Send JSON sends it."}
 		: ui.Tab == 4
-		? llc::vcst_t{"PATH (not search): enter a folder path. Click folders to expand; breadcrumbs navigate."}
+		? llc::vcst_t{"PATH (not search): click folders to expand; double-click lls.exe or lrt.exe to start LLS."}
 		: llc::vcst_t{"Type to filter. Click paths in details to browse. Open path uses the text box. Mouse wheel scrolls."}));
 	ui.Refresh += ui.Framework.FrameInfo.Seconds.LastFrame;
 	if(ui.Dirty || ui.Refresh >= .2) { if_fail_fe(llsSessionView(app)); ui.Refresh = 0; }

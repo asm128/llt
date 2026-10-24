@@ -1,4 +1,5 @@
 #include "lcp_relay.h"
+#include "lcp_metrics.h"
 #include "llc_chrono.h"
 #include "llc_sync.h"
 #include "llc_file.h"
@@ -111,6 +112,7 @@ err_t relayClose(SRelayPeer & peer) {
 err_t relayQueue(SRelayPeer & peer, vcst_t message) {
 	llc::lock_guard guard(peer.Lock);
 	if(peer.Closed) rtrn 0; // The job remains in the dashboard; never deliver it to another connection.
+	if_fail_fe(lcpMetricsRecord(COMMUNICATION_CHANNEL::Relay, false, message));
 	string packet;
 #ifdef LLC_WINDOWS
 	if(message.size() > UDP_PAYLOAD_SIZE_LIMIT) {
@@ -229,8 +231,12 @@ err_t relayPump(SRelayPeer & peer) {
 		for(u2_t i = 0; i < peer.Files.size(); ++i)
 			if(GetFileAttributesA(peer.Files[i].begin()) == INVALID_FILE_ATTRIBUTES) { if_fail_fe(peer.Files.remove_unordered(i--)); }
 	}
+	cnst u2_t receivedStart = peer.Received.size();
 	if_fail_fe(connectionPayloadCollect(connection, peer.Received));
-	for(auto & message : peer.Received) { if_fail_fe(relayFileRead(peer, message->Payload)); }
+	for(u2_t i = receivedStart; i < peer.Received.size(); ++i) {
+		if_fail_fe(relayFileRead(peer, peer.Received[i]->Payload));
+		if_fail_fe(lcpMetricsRecord(COMMUNICATION_CHANNEL::Relay, true, peer.Received[i]->Payload));
+	}
 	if_fail_fe(connectionSendQueue(connection, peer.Sent, peer.Send, false));
 	rtrn 0;
 #else

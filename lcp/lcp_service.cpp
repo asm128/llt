@@ -44,46 +44,45 @@ err_t locate(cnst lls::SControlNames & names, HWND & window, DWORD & pid) {
 	if(instance.Handle) rtrn OS_BUSY; // Starting, older binary, or another desktop/session.
 	rtrn GetLastError() == ERROR_FILE_NOT_FOUND ? 0 : OS_ERROR;
 }
-err_t argument(cnst SJSONReader & reader, vcst_t expression, string & value) {
-	vcst_t text;
-	if_fail_fe(jsonExpressionResolve(expression, reader, 0, text));
-	if_fail_fe(lcpStringDecode(text, value));
-	if(!value.size()) { if_fail_fe(value.append(text)); }
-	rtrn 0;
-}
-err_t executable(cnst SJSONReader & reader, string & path, string & directory, string & command) {
-	if_fail_fe(argument(reader, "params.arguments.executable", path));
+err_t executable(vcst_t executablePath, string & text, string & path, string & directory, string & command) {
+	if_fail_fe(path.append(executablePath));
 	for(u2_t i = 0; i < path.size(); ++i) if(path[i] == '/') path[i] = '\\';
 	// Use a full path, never PATH lookup or the connector's working directory.
-	if_true_ve(OS_INVALID_PARAMETER, path.size() < 4 || !((path[1] == ':' && path[2] == '\\') || (path[0] == '\\' && path[1] == '\\')));
+	if(path.size() < 4 || !((path[1] == ':' && path[2] == '\\') || (path[0] == '\\' && path[1] == '\\'))) {
+		if_fail_fe(text.append_string("Select lls.exe or lrt.exe using its absolute path."));
+		rtrn OS_INVALID_PARAMETER;
+	}
 	cnst char * basename = strrchr(path.begin(), '\\');
-	if_null_ve(OS_INVALID_PARAMETER, basename);
+	if(!basename) { if_fail_fe(text.append_string("The selected executable has no directory.")); rtrn OS_INVALID_PARAMETER; }
 	++basename;
 	cnst bool module = _stricmp(basename, "lrt.exe") == 0;
-	if_true_ve(OS_INVALID_PARAMETER, !module && _stricmp(basename, "lls.exe") != 0);
-	if_true_ve(OS_INVALID_PARAMETER, path.find('"') >= 0 || path.find('\0') >= 0);
+	if(!module && _stricmp(basename, "lls.exe") != 0) {
+		if_fail_fe(text.append_string("Only lls.exe or lrt.exe can start the LLS service."));
+		rtrn OS_INVALID_PARAMETER;
+	}
+	if(path.find('"') >= 0 || path.find('\0') >= 0) { if_fail_fe(text.append_string("The selected executable path is invalid.")); rtrn OS_INVALID_PARAMETER; }
 	cnst DWORD attributes = GetFileAttributesA(path.begin());
-	if_true_ve(OS_NOT_FOUND, attributes == INVALID_FILE_ATTRIBUTES || (attributes & FILE_ATTRIBUTE_DIRECTORY));
+	if(attributes == INVALID_FILE_ATTRIBUTES || (attributes & FILE_ATTRIBUTE_DIRECTORY)) {
+		if_fail_fe(append_strings(text, "Executable not found: ", path));
+		rtrn OS_NOT_FOUND;
+	}
 	if_fail_fe(directory.append(path.begin(), (u2_t)(basename - path.begin())));
 	if_fail_fe(append_strings(command, '"', path, '"'));
 	if(module) { if_fail_fe(command.append_string(" lls")); }
 	string resource;
 	if_fail_fe(append_strings(resource, directory, "lls_tools.json"));
-	if_true_ve(OS_NOT_FOUND, GetFileAttributesA(resource.begin()) == INVALID_FILE_ATTRIBUTES);
+	if(GetFileAttributesA(resource.begin()) == INVALID_FILE_ATTRIBUTES) { if_fail_fe(append_strings(text, "Missing service resource: ", resource)); rtrn OS_NOT_FOUND; }
 	if_fail_fe(resource.clear());
 	if_fail_fe(append_strings(resource, directory, "lcp_help.json"));
-	if_true_ve(OS_NOT_FOUND, GetFileAttributesA(resource.begin()) == INVALID_FILE_ATTRIBUTES);
+	if(GetFileAttributesA(resource.begin()) == INVALID_FILE_ATTRIBUTES) { if_fail_fe(append_strings(text, "Missing service resource: ", resource)); rtrn OS_NOT_FOUND; }
 	if(module) {
 		if_fail_fe(resource.clear());
 		if_fail_fe(append_strings(resource, directory, "lls.dll"));
-		if_true_ve(OS_NOT_FOUND, GetFileAttributesA(resource.begin()) == INVALID_FILE_ATTRIBUTES);
+		if(GetFileAttributesA(resource.begin()) == INVALID_FILE_ATTRIBUTES) { if_fail_fe(append_strings(text, "Missing service module: ", resource)); rtrn OS_NOT_FOUND; }
 	}
 	rtrn 0;
 }
-err_t control(cnst SJSONReader & reader, string & text) {
-	vcst_t action, configuration;
-	if_fail_fe(jsonExpressionResolve("params.arguments.action", reader, 0, action));
-	if_fail_fe(jsonExpressionResolve("params.arguments.configuration", reader, 0, configuration));
+err_t control(vcst_t action, vcst_t configuration, vcst_t executablePath, string & text) {
 	if_true_ve(OS_INVALID_PARAMETER, configuration != "Debug" && configuration != "Release");
 	if_true_ve(OS_INVALID_PARAMETER, action != "launch" && action != "shutdown" && action != "restart" && action != "status");
 	cnst auto & names = configuration == "Debug" ? lls::ControlDebug : lls::ControlRelease;
@@ -108,7 +107,7 @@ err_t control(cnst SJSONReader & reader, string & text) {
 		rtrn append_strings(text, "LLS already running; pid ", str((u2_t)pid), ". No second instance launched.");
 	if(action == "shutdown" && !window) rtrn text.append_string("LLS is already stopped.");
 	string path, directory, command;
-	if(action == "launch" || action == "restart") { if_fail_fe(executable(reader, path, directory, command)); }
+	if(action == "launch" || action == "restart") { if_fail_fe(executable(executablePath, text, path, directory, command)); }
 	if(window) {
 		SHandle process;
 		process.Handle = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
@@ -160,16 +159,32 @@ err_t control(cnst SJSONReader & reader, string & text) {
 } // namespace
 #endif
 
-llc::err_t lcpServiceCall(cnst llc::SJSONReader & reader, llc::string & body) {
-	llc::string text;
+llc::err_t lcpServiceControl(llc::vcst_t action, llc::vcst_t configuration, llc::vcst_t executable, llc::string & text) {
 #ifdef LLC_WINDOWS
-	cnst llc::err_t result = control(reader, text);
+	cnst llc::err_t result = control(action, configuration, executable, text);
 	if(llc::failed(result) && !text.size()) {
-		if_fail_fe(llc::append_strings(text, "LLS control failed (", llc::str(result), "). Open help: lls. No forced termination is performed."));
+		if_fail_fe(llc::append_strings(text, "LLS control failed (", llc::str(result), "). No forced termination is performed."));
 	}
-	rtrn lcpTextBody(body, text, llc::failed(result));
+	rtrn result;
 #else
-	(void)reader;
-	rtrn lcpTextBody(body, "LLS desktop control is Windows-only.", true);
+	(void)action; (void)configuration; (void)executable;
+	if_fail_fe(text.append_string("LLS desktop control is Windows-only."));
+	rtrn -1;
 #endif
+}
+
+llc::err_t lcpServiceCall(cnst llc::SJSONReader & reader, llc::string & body) {
+	llc::vcst_t action, configuration;
+	if_fail_fe(llc::jsonExpressionResolve("params.arguments.action", reader, 0, action));
+	if_fail_fe(llc::jsonExpressionResolve("params.arguments.configuration", reader, 0, configuration));
+	llc::string executable;
+	if(action == "launch" || action == "restart") {
+		llc::vcst_t encoded;
+		if_fail_fe(llc::jsonExpressionResolve("params.arguments.executable", reader, 0, encoded));
+		if_fail_fe(lcpStringDecode(encoded, executable));
+		if(!executable.size()) { if_fail_fe(executable.append(encoded)); }
+	}
+	llc::string text;
+	cnst llc::err_t result = lcpServiceControl(action, configuration, executable, text);
+	rtrn lcpTextBody(body, text, llc::failed(result));
 }

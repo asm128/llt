@@ -346,10 +346,14 @@
     <ClCompile Include="lls_search.cpp" />
     <ClCompile Include="lls_desktop.cpp" />
     <ClCompile Include="..\lcp\lcp_help.cpp" />
+    <ClCompile Include="..\lcp\lcp_metrics.cpp" />
+    <ClCompile Include="..\lcp\lcp_service.cpp" />
     <ClCompile Include="..\lcp\lcp_tools.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\lcp\lcp_help.h" />
+    <ClInclude Include="..\lcp\lcp_metrics.h" />
+    <ClInclude Include="..\lcp\lcp_service.h" />
     <ClInclude Include="dashboard_app.h" />
     <ClInclude Include="..\lcp\lcp_relay.h" />
     <ClInclude Include="..\lls\lls_control.h" />

@@ -18,6 +18,7 @@ stct SExplorer {
 	llc::aobj<llc::string> Crumbs;
 	llc::string SelectedPath, Summary;
 	llc::u2_t Selected = (llc::u2_t)-1;
+	bool SelectedFolder = false;
 };
 
 llc::err_t llsExplorerOpen(SExplorer & explorer, llc::vcst_t path);

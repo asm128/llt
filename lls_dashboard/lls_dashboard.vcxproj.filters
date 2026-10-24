@@ -15,10 +15,14 @@
     <ClCompile Include="lls_search.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="lls_desktop.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="..\lcp\lcp_help.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="..\lcp\lcp_metrics.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="..\lcp\lcp_service.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="..\lcp\lcp_tools.cpp"><Filter>Source Files</Filter></ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\lcp\lcp_help.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="..\lcp\lcp_metrics.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="..\lcp\lcp_service.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="dashboard_app.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="..\lcp\lcp_relay.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="..\lls\lls_control.h"><Filter>Header Files</Filter></ClInclude>

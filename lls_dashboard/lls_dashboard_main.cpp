@@ -2,6 +2,7 @@
 #include "dashboard_app.h"
 #include "../lcp/lcp_help.h"
 #include "../lcp/lcp_tools.h"
+#include "../lcp/lcp_service.h"
 #include "../lcp/lcp_identity.h"
 #include "../lcp/lcp_text.h"
 #include "llc_json_expression.h"
@@ -137,6 +138,22 @@ llc::err_t llsCommandQueue(SApplication & app, llc::vcst_t command) {
 	rtrn 0;
 }
 
+llc::err_t llsServiceQueue(SApplication & app, llc::vcst_t action, llc::vcst_t executable) {
+	if_true_fe(action != "launch" && action != "shutdown");
+	if_true_fe(action == "launch" && !executable.size());
+	llc::lock_guard guard(app.Lock);
+	if_true_fe(app.ServiceCommandPending || app.ServiceCommandBusy);
+	if_fail_fe(app.ServiceAction.clear());
+	if_fail_fe(app.ServiceAction.append(action));
+	if_fail_fe(app.ServiceExecutable.clear());
+	if_fail_fe(app.ServiceExecutable.append(executable));
+	if_fail_fe(app.ServiceResponse.clear());
+	if_fail_fe(app.ServiceResponse.append_string(action == "shutdown" ? "Stopping LLS..." : "Starting LLS..."));
+	app.ServiceCommandPending = true;
+	++app.Revision;
+	rtrn 0;
+}
+
 sttc llc::err_t dashboardCommandResult(llc::err_t called, llc::vcst_t response, llc::string & output) {
 	if(llc::failed(called)) rtrn output.append_string("Command transport failed.");
 	llc::SJSONReader reader;
@@ -186,6 +203,9 @@ llc::err_t setup(SApplication & app) {
 	if_fail_fe(llc::append_strings(app.Title, "LLS Dashboard | ", llc::vcst_t{identity.begin(), end >= 0 ? (llc::u2_t)end : identity.size()}, " | Service: ", app.Service));
 	if_fail_fe(helpLoad());
 	if_fail_fe(lcpToolsLoad("lls_tools.json"));
+#ifdef _DEBUG
+	if_fail_fe(llsSearchTest());
+#endif
 	if_fail_fe(llc::tcpipInitialize());
 	app.NetworkStarted = true;
 	if_fail_fe(llsGUISetup(app));
@@ -248,6 +268,34 @@ llc::err_t update(SApplication & app, bool systemRequestedExit) {
 
 llc::err_t draw(SApplication & app) {
 	if(app.Closing || app.Secondary) rtrn 0;
+	llc::string serviceAction, serviceExecutable;
+	{
+		llc::lock_guard guard(app.Lock);
+		if(app.ServiceCommandPending) {
+			if_fail_fe(serviceAction.append(app.ServiceAction));
+			if_fail_fe(serviceExecutable.append(app.ServiceExecutable));
+			app.ServiceCommandPending = false;
+			app.ServiceCommandBusy = true;
+		}
+	}
+	if(serviceAction.size()) {
+		llc::string result;
+		cnst llc::err_t called = lcpServiceControl(serviceAction, app.Service, serviceExecutable, result);
+		if(serviceAction == "shutdown" && llc::succeeded(called)) { if_fail_e(relayClose(app.Peer)); }
+		{
+			llc::lock_guard guard(app.Lock);
+			if_fail_fe(app.ServiceResponse.clear());
+			if_fail_fe(app.ServiceResponse.append(result));
+			app.ServiceCommandBusy = false;
+			if(llc::succeeded(called)) {
+				app.Connected = false;
+				app.Connection = serviceAction == "shutdown" ? llc::vcst_t{"OFFLINE - service stopped"} : llc::vcst_t{"Connecting"};
+			}
+			++app.Revision;
+		}
+		app.NextPoll = 0;
+		rtrn 0;
+	}
 	llc::string command;
 	{
 		llc::lock_guard guard(app.Lock);

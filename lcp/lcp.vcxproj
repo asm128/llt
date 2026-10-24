@@ -340,6 +340,7 @@
     <ClCompile Include="lcp_main.cpp" />
     <ClCompile Include="lcp_relay.cpp" />
     <ClCompile Include="lcp_commands.cpp" />
+    <ClCompile Include="lcp_metrics.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="lcp_help.h" />
@@ -350,6 +351,7 @@
     <ClInclude Include="lcp_service.h" />
     <ClInclude Include="../lls/lls_control.h" />
     <ClInclude Include="lcp_text.h" />
+    <ClInclude Include="lcp_metrics.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="lcp_tools.json" />

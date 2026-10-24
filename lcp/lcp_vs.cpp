@@ -1,4 +1,5 @@
 #include "lcp_vs.h"
+#include "lcp_metrics.h"
 #include "lcp_text.h"
 #include "llc_json_expression.h"
 #include "llc_process.h"
@@ -17,6 +18,9 @@ llc::err_t lcpVSBuildCommand(cnst llc::SJSONReader & reader, llc::string & appli
 }
 
 namespace {
+tplt <size_t _nSize>
+llc::err_t buildFind(llc::vcst_t line, cnst char (&text)[_nSize]) { rtrn line.find({text, _nSize - 1}); }
+
 llc::vcst_t buildLineTrim(llc::vcst_t line) {
 	while(line.size() && (line[0] == ' ' || line[0] == '\t' || line[0] == '\r')) line = {line.begin() + 1, line.size() - 1};
 	while(line.size() && (line[line.size() - 1] == ' ' || line[line.size() - 1] == '\t' || line[line.size() - 1] == '\r')) line = {line.begin(), line.size() - 1};
@@ -24,7 +28,7 @@ llc::vcst_t buildLineTrim(llc::vcst_t line) {
 }
 
 llc::err_t buildDiagnosticSanitize(llc::vcst_t line, llc::string & summary) {
-	cnst llc::err_t project = line.find(" [");
+	cnst llc::err_t project = buildFind(line, " [");
 	if(project >= 0) line = {line.begin(), (llc::u2_t)project};
 	cnst llc::err_t location = line.find('(');
 	if(location > 0) {
@@ -36,18 +40,89 @@ llc::err_t buildDiagnosticSanitize(llc::vcst_t line, llc::string & summary) {
 	rtrn summary.append(line);
 }
 
+llc::err_t buildDiagnosticReason(llc::vcst_t line, llc::vcst_t & reason) {
+	cnst llc::err_t project = buildFind(line, " [");
+	if(project >= 0) line = {line.begin(), (llc::u2_t)project};
+	llc::err_t marker = buildFind(line, ": fatal error ");
+	if(marker < 0) marker = buildFind(line, ": error ");
+	if(marker >= 0) { reason = {line.begin() + marker + 2, line.size() - (llc::u2_t)(marker + 2)}; rtrn marker; }
+	if(buildFind(line, "fatal error ") == 0 || buildFind(line, "error ") == 0) { reason = line; rtrn 0; }
+	rtrn -1;
+}
+
+bool buildDiagnosticSource(llc::vcst_t line) {
+	rtrn line.find('(') >= 0 && (buildFind(line, "): error ") >= 0 || buildFind(line, ") : error ") >= 0 || buildFind(line, "): fatal error ") >= 0 || buildFind(line, ") : fatal error ") >= 0);
+}
+
+bool buildDiagnosticLocation(llc::vcst_t line, llc::vcst_t & location) {
+	llc::err_t end = buildFind(line, "):");
+	if(end < 0) end = buildFind(line, ") :");
+	if(end < 0 || line.find('(') < 0) rtrn false;
+	location = {line.begin(), (llc::u2_t)end + 1};
+	rtrn true;
+}
+
+bool buildDiagnosticSourceFile(llc::vcst_t location) {
+	rtrn buildFind(location, ".cpp(") >= 0 || buildFind(location, ".cxx(") >= 0 || buildFind(location, ".cc(") >= 0 || buildFind(location, ".c(") >= 0;
+}
+
+llc::u0_t buildDiagnosticCallsiteRank(llc::vcst_t context, llc::vcst_t location) {
+	if(!location.size()) rtrn 0;
+	if(buildFind(context, "see the first reference") >= 0 || buildFind(context, "required from here") >= 0 || buildFind(context, "instantiated from here") >= 0) rtrn 4;
+	cnst bool reference = buildFind(context, "see reference to") >= 0;
+	cnst bool compiling = buildFind(context, "while compiling") >= 0;
+	if(!reference && !compiling) rtrn 0;
+	if(buildDiagnosticSourceFile(location)) rtrn 3;
+	rtrn reference ? 2 : 1;
+}
+
+llc::err_t buildDiagnosticCallsite(llc::vcst_t location, llc::vcst_t reason, llc::string & summary) {
+	cnst llc::err_t open = location.find('(');
+	if(open > 0) {
+		cnst llc::vcst_t source = {location.begin(), (llc::u2_t)open};
+		cnst llc::err_t backslash = source.rfind('\\'), slash = source.rfind('/');
+		cnst llc::err_t separator = llc::max(backslash, slash);
+		if(separator >= 0) location = {location.begin() + separator + 1, location.size() - (llc::u2_t)(separator + 1)};
+	}
+	if_fail_fe(summary.append(location));
+	if_fail_fe(summary.append_string(": "));
+	rtrn summary.append(reason);
+}
+
 llc::err_t buildDiagnosticFind(llc::vcst_t output, bool located, llc::string & summary) {
+	llc::vcst_t root, reason, pendingLocation, callsite;
+	llc::u0_t callsiteRank = 0;
 	while(output.size()) {
 		llc::vcst_t line, remaining;
 		cnst llc::err_t split = llc::split<llc::sc_c>('\n', output, line, remaining);
 		if(llc::failed(split)) { line = output; remaining = {}; }
 		line = buildLineTrim(line);
-		cnst bool error = line.find(": error ") >= 0 || line.find(": fatal error ") >= 0;
-		cnst bool source = line.find('(') >= 0 && (line.find("): error ") >= 0 || line.find(") : error ") >= 0 || line.find("): fatal error ") >= 0 || line.find(") : fatal error ") >= 0);
-		if(error && (!located || source)) rtrn buildDiagnosticSanitize(line, summary);
+		llc::vcst_t lineReason;
+		cnst bool error = buildDiagnosticReason(line, lineReason) >= 0;
+		if(error && (!located || buildDiagnosticSource(line))) {
+			if(root.size()) break;
+			root = line;
+			reason = lineReason;
+			pendingLocation = {};
+		}
+		else if(root.size()) {
+			llc::vcst_t location;
+			if(buildDiagnosticLocation(line, location)) {
+				cnst llc::u0_t rank = buildDiagnosticCallsiteRank(line, location);
+				if(rank > callsiteRank) { callsite = location; callsiteRank = rank; }
+				pendingLocation = location;
+			}
+			else {
+				cnst llc::u0_t rank = buildDiagnosticCallsiteRank(line, pendingLocation);
+				if(rank > callsiteRank) { callsite = pendingLocation; callsiteRank = rank; }
+				pendingLocation = {};
+			}
+		}
 		if(!remaining.size()) break;
 		output = remaining;
 	}
+	if(callsite.size() && callsiteRank > 1) rtrn buildDiagnosticCallsite(callsite, reason, summary);
+	if(root.size()) rtrn buildDiagnosticSanitize(root, summary);
 	rtrn 0;
 }
 }
@@ -60,6 +135,51 @@ llc::err_t lcpVSBuildSummary(llc::vcst_t output, llc::err_t status, llc::u2_t ex
 	if(!summary.size()) { if_fail_fe(llc::append_strings(summary, "Build failed (", llc::str(status), "/", llc::str(exitCode), ").")); }
 	rtrn summary.size();
 }
+
+#ifdef _DEBUG
+llc::err_t lcpVSBuildSummaryTest() {
+	stct SCase { llc::vcst_t Output, Expected; };
+	cnst SCase cases[] = {
+		{
+			"D:\\library\\llc_min.h(10,2): error C2782: 'min': template parameter '_Ty' is ambiguous [sample.vcxproj]\n"
+			"  D:\\source\\sample.cpp(42,9):\n"
+			"  see reference to function template instantiation 'min<int,llc::u3_t>' being compiled\n",
+			"sample.cpp(42,9): error C2782: 'min': template parameter '_Ty' is ambiguous"
+		},
+		{
+			"D:\\library\\llc_ref.h(48,27): error C2512: 'SApp': no appropriate default constructor available [sample.vcxproj]\n"
+			"  D:\\source\\app.h(19,21):\n"
+			"  see reference to class template instantiation 'llc::pobj<SApp>' being compiled\n"
+			"  D:\\source\\sample.cpp(102,2):\n"
+			"  see the first reference to 'llc::pobj<SApp>::operator ->' in 'commandQueue'\n",
+			"sample.cpp(102,2): error C2512: 'SApp': no appropriate default constructor available"
+		},
+		{
+			"D:\\source\\sample.cpp(7,3): error C2664: cannot convert argument 1 [sample.vcxproj]\n",
+			"sample.cpp(7,3): error C2664: cannot convert argument 1"
+		},
+		{
+			"LINK : fatal error LNK1168: cannot open sample.dll for writing [sample.vcxproj]\n",
+			"LINK : fatal error LNK1168: cannot open sample.dll for writing"
+		},
+	};
+	for(llc::u2_t iCase = 0; iCase < llc::size(cases); ++iCase) {
+		cnst SCase & test = cases[iCase];
+		llc::string summary;
+		if_fail_fe(lcpVSBuildSummary(test.Output, 0, 1, summary));
+		if(summary != test.Expected) {
+			llc::vcst_t first, remaining, reason;
+			cnst llc::err_t split = llc::split<llc::sc_c>('\n', test.Output, first, remaining);
+			error_printf("Build summary test %u expected '%.*s', got '%s'. split=%i marker=%i source=%u first='%.*s'.", iCase, LLC_VIEW_ARGS(test.Expected), summary.begin(), split, buildDiagnosticReason(first, reason), buildDiagnosticSource(first), LLC_VIEW_ARGS(first));
+			rtrn -1;
+		}
+	}
+	llc::string fallback;
+	if_fail_fe(lcpVSBuildSummary("no compiler diagnostic\n", 0, 1, fallback));
+	if_true_ve(-1, fallback != "Build failed (0/1).");
+	rtrn 0;
+}
+#endif
 
 #ifdef LLC_WINDOWS
 #include <comdef.h>
@@ -438,6 +558,7 @@ llc::err_t lcpVSCall(cnst llc::SJSONReader & reader, llc::string & body, llc::er
 		llc::au0_t output;
 		llc::u2_t exitCode = 0;
 		if(llc::succeeded(status)) status = llc::SProcessManager{}.Execute(application, command, {}, output, exitCode, {});
+		if_fail_fe(lcpMetricsRecord(COMMUNICATION_CHANNEL::Process, true, output));
 		if_fail_fe(lcpVSBuildSummary({(cnst llc::sc_t*)output.begin(), output.size()}, status, exitCode, text));
 		if(operationStatus) *operationStatus = llc::failed(status) ? status : exitCode ? -1 : 0;
 		rtrn lcpTextBody(body, text, llc::failed(status) || exitCode != 0);
