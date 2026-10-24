@@ -334,6 +334,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="llc_nn.h" />
+    <ClInclude Include="llc_refactor.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="llc_nn.cpp" />
@@ -345,6 +346,7 @@
     <ClCompile Include="llc_nn_cpn.cpp" />
     <ClCompile Include="llc_nn_hopefield.cpp" />
     <ClCompile Include="llc_nn_som.cpp" />
+    <ClCompile Include="llc_refactor.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

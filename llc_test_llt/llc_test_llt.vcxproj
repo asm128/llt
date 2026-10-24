@@ -177,6 +177,7 @@
   <ItemGroup>
     <ClCompile Include="llc_test_llt.cpp" />
     <ClCompile Include="llc_test_nn.cpp" />
+    <ClCompile Include="llc_test_refactor.cpp" />
     <ClCompile Include="../llc_nn/llc_nn_view.cpp" />
   </ItemGroup>
 
