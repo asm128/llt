@@ -6,8 +6,14 @@
 #include "../lcp/lcp_text.h"
 #include "llc_json_expression.h"
 #include "llc_chrono.h"
+#include "llc_process.h"
 
+#if defined(LLC_WINDOWS) && !defined(LLC_AVOID_LOCAL_APPLICATION_MODEL_EXECUTABLE_RUNTIME)
+#include <process.h>
+LLC_DEFINE_APPLICATION_ENTRY_POINT_MT(SApplication, "LLS dashboard");
+#else
 LLC_DEFINE_APPLICATION_ENTRY_POINT(SApplication, "LLS dashboard");
+#endif
 
 sttc llc::err_t dashboardString(cnst llc::SJSONReader & reader, llc::u2_t node, llc::vcst_t key, llc::string & output) {
 	llc::vcst_t value;
@@ -85,6 +91,10 @@ sttc llc::err_t dashboardSnapshot(SApplication & app, llc::vcst_t response) {
 }
 
 llc::err_t setup(SApplication & app) {
+#if defined(LLC_WINDOWS) && defined(_DEBUG)
+	// Match LRT: track allocations/leaks without walking the entire heap on every allocation.
+	_CrtSetDbgFlag(_CRTDBG_LEAK_CHECK_DF | _CRTDBG_ALLOC_MEM_DF);
+#endif
 	if_fail_fe(llc::setupDefaultLogCallbacks());
 	cnst llc::err_t instance = llsDesktopStart();
 	if_fail_fe(instance);
@@ -121,11 +131,11 @@ llc::err_t cleanup(SApplication & app) {
 		cnst DWORD length = GetModuleFileNameA(0, executable, (DWORD)llc::size(executable));
 		if_true_fe(!length || length >= llc::size(executable));
 		llc::string command = llc::vcst_t{GetCommandLineA(), (llc::u2_t)-1};
-		STARTUPINFOA startup = {sizeof(STARTUPINFOA)};
-		PROCESS_INFORMATION process = {};
-		if_zero_fe(CreateProcessA(executable, command.Data, 0, 0, FALSE, CREATE_NO_WINDOW, 0, 0, &startup, &process));
-		CloseHandle(process.hThread);
-		CloseHandle(process.hProcess);
+		llc::SProcessManager<> processes;
+		cnst llc::err_t process = processes.Create({executable, length}, command, {}, CREATE_NO_WINDOW);
+		if_fail_fe(process);
+		if_fail_fe(processes.Launch((llc::u2_t)process));
+		if_fail_fe(processes.Close((llc::u2_t)process));
 	}
 #endif
 	rtrn 0;

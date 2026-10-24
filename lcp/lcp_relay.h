@@ -1,5 +1,6 @@
 #include "llc_connection.h"
 #include "llc_string.h"
+#include "llc_mutex.h"
 
 #ifndef LCP_RELAY_H
 #define LCP_RELAY_H
@@ -13,7 +14,7 @@ stct SRelayPeer {
 	llc::aobj<llc::string> Outgoing, Files;
 	llc::string Spool;
 	llc::u3_t LastPong = 0;
-	std::mutex Lock;
+	llc::mutex Lock;
 	bool Closed = false, Pong = false;
 };
 stct SRelayServer {

@@ -3,7 +3,6 @@
 #include "llc_string_compose.h"
 #include "llc_system_key.h"
 #include <limits.h>
-#include <algorithm>
 #include "llc_chrono.h"
 #include "llc_runtime_module.h"
 
@@ -14,6 +13,18 @@ sttc llc::err_t llsControl(llc::SGUI & gui, llc::cid_t & id, llc::vcst_t text, b
 sttc llc::err_t llsPlace(llc::SGUI & gui, llc::cid_t id, llc::s1_t x, llc::s1_t y, llc::s1_t w, llc::s1_t h) {
 	gui.Controls.Placement[id].Area = {{x, y}, {w, h}};
 	rtrn llc::controlMetricsInvalidate(gui, id);
+}
+
+sttc llc::err_t llsTextRelease(SLLSGUI & ui, cnst llc::acid & controls) {
+	// controlTextSet borrows storage and compares the old view. Detach before its owner changes.
+	for(cnst auto id : controls) { if_fail_fe(llc::controlTextSet(*ui.Framework.GUI, id, {})); }
+	rtrn 0;
+}
+
+sttc llc::err_t llsDetailClear(SLLSGUI & ui) {
+	if_fail_fe(llsTextRelease(ui, ui.Lines));
+	if_fail_fe(llc::clear(ui.DetailLines, ui.DetailPaths));
+	rtrn ui.Detail.clear();
 }
 
 sttc llc::err_t llsLines(SLLSGUI & ui) {
@@ -36,6 +47,7 @@ sttc llc::err_t llsLines(SLLSGUI & ui) {
 }
 
 sttc llc::err_t llsExplore(SLLSGUI & ui, llc::vcst_t path) {
+	if_fail_fe(llsTextRelease(ui, ui.Breadcrumbs));
 	if_fail_fe(llsExplorerOpen(ui.Explorer, path));
 	ui.Tab = 4;
 	ui.ListOffset = ui.LineOffset = 0;
@@ -100,6 +112,7 @@ sttc llc::err_t llsSessionView(SApplication & app) {
 		failed += job.State == "completed" && (job.Result.Status < 0 || (job.Result.ExitKnown && job.Result.ExitCode));
 		bytes += job.Output.size();
 	}
+	if_fail_fe(llc::controlTextSet(*ui.Framework.GUI, ui.Statistics, {}));
 	if_fail_fe(ui.Stats.clear());
 	if_fail_fe(llc::append_strings(ui.Stats, "SESSION ", llc::str(app.ElapsedMs / 1000),
 		"s   |   ", app.Connection, "   |   Requests ", llc::str(app.Requests), "   Active ", llc::str(active), "   Queued ", llc::str(queued),
@@ -114,7 +127,7 @@ sttc llc::err_t llsSessionView(SApplication & app) {
 	}
 	if(ui.Tab == 6 || ui.Tab == 7) {
 		if_fail_fe(ui.Matches.clear());
-		if_fail_fe(ui.Detail.clear());
+		if_fail_fe(llsDetailClear(ui));
 		if(ui.Tab == 6) {
 			cnst llc::vcst_t serviceIdentity = app.ServiceIdentity;
 			if_fail_fe(llc::append_strings(ui.Detail, "DASHBOARD / SELF\n", app.Identity, "\nSERVICE / ", app.Service, "\n", app.Connection,
@@ -138,9 +151,11 @@ sttc llc::err_t llsSessionView(SApplication & app) {
 		if_fail_fe(ui.Matches.clear());
 		for(llc::u2_t i = 0; i < ui.Explorer.Rows.size(); ++i) { if_fail_fe(ui.Matches.push_back(i)); }
 		ui.Selected = ui.Explorer.Selected;
+		if_fail_fe(llsDetailClear(ui));
 		ui.Detail = ui.Explorer.Summary;
 		if(ui.ListOffset >= ui.Matches.size()) ui.ListOffset = 0;
 		for(llc::u2_t i = 0; i < ui.Rows.size() && i + ui.ListOffset < ui.Matches.size(); ++i) {
+			if_fail_fe(llc::controlTextSet(*ui.Framework.GUI, ui.Rows[i], {}));
 			if_fail_fe(llsExplorerLabel(ui.Explorer, i + ui.ListOffset, ui.RowText[i]));
 			if_fail_fe(llc::controlTextSet(*ui.Framework.GUI, ui.Rows[i], ui.RowText[i]));
 		}
@@ -163,10 +178,10 @@ sttc llc::err_t llsSessionView(SApplication & app) {
 			}
 		}
 	}
-	if(ui.Tab == 5) std::reverse(ui.Matches.begin(), ui.Matches.end());
+	if(ui.Tab == 5) { if_fail_fe(llc::reverse(ui.Matches)); }
 	if(ui.Matches.find(ui.Selected) < 0)
 		ui.Selected = ui.Matches.size() ? ui.Matches[0] : (llc::u2_t)-1;
-	if_fail_fe(ui.Detail.clear());
+	if_fail_fe(llsDetailClear(ui));
 	if(ui.Selected == (llc::u2_t)-1) {
 		cnst llc::vcst_t empty = ui.Tab == 0 ? llc::vcst_t{"No matching help. Try a command name or a word such as build or output."}
 			: llc::vcst_t{"No matching entries in this session.\n\nBuild requests received through MCP appear here.\nSelect a row to inspect its request, command and captured result.\nOnly this LLS session is shown; no machine-wide process scan."};
@@ -195,6 +210,7 @@ sttc llc::err_t llsSessionView(SApplication & app) {
 	cnst llc::u2_t rows = ui.Rows.size();
 	if(ui.ListOffset >= ui.Matches.size()) ui.ListOffset = 0;
 	for(llc::u2_t i = 0; i < rows; ++i) {
+		if_fail_fe(llc::controlTextSet(*ui.Framework.GUI, ui.Rows[i], {}));
 		if_fail_fe(ui.RowText[i].clear());
 		if(i + ui.ListOffset >= ui.Matches.size()) continue;
 		cnst llc::u2_t selected = ui.Matches[i + ui.ListOffset];
@@ -340,7 +356,10 @@ llc::err_t llsGUIUpdate(SApplication & app) {
 	}
 	for(llc::u2_t i = 0; i < ui.Rows.size(); ++i)
 		if(gui.Controls.IsAction(ui.Rows[i]) && i + ui.ListOffset < ui.Matches.size()) {
-			if(ui.Tab == 4) { if_fail_fe(llsExplorerSelect(ui.Explorer, i + ui.ListOffset)); }
+			if(ui.Tab == 4) {
+				if_fail_fe(llsTextRelease(ui, ui.Breadcrumbs));
+				if_fail_fe(llsExplorerSelect(ui.Explorer, i + ui.ListOffset));
+			}
 			ui.Selected = ui.Matches[i + ui.ListOffset];
 			ui.LineOffset = 0;
 			ui.Dirty = true;

@@ -1,14 +1,14 @@
 #include "llc_array_static.h"
 #include "llc_log.h"
 #include "llc_string.h"
-#include <mutex>
+#include "llc_mutex.h"
 #include <cstdio>
 
 #ifndef LLS_LOG_H
 #define LLS_LOG_H
 // Adapted from llc_nn_log: callbacks cannot allocate or log recursively.
 stct SServiceLog {
-	std::mutex Lock;
+	llc::mutex Lock;
 	llc::astatic<char, 65536> Bytes = {};
 	llc::u2_t Start = 0, Count = 0;
 	llc::u3_t Revision = 0;

@@ -15,7 +15,12 @@
 #include "../lcp/lcp_text.h"
 #include "../lcp/lcp_identity.h"
 
+#if defined(LLC_WINDOWS) && !defined(LLC_AVOID_LOCAL_APPLICATION_MODEL_EXECUTABLE_RUNTIME)
+#include <process.h>
+LLC_DEFINE_APPLICATION_ENTRY_POINT_MT(SApplication, "LT4 Limb System");
+#else
 LLC_DEFINE_APPLICATION_ENTRY_POINT(SApplication, "LT4 Limb System");
+#endif
 
 sttc	::llc::err_t	llsWrite			(::llc::vcst_t message, FILE * stream = stdout) {
 	if_zero_vw(0, message.size());
@@ -197,6 +202,10 @@ sttc	::llc::err_t	llsRequest			(::llc::SJSONReader & reader, ::llc::vcst_t reque
 
 
 ::llc::err_t setup(SApplication & app) {
+#if defined(LLC_WINDOWS) && defined(_DEBUG)
+	// Match LRT: track allocations/leaks without walking the entire heap on every allocation.
+	_CrtSetDbgFlag(_CRTDBG_LEAK_CHECK_DF | _CRTDBG_ALLOC_MEM_DF);
+#endif
 	if_fail_fe(::llc::setupDefaultLogCallbacks());
 	cnst llc::err_t instance = llsDesktopStart();
 	if_fail_fe(instance);
@@ -254,7 +263,7 @@ sttc	::llc::err_t	llsRequest			(::llc::SJSONReader & reader, ::llc::vcst_t reque
 	}
 	bool pending = false;
 	for(auto & peer : app.Relay.Peers) {
-		std::lock_guard guard(peer->Lock);
+		llc::lock_guard guard(peer->Lock);
 		pending |= peer->Outgoing.size() || peer->Connection.Queue.Send.size() || peer->Connection.Queue.Sent.size();
 	}
 	{

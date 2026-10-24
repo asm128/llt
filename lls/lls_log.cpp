@@ -12,7 +12,7 @@ SServiceLog * Active = {};
 llc::err_t logWrite(cnst char * text, llc::u2_t count) {
 	if(!Active || !text) rtrn 0;
 	auto & log = *Active;
-	std::lock_guard guard(log.Lock);
+	llc::lock_guard guard(log.Lock);
 	for(llc::u2_t i = 0; i < count; ++i) {
 		log.Bytes[(log.Start + log.Count) % log.Bytes.size()] = text[i];
 		if(log.Count == log.Bytes.size()) log.Start = (log.Start + 1) % log.Bytes.size();
@@ -63,7 +63,7 @@ llc::err_t llsLogSnapshot(SServiceLog & log, llc::string & output, int & fileErr
 	llc::astatic<char, 65536> snapshot = {};
 	llc::u2_t count;
 	{
-		std::lock_guard guard(log.Lock);
+		llc::lock_guard guard(log.Lock);
 		count = log.Count;
 		fileError = log.FileError;
 		for(llc::u2_t i = 0; i < count; ++i) snapshot[i] = log.Bytes[(log.Start + i) % log.Bytes.size()];

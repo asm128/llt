@@ -85,7 +85,7 @@ sttc err_t relayCommand(SUDPConnection & connection, SUDPCommand command) {
 #endif
 
 err_t relayClose(SRelayPeer & peer) {
-	std::lock_guard guard(peer.Lock);
+	llc::lock_guard guard(peer.Lock);
 #ifdef LLC_WINDOWS
 	if(peer.Connection.Socket != INVALID_SOCKET && peer.Connection.State == UDP_CONNECTION_STATE_IDLE) {
 		SUDPCommand command = {};
@@ -109,7 +109,7 @@ err_t relayClose(SRelayPeer & peer) {
 }
 
 err_t relayQueue(SRelayPeer & peer, vcst_t message) {
-	std::lock_guard guard(peer.Lock);
+	llc::lock_guard guard(peer.Lock);
 	if(peer.Closed) rtrn 0; // The job remains in the dashboard; never deliver it to another connection.
 	string packet;
 #ifdef LLC_WINDOWS
@@ -221,7 +221,7 @@ err_t relayPump(SRelayPeer & peer) {
 		recvfrom(connection.Socket, (char*)peer.Buffer.begin(), (int)peer.Buffer.size(), 0, 0, 0);
 	}
 	{
-		std::lock_guard guard(peer.Lock);
+		llc::lock_guard guard(peer.Lock);
 		for(cnst string & message : peer.Outgoing) {
 			if_fail_fe(connectionPushData(connection, connection.Queue, vcu0_t{(cnst u0_t*)message.begin(), message.size()}, false, false, 0));
 		}

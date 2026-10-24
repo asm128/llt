@@ -57,9 +57,8 @@ llc::err_t llsProcess(SApplication & app, llc::u2_t jobIndex, llc::vcst_t applic
 		++app.Revision;
 	}
 	if(capture) {
-		// Close stdin after supplied input, drain output, then reap.
-		if_fail_fe(processes.Write(id, input));
-		if_fail_fe(processes.Read(id, output));
+		// Drain output concurrently with supplied input, preserving the published child PID.
+		if_fail_fe(processes.Communicate(id, input, output));
 		if_fail_fe(processes.Wait(id, exitCode));
 		llc::lock_guard guard(app.Lock);
 		if_fail_fe(app.Jobs[jobIndex].Output.append({(cnst char*)output.begin(), output.size()}));
