@@ -255,7 +255,12 @@ sttc llc::err_t llsSessionView(SApplication & app) {
 		}
 		else {
 			cnst auto & job = app.Jobs[selected];
-			if_fail_fe(llc::append_strings(ui.RowText[i], job.Id, "  ", job.State, "  PID ", llc::str(job.PID)));
+			if(ui.Tab == 3 || ui.Tab == 5) {
+				if_fail_fe(llc::append_strings(ui.RowText[i], job.Summary, "  PID ", llc::str(job.PID)));
+			}
+			else {
+				if_fail_fe(llc::append_strings(ui.RowText[i], job.Id, "  ", job.State, "  PID ", llc::str(job.PID)));
+			}
 		}
 		if_fail_fe(llc::controlTextSet(*ui.Framework.GUI, ui.Rows[i], ui.RowText[i]));
 	}

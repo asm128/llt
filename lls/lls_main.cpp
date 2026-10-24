@@ -212,6 +212,9 @@ sttc	::llc::err_t	llsRequest			(::llc::SJSONReader & reader, ::llc::vcst_t reque
 	if_fail_fe(lcpMetricsStart(app.Metrics, "lls", app.SessionId));
 	if_fail_fe(lcpIdentity(app.Identity));
 	always_printf("%s", app.Identity.begin());
+#ifdef _DEBUG
+	if_fail_fe(llsJobSummaryTest());
+#endif
 	app.HistoryError = llsHistoryLoad(app);
 	app.NextJob = app.Jobs.size(); // Never execute any restored record, including partial recovery.
 	if_fail_fe(lcpToolsLoad("lls_tools.json"));

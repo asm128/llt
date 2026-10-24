@@ -20,7 +20,7 @@ llc::err_t llsFailures(cnst llc::SJSONReader & reader, SApplication & app, llc::
 		if(job.State != "completed" || !(job.Result.Status < 0 || (job.Result.ExitKnown && job.Result.ExitCode))) continue;
 		++count;
 		llc::string summary;
-		if_fail_fe(lcpVSBuildSummary(job.Output, job.Result.Status, job.Result.ExitCode, summary));
+		if_fail_fe(llsJobSummary(job, summary));
 		if_fail_fe(llc::append_strings(text, '\n', llc::str(i), ": ", summary));
 	}
 	if(!count) { if_fail_fe(text.append_string("\nnone")); }
