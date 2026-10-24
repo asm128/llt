@@ -7,8 +7,26 @@
     { "title": "EXPLORER", "value": 4 },
     { "title": "FAILURES", "value": 5 },
     { "title": "INSPECTOR", "value": 6 },
-    { "title": "PERFORMANCE", "value": 7 }
+    { "title": "PERFORMANCE", "value": 7 },
+    { "title": "LCP CONSOLE", "value": 8 }
   ],
+  "mcp": {
+    "request": "\\{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":\\{\"name\":\"{name}\",\"arguments\":{arguments}\\}\\}",
+    "response": "result.content['0'].text",
+    "templates": [
+      { "title": "Help", "value": 0, "json": "{\"name\":\"help\",\"arguments\":{\"path\":\"\"}}" },
+      { "title": "Status by request", "value": 1, "json": "{\"name\":\"status\",\"arguments\":{\"id\":0}}" },
+      { "title": "Session", "value": 2, "json": "{\"name\":\"session\",\"arguments\":{}}" },
+      { "title": "Failures", "value": 3, "json": "{\"name\":\"failures\",\"arguments\":{\"limit\":10}}" },
+      { "title": "Inbox", "value": 4, "json": "{\"name\":\"inbox\",\"arguments\":{\"action\":\"list\",\"mailbox\":\"pablo\",\"unread\":true}}" },
+      { "title": "Tree", "value": 5, "json": "{\"name\":\"tree\",\"arguments\":{\"path\":\"D:/enterprise\",\"files\":false,\"format\":\"ascii\",\"maxDepth\":2}}" },
+      { "title": "VS build dashboard", "value": 6, "json": "{\"name\":\"vs\",\"arguments\":{\"action\":\"build\",\"solution\":\"D:/enterprise/programming_sciences/codebases/llb/llt/llt.slnx\",\"project\":\"lls_dashboard\",\"configuration\":\"Debug-MT|x64\",\"msbuild\":\"C:/Program Files/Microsoft Visual Studio/18/Community/MSBuild/Current/Bin/MSBuild.exe\"}}" },
+      { "title": "Command prompt", "value": 7, "json": "{\"name\":\"cmd\",\"arguments\":{\"command\":\"echo hello\",\"elevated\":false}}" },
+      { "title": "PowerShell", "value": 8, "json": "{\"name\":\"powershell\",\"arguments\":{\"command\":\"Get-Date\",\"elevated\":false}}" },
+      { "title": "WSL", "value": 9, "json": "{\"name\":\"wsl\",\"arguments\":{\"command\":\"uname -a\"}}" },
+      { "title": "Full MCP help", "value": 10, "json": "{\"jsonrpc\":\"2.0\",\"id\":77,\"method\":\"tools/call\",\"params\":{\"name\":\"help\",\"arguments\":{\"path\":\"\"}}}" }
+    ]
+  },
   "explorer": {
     "root": "D:/enterprise"
   }

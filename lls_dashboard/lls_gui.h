@@ -15,7 +15,7 @@ stct SLLSGUI {
 	llc::u2_t BenchmarkLeft = 0;
 	llc::SInputBox		Input;
 	llc::acid			Rows, Lines, Processable, Tabs, Breadcrumbs;
-	llc::aobj<llc::string> RowText, TabText;
+	llc::aobj<llc::string> RowText, TabText, CommandTemplateText, CommandTemplateJSON;
 	llc::aobj<llc::vcst_t> Paths, DetailLines, DetailPaths;
 	llc::au2_t TabValues;
 	SGUIFamily Family;

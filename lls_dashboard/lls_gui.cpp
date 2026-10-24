@@ -1,5 +1,6 @@
 #include "dashboard_app.h"
 #include "../lcp/lcp_help.h"
+#include "../lcp/lcp_tools.h"
 #include "llc_string_compose.h"
 #include "llc_system_key.h"
 #include <limits.h>
@@ -104,36 +105,46 @@ sttc llc::err_t llsSessionView(SApplication & app) {
 	auto & ui = *app.UI;
 	llc::lock_guard guard(app.Lock);
 	llc::u2_t queued = 0, active = 0, completed = 0, failed = 0;
-	llc::u3_t bytes = 0;
 	for(cnst SDashboardJob & job : app.Jobs) {
 		queued += job.State == "queued";
 		active += !job.Historical && job.ProcessStarted && !job.ProcessFinished && !job.Detached && job.State != "completed";
 		completed += job.State == "completed";
 		failed += job.State == "completed" && (job.Result.Status < 0 || (job.Result.ExitKnown && job.Result.ExitCode));
-		bytes += job.Output.size();
 	}
 	if_fail_fe(llc::controlTextSet(*ui.Framework.GUI, ui.Statistics, {}));
 	if_fail_fe(ui.Stats.clear());
 	if_fail_fe(llc::append_strings(ui.Stats, "SESSION ", llc::str(app.ElapsedMs / 1000),
 		"s   |   ", app.Connection, "   |   Requests ", llc::str(app.Requests), "   Active ", llc::str(active), "   Queued ", llc::str(queued),
-		"   Done ", llc::str(completed), "   Failed ", llc::str(failed), "   Output ", llc::str(bytes), " B   History status ", llc::str(app.HistoryError)));
+		"   Done ", llc::str(completed), "   Failed ", llc::str(failed), "   History status ", llc::str(app.HistoryError)));
 	if_fail_fe(llc::controlTextSet(*ui.Framework.GUI, ui.Statistics, ui.Stats));
-	if(!ui.Dirty && ui.Revision == app.Revision && (ui.Tab == 0 || ui.Tab == 3)) rtrn 0;
+	if(!ui.Dirty && ui.Revision == app.Revision && (ui.Tab == 0 || ui.Tab == 3 || ui.Tab == 8)) rtrn 0;
 	if(ui.SessionId != app.SessionId) {
 		ui.SessionId = app.SessionId;
 		ui.Selected = (llc::u2_t)-1;
 		ui.ListOffset = ui.LineOffset = 0;
 		ui.Dirty = true;
 	}
-	if(ui.Tab == 6 || ui.Tab == 7) {
+	if(ui.Tab == 6 || ui.Tab == 7 || ui.Tab == 8) {
 		if_fail_fe(ui.Matches.clear());
 		if_fail_fe(llsDetailClear(ui));
-		if(ui.Tab == 6) {
-			cnst llc::vcst_t serviceIdentity = app.ServiceIdentity;
-			if_fail_fe(llc::append_strings(ui.Detail, "DASHBOARD / SELF\n", app.Identity, "\nSERVICE / ", app.Service, "\n", app.Connection,
+		if(ui.Tab == 8) {
+			for(llc::u2_t i = 0; i < ui.CommandTemplateText.size(); ++i) { if_fail_fe(ui.Matches.push_back(i)); }
+			if(ui.ListOffset >= ui.Matches.size()) ui.ListOffset = 0;
+			for(llc::u2_t i = 0; i < ui.Rows.size(); ++i) {
+				if_fail_fe(llc::controlTextSet(*ui.Framework.GUI, ui.Rows[i], {}));
+				if_fail_fe(ui.RowText[i].clear());
+				if(i + ui.ListOffset >= ui.Matches.size()) continue;
+				cnst llc::u2_t command = ui.Matches[i + ui.ListOffset];
+				if_fail_fe(ui.RowText[i].append(ui.CommandTemplateText[command]));
+				if_fail_fe(llc::controlTextSet(*ui.Framework.GUI, ui.Rows[i], ui.RowText[i]));
+			}
+			if(app.CommandResponse.size()) { if_fail_fe(llc::append_strings(ui.Detail, "MCP RESPONSE JSON\n\n", app.CommandResponse)); }
+			else { if_fail_fe(ui.Detail.append_string("LCP CONSOLE\n\nChoose a template to load its JSON into the edit box. Edit it if needed, then press Enter or Send JSON.")); }
+		}
+		else if(ui.Tab == 6) {
+			if_fail_fe(llc::append_strings(ui.Detail, "DASHBOARD\nSERVICE / ", app.Service, "\n", app.Connection,
 				"\nSession: ", llc::str(app.SessionId), "\nSnapshot age: ",
-				llc::str(app.LastSnapshot ? ((llc::u3_t)llc::timeCurrentInUs() - app.LastSnapshot) / 1000000 : 0), " s\n",
-				serviceIdentity.size() ? serviceIdentity : llc::vcst_t{"No service identity received."}));
+				llc::str(app.LastSnapshot ? ((llc::u3_t)llc::timeCurrentInUs() - app.LastSnapshot) / 1000000 : 0), " s"));
 		}
 		else {
 			if_fail_fe(llc::append_strings(ui.Detail, "RENDER PERFORMANCE\nBackend: CPU / LLC guiDraw (no D3D device)\nTarget: ",
@@ -164,7 +175,13 @@ sttc llc::err_t llsSessionView(SApplication & app) {
 	}
 	ui.Revision = app.Revision;
 	if(ui.Tab == 0) {
-		if_fail_fe(llsHelpFind(ui.Query, ui.Matches));
+		if_fail_fe(ui.Matches.clear());
+		ui.Selected = (llc::u2_t)-1;
+		if_fail_fe(llsDetailClear(ui));
+		if_fail_fe(lcpToolsAvailable(ui.Query, ui.Detail));
+		for(llc::cid_t row : ui.Rows) { if_fail_fe(llc::controlTextSet(*ui.Framework.GUI, row, {})); }
+		ui.Dirty = false;
+		rtrn llsLines(ui);
 	}
 	else {
 		if_fail_fe(ui.Matches.clear());
@@ -173,7 +190,7 @@ sttc llc::err_t llsSessionView(SApplication & app) {
 			cnst bool included = ui.Tab == 1
 				? !job.Historical && job.ProcessStarted && !job.ProcessFinished && !job.Detached && job.State != "completed"
 				: ui.Tab == 2 ? job.State == "queued" : ui.Tab == 5 ? job.State == "completed" && (job.Result.Status < 0 || (job.Result.ExitKnown && job.Result.ExitCode)) : job.State == "completed" || job.State == "interrupted";
-			if(included && (!ui.Query.size() || job.Id.find(ui.Query) >= 0 || job.Command.find(ui.Query) >= 0 || job.Request.find(ui.Query) >= 0)) {
+			if(included && (!ui.Query.size() || job.Id.find(ui.Query) >= 0 || job.Summary.find(ui.Query) >= 0)) {
 				if_fail_fe(ui.Matches.push_back(i));
 			}
 		}
@@ -202,10 +219,7 @@ sttc llc::err_t llsSessionView(SApplication & app) {
 			else { if_fail_fe(ui.Detail.append_string("unknown")); }
 		}
 		if(job.Detached) { if_fail_fe(ui.Detail.append_string("\nLaunch only: completion is not tracked.")); }
-		cnst llc::vcst_t captured = job.Output;
-		if_fail_fe(llc::append_strings(ui.Detail, "\n\nCOMMAND\n", job.Command, "\n\nREQUEST\n", job.Request,
-			"\n\nOUTPUT\n", captured.size() ? captured : llc::vcst_t{"No captured output yet."},
-			"\n\nRESPONSE\n", job.Response));
+		if_fail_fe(llc::append_strings(ui.Detail, "\n\nRESULT\n", job.Summary));
 	}
 	cnst llc::u2_t rows = ui.Rows.size();
 	if(ui.ListOffset >= ui.Matches.size()) ui.ListOffset = 0;
@@ -246,6 +260,12 @@ llc::err_t llsGUISetup(SApplication & app) {
 	if_fail_fe(llc::fileToMemory("lls_gui.json", ui.Layout.Bytes));
 	if_fail_fe(llc::jsonParse(ui.Layout.Reader, ui.Layout.Bytes, llc::JSON_PARSE_STRICT));
 	if_fail_fe(llsJSONLabels(ui.Layout.Reader, "tabs", "{title}", ui.TabText, ui.TabValues));
+	{
+		llc::au2_t values;
+		if_fail_fe(llsJSONLabels(ui.Layout.Reader, "mcp.templates", "{title}", ui.CommandTemplateText, values));
+		if_fail_fe(llsJSONLabels(ui.Layout.Reader, "mcp.templates", "{json}", ui.CommandTemplateJSON, values));
+		if_true_fe(ui.CommandTemplateText.size() != ui.CommandTemplateJSON.size());
+	}
 	gui.ColorModeDefault = llc::GUI_COLOR_MODE_Flat;
 	if_null_fe(gui.Colors.create());
 	if_fail_fe(gui.Colors->Palettes.resize(llc::GUI_CONTROL_PALETTE_COUNT * 2));
@@ -296,7 +316,10 @@ llc::err_t llsGUIUpdate(SApplication & app) {
 	auto & gui = *ui.Framework.GUI;
 	auto & window = ui.Framework.RootWindow;
 	cnst llc::err_t updated = llc::updateFramework(ui.Framework);
-	if(updated) rtrn updated;
+	if(updated) {
+		if(llc::failed(updated)) error_printf("Dashboard framework failed: %i.", updated);
+		rtrn updated;
+	}
 #ifdef LLC_WINDOWS
 	{
 		llc::string title;
@@ -305,6 +328,7 @@ llc::err_t llsGUIUpdate(SApplication & app) {
 	}
 #endif
 	if(gui.Controls.IsAction(ui.Exit) || gui.Controls.IsAction(ui.Restart)) {
+		info_printf("Dashboard requested %s.", gui.Controls.IsAction(ui.Restart) ? "restart" : "exit");
 		app.Restart = gui.Controls.IsAction(ui.Restart);
 		app.Closing = true;
 		rtrn llc::APPLICATION_STATE_EXIT;
@@ -312,6 +336,7 @@ llc::err_t llsGUIUpdate(SApplication & app) {
 	gui.Controls.SetHidden(ui.Benchmark, ui.Tab != 7);
 	if(gui.Controls.IsAction(ui.Benchmark)) ui.BenchmarkLeft = 100;
 	if(gui.Controls.IsAction(ui.Keyboard)) { ui.ShowKeyboard = !ui.ShowKeyboard; ui.LastSize = {}; }
+	if_fail_fe(llc::controlTextSet(gui, ui.OpenPath, ui.Tab == 8 ? llc::vcst_t{"Send JSON"} : llc::vcst_t{"Open path"}));
 	for(llc::u2_t tab = 0; tab < ui.Tabs.size(); ++tab) {
 		if(gui.Controls.IsAction(ui.Tabs[tab])) {
 			ui.Tab = ui.TabValues[tab];
@@ -345,7 +370,17 @@ llc::err_t llsGUIUpdate(SApplication & app) {
 		ui.ListOffset = ui.LineOffset = 0;
 		ui.Dirty = true;
 	}
-	if((gui.Controls.IsAction(ui.OpenPath) || (ui.Tab == 4 && input == INT_MAX)) && ui.Input.Text.size()) {
+	if(ui.Tab == 8 && (gui.Controls.IsAction(ui.OpenPath) || input == INT_MAX) && ui.Input.Text.size()) {
+		cnst llc::err_t queued = llsCommandQueue(app, ui.Input.Text);
+		if(llc::failed(queued)) {
+			llc::lock_guard guard(app.Lock);
+			if_fail_fe(app.CommandResponse.clear());
+			if_fail_fe(app.CommandResponse.append_string("Invalid command JSON or command already running."));
+			++app.Revision;
+		}
+		ui.Dirty = true;
+	}
+	else if((gui.Controls.IsAction(ui.OpenPath) || (ui.Tab == 4 && input == INT_MAX)) && ui.Input.Text.size()) {
 		llc::string path = ui.Input.Text;
 		if_fail_fe(llsExplore(ui, path));
 	}
@@ -361,6 +396,10 @@ llc::err_t llsGUIUpdate(SApplication & app) {
 				if_fail_fe(llsExplorerSelect(ui.Explorer, i + ui.ListOffset));
 			}
 			ui.Selected = ui.Matches[i + ui.ListOffset];
+			if(ui.Tab == 8) {
+				if_fail_fe(ui.Input.SetText(gui, ui.CommandTemplateJSON[ui.Selected]));
+				ui.Query = ui.Input.Text;
+			}
 			ui.LineOffset = 0;
 			ui.Dirty = true;
 		}
@@ -388,7 +427,9 @@ llc::err_t llsGUIUpdate(SApplication & app) {
 	if(gui.Controls.IsAction(ui.PageNext) || window.Input->MouseCurrent.Deltas.z < 0)
 		if(ui.LineOffset + ui.VisibleLines < ui.DetailLines.size()) ui.LineOffset += ui.VisibleLines;
 	if(ui.LastSize != window.Size) { if_fail_fe(llsLayout(ui)); ui.Dirty = true; }
-	if_fail_fe(llc::controlTextSet(gui, ui.Hint, ui.Tab == 4
+	if_fail_fe(llc::controlTextSet(gui, ui.Hint, ui.Tab == 8
+		? llc::vcst_t{"Choose a template to load it. Edit the JSON if needed; Enter or Send JSON sends it."}
+		: ui.Tab == 4
 		? llc::vcst_t{"PATH (not search): enter a folder path. Click folders to expand; breadcrumbs navigate."}
 		: llc::vcst_t{"Type to filter. Click paths in details to browse. Open path uses the text box. Mouse wheel scrolls."}));
 	ui.Refresh += ui.Framework.FrameInfo.Seconds.LastFrame;
