@@ -14,8 +14,10 @@
 #include "llc_file.h"
 #include "llc_nn_log.h"
 #include "llc_chrono.h"
+#include "llc_mutex.h"
 #include <cmath>
 #ifdef LLC_WINDOWS
+#include "llc_engine_d3d_app.h"
 #include <commdlg.h>
 #pragma comment(lib, "comdlg32.lib")
 #endif
@@ -331,8 +333,19 @@ stct SApplication {
  ::llc::u3_t LogRevision = ~::llc::u3_t(0);
  ::llc::n2s1_t LogSize = {};
  bool LogFollowing = true;
+ ::llc::astchar<192> TitleText = {};
+ ::llc::mutex Lock;
+#if defined(LLC_WINDOWS)
+ ::llc::pobj<::llc::SEngineGraphics> Graphics;
+ ::llc::pobj<::llc::SD3DApplication> D3D;
+ bool UseD3D = false;
+ bool COMInitialized = false;
+#endif
+ bool ShowPerformance = true;
  SApplication(::llc::SRuntimeValues & runtime) : Framework(runtime, {}) {}
 };
+
+#define LLC_NN_TITLE "Neural Networks at your Fingertips"
 
 stacxpr ::llc::u2_t NN_LOG_VIEW = ::llc::NN_COUNT * NN_PANES;
 #if defined(_DEBUG)
@@ -525,6 +538,42 @@ sttc ::llc::err_t nnShowNetwork(SApplication & app, ::llc::u2_t n, bool show) {
  rtrn 0;
 }
 
+sttc ::llc::err_t nnTitleUpdate(SApplication & app, ::llc::vcst_t backend) {
+ const auto & meter = app.Framework.FrameInfo.FrameMeter;
+ const ::llc::n2u1_t size = app.Framework.RootWindow.Size;
+ cnst ::llc::err_t length = app.ShowPerformance
+  ? ::llc::sprintf_s(app.TitleText.Storage, "NEURAL LAB | %.*s | %u FPS | %.2f ms avg | %ux%u | F3", LLC_VIEW_ARGS(backend), meter.FramesPerSecond, meter.AverageFrameTime * 1000, size.x, size.y)
+  : ::llc::sprintf_s(app.TitleText.Storage, "NEURAL LAB / NETWORK WORKSPACE | F3: HUD");
+ if_fail_fe(length);
+ rtrn ::llc::controlTextSet(*app.Framework.GUI, app.Title, {app.TitleText.Storage, (::llc::u2_t)length});
+}
+
+#if defined(LLC_WINDOWS)
+sttc ::llc::err_t nnRendererSet(SApplication & app, bool useD3D) {
+ auto & window = app.Framework.RootWindow;
+ if(useD3D) {
+  if(!app.D3D) {
+   cnst HRESULT result = ::CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+   if(result != RPC_E_CHANGED_MODE) {
+    if_true_fef(FAILED(result), "CoInitializeEx failed: 0x%08X.", (::llc::u2_t)result);
+    app.COMInitialized = true;
+   }
+   if_fail_fe(::llc::rasterFontDefaults(app.Graphics->Fonts));
+   if_fail_fe(app.D3D->Initialize(window.PlatformDetail.WindowHandle, app.Graphics));
+   if_fail_fe(app.D3D->CreateDeviceResources(*app.Graphics));
+  }
+  if_fail_fe(app.D3D->SetWindowSize(window.Size));
+ }
+ else
+  if_fail_fe(window.BackBuffer->resize(window.Size.u2()));
+ app.UseD3D = useD3D;
+ ::SetWindowTextA(window.PlatformDetail.WindowHandle, useD3D
+  ? LLC_NN_TITLE " - D3D11 | F3: HUD | F4: CPU"
+  : LLC_NN_TITLE " - CPU | F3: HUD | F4: D3D11");
+ rtrn 0;
+}
+#endif
+
 ::llc::err_t setup(SApplication & app) {
  if_fail_fe(nnLogStart(app.Log));
 #if defined(_DEBUG)
@@ -674,11 +723,27 @@ sttc ::llc::err_t nnShowNetwork(SApplication & app, ::llc::u2_t n, bool show) {
  if(::llc::argsOptionIndex(app.Framework.RuntimeValues.EntryPointArgs, "verify-log") >= 0) if_fail_fe(nnVerifyLog(app));
 #endif
  if_fail_fe(nnLogUpdate(app));
- rtrn ::llc::guiUpdateMetrics(gui, window.Size, false);
+ if_fail_fe(::llc::guiUpdateMetrics(gui, window.Size, false));
+#if defined(LLC_WINDOWS)
+ ::SetWindowTextA(window.PlatformDetail.WindowHandle, LLC_NN_TITLE " - CPU | F3: HUD | F4: D3D11");
+#endif
+ rtrn ::nnTitleUpdate(app, "CPU");
 }
 
 ::llc::err_t cleanup(SApplication & app) {
+ ::llc::lock_guard locked(app.Lock);
  for(auto & session : app.Sessions) if_fail_fe(::llc::nnReset(session.Network));
+#if defined(LLC_WINDOWS)
+ if(app.D3D) {
+  if(app.D3D->DeviceResources && app.D3D->DeviceResources->m_swapChain)
+   if_fail_e(app.D3D->Shutdown());
+  app.D3D = {};
+ }
+ if(app.COMInitialized) {
+  ::CoUninitialize();
+  app.COMInitialized = false;
+ }
+#endif
  rtrn ::llc::mainWindowDestroy(app.Framework.RootWindow);
 }
 
@@ -795,12 +860,17 @@ sttc ::llc::err_t nnVerifyLog(SApplication & app) {
 #endif
 
 ::llc::err_t update(SApplication & app, bool systemRequestedExit) {
+ ::llc::lock_guard locked(app.Lock);
  if(systemRequestedExit) rtrn ::llc::APPLICATION_STATE_EXIT;
  const auto frameworkResult = ::llc::updateFramework(app.Framework);
  if(frameworkResult) rtrn frameworkResult;
  auto & gui = *app.Framework.GUI;
  auto & window = app.Framework.RootWindow;
  if(window.Closed || window.Input->KeyDown(::llc::SYSTEM_KEY_Escape) || gui.Controls.IsAction(app.Exit)) rtrn ::llc::APPLICATION_STATE_EXIT;
+ if(window.Input->KeyDown(::llc::SYSTEM_KEY_F3)) app.ShowPerformance = !app.ShowPerformance;
+#if defined(LLC_WINDOWS)
+ if(window.Input->KeyDown(::llc::SYSTEM_KEY_F4)) if_fail_fe(::nnRendererSet(app, !app.UseD3D));
+#endif
  if(window.Size != app.LastSize || gui.Zoom != app.LastZoom || gui.Controls.IsAction(app.Restore)) if_fail_fe(nnWorkspaceLayout(app, gui.Controls.IsAction(app.Restore)));
  if(gui.Controls.IsAction(app.Save)) app.Capture = true;
  for(::llc::u2_t n = 0; n < ::llc::NN_COUNT; ++n) {
@@ -851,7 +921,7 @@ sttc ::llc::err_t nnVerifyLog(SApplication & app) {
     if_fail_fe(::llc::nnBegin(run, n, run.Config));
     if(n == ::llc::NN_IMAGE) { session.LastImagePass = 0; if_fail_fe(::sampleSliderSetValue(session.CellSize, gui, 0)); }
    }
-   if(gui.Controls.IsAction(session.Run) && !run.Complete && !run.Error) session.Running = !session.Running;
+   if(gui.Controls.IsAction(session.Run) && !run.State.Complete && !run.State.Error) session.Running = !session.Running;
    step = gui.Controls.IsAction(session.Step);
    if(step) session.Running = false;
    for(::llc::u2_t p = 0; p < (n == ::llc::NN_BACKPROPAGATION || n == ::llc::NN_IMAGE ? 7U : 5U); ++p) {
@@ -867,12 +937,12 @@ sttc ::llc::err_t nnVerifyLog(SApplication & app) {
     }
    }
   }
-  if((session.Running || step) && run.Model.State && !run.Complete && !run.Error) {
+  if((session.Running || step) && run.Model.State && !run.State.Complete && !run.State.Error) {
    const auto budget = step ? 1U : (::llc::u2_t)session.Speed.ValueCurrent;
    for(::llc::u2_t unit = 0; unit < budget; ++unit) {
     const auto result = ::llc::nnStep(run, 1);
     if(result) session.Running = false;
-    const auto metric = run.Inspection.Inspected ? run.Inspection.SampleLoss : run.Metric;
+    const auto metric = run.State.Inspected ? run.State.SampleLoss : run.State.Metric;
     if(n != ::llc::NN_IMAGE && result >= 0 && std::isfinite(metric)) {
      session.History[session.HistoryCursor] = metric;
      session.HistoryCursor = (session.HistoryCursor + 1) % session.History.size();
@@ -892,10 +962,10 @@ sttc ::llc::err_t nnVerifyLog(SApplication & app) {
    }
   }
   if_fail_fe(::llc::controlTextSet(gui, session.Run, session.Running ? ::llc::vcst_t{"PAUSE"} : ::llc::vcst_t{"RUN"}));
-  const char * state = run.Error ? "ERROR" : run.Complete ? "COMPLETE" : session.Running ? "RUNNING" : "PAUSED";
+  const char * state = run.State.Error ? "ERROR" : run.State.Complete ? "COMPLETE" : session.Running ? "RUNNING" : "PAUSED";
   const auto length = n == ::llc::NN_IMAGE
    ? ::llc::sprintf_s(session.StatusText.Storage, "%s | samples %" LLC_FMT_U3 " | MSE %.5g | preview %u/%u", state, run.Painter->Samples, run.Painter->MSE, run.Painter->Cursor, run.Painter->Source.size())
-   : ::llc::sprintf_s(session.StatusText.Storage, "%s | step %" LLC_FMT_U3 " | metric %.6g", state, run.Steps, run.Metric);
+   : ::llc::sprintf_s(session.StatusText.Storage, "%s | step %" LLC_FMT_U3 " | metric %.6g", state, run.State.Steps, run.State.Metric);
   if_fail_fe(length);
   if_fail_fe(::llc::controlTextSet(gui, session.Status, {session.StatusText.Storage, (::llc::u2_t)length}));
  }
@@ -935,6 +1005,13 @@ sttc ::llc::err_t nnVerifyLog(SApplication & app) {
  }
  for(::llc::u2_t n = 0; n < ::llc::NN_COUNT; ++n) if_fail_fe(nnSessionLayout(app, n));
  if_fail_fe(nnLogUpdate(app));
+ cnst ::llc::vcst_t backend =
+#if defined(LLC_WINDOWS)
+  app.UseD3D ? ::llc::vcst_t{"D3D11"} : ::llc::vcst_t{"CPU"};
+#else
+  "CPU";
+#endif
+ if_fail_fe(::nnTitleUpdate(app, backend));
  if_fail_fe(::llc::guiUpdateMetrics(gui, window.Size, false));
  ::llc::sleep(1);
  rtrn 0;
@@ -970,23 +1047,11 @@ sttc ::llc::err_t nnImageSet(::llc::SGUI & gui, ::llc::cid_t id, ::llc::img8bgra
  rtrn 0;
 }
 
-sttc ::llc::err_t nnPicture(::llc::g8bgra target, ::llc::gc8bgra source) {
- if_fail_fe(target.fill(::llc::bgra{22, 18, 16, 255}));
- const auto size = target.metrics(), pixels = source.metrics();
- if(size.x < 24 || size.y < 80 || !pixels.x || !pixels.y) rtrn 0;
- const double scale = ::llc::min(double(size.x - 16) / pixels.x, double(size.y - 64) / pixels.y);
- const ::llc::n2u2_t extent = {::llc::max(1U, (::llc::u2_t)(pixels.x * scale)), ::llc::max(1U, (::llc::u2_t)(pixels.y * scale))};
- const ::llc::n2u2_t origin = {(size.x - extent.x) / 2, 56 + (size.y - 56 - extent.y) / 2};
- for(::llc::u2_t y = 0; y < extent.y; ++y) for(::llc::u2_t x = 0; x < extent.x; ++x)
-  target[origin.y + y][origin.x + x] = source[y * pixels.y / extent.y][x * pixels.x / extent.x];
- rtrn 0;
-}
 
 ::llc::err_t draw(SApplication & app) {
+ ::llc::lock_guard locked(app.Lock);
  auto & window = app.Framework.RootWindow;
  if(window.NoDraw) rtrn 0;
- if_fail_fe(window.BackBuffer->resize(window.Size.u2()));
- if_fail_fe(window.BackBuffer->Color.View.fill(::llc::bgra{25, 20, 17, 255}));
  auto & gui = *app.Framework.GUI;
  for(::llc::u2_t n = 0; n < ::llc::NN_COUNT; ++n) {
   auto & session = app.Sessions[n];
@@ -1006,32 +1071,32 @@ sttc ::llc::err_t nnPicture(::llc::g8bgra target, ::llc::gc8bgra source) {
    }
    else if(p == 5) { if_fail_fe(nnHistory(session, image.View)); }
    else {
-    ::llc::view<const ::llc::f3_t> values = {run.Inspection.Values.begin(), run.Inspection.Count};
-    ::llc::n2u2_t cells = {run.Inspection.Width, run.Inspection.Width ? (run.Inspection.Count + run.Inspection.Width - 1) / run.Inspection.Width : 0};
-    if(p <= 1 && run.Inspection.Count && session.DisplayLayout) {
-     cells.x = session.DisplayLayout == 1 ? run.Inspection.Count : (::llc::u2_t)std::ceil(std::sqrt(double(run.Inspection.Count)));
-     cells.y = (run.Inspection.Count + cells.x - 1) / cells.x;
+    ::llc::view<const ::llc::f3_t> values = {run.State.Values.begin(), run.State.Count};
+    ::llc::n2u2_t cells = {run.State.Width, run.State.Width ? (run.State.Count + run.State.Width - 1) / run.State.Width : 0};
+    if(p <= 1 && run.State.Count && session.DisplayLayout) {
+     cells.x = session.DisplayLayout == 1 ? run.State.Count : (::llc::u2_t)std::ceil(std::sqrt(double(run.State.Count)));
+     cells.y = (run.State.Count + cells.x - 1) / cells.x;
     }
     if(p == 2 || p == 3 || p == 4) {
-     const auto & data = p == 2 ? run.Inspection.Weights : p == 3 ? run.Inspection.WeightChanges : run.Inspection.WeightsBefore;
-     cells = p == 4 ? run.Inspection.BeforeSize : run.Inspection.WeightSize;
+     const auto & data = p == 2 ? run.State.Weights : p == 3 ? run.State.WeightChanges : run.State.WeightsBefore;
+     cells = p == 4 ? run.State.BeforeSize : run.State.WeightSize;
      values = {data.begin(), cells.x * cells.y};
     } else if(p >= 6) {
-     const auto & data = p == 6 ? run.Inspection.Activations : run.Inspection.ErrorTerms;
-     values = {data.begin(), run.Inspection.Inspected ? 96U : 0U}; cells = {32, 3};
+     const auto & data = p == 6 ? run.State.Activations : run.State.ErrorTerms;
+     values = {data.begin(), run.State.Inspected ? 96U : 0U}; cells = {32, 3};
     }
     if_fail_fe(nnHeatmap(image.View, values, cells, session.AutoScale.Checked, n == ::llc::NN_IMAGE ? 0U : (::llc::u2_t)session.CellSize.ValueCurrent));
    }
    if_fail_fe(nnImageSet(gui, client, image));
    if(p) {
-    const char * hint = p == 1 ? "Current sample / state" : p == 2 ? "Weight crop / up to 32 x 32" : p == 3 ? "Last step: after - before" : p == 4 ? "Immediately before last step" : p == 5 ? (run.Inspection.Inspected ? "Sample loss / last 512 steps" : "Metric / last 512 steps") : p == 6 ? "Rows: input / hidden / output" : run.Inspection.Training ? "Errors: none / hidden / output" : "Evaluation: output error only";
+    const char * hint = p == 1 ? "Current sample / state" : p == 2 ? "Weight crop / up to 32 x 32" : p == 3 ? "Last step: after - before" : p == 4 ? "Immediately before last step" : p == 5 ? (run.State.Inspected ? "Sample loss / last 512 steps" : "Metric / last 512 steps") : p == 6 ? "Rows: input / hidden / output" : run.State.Training ? "Errors: none / hidden / output" : "Evaluation: output error only";
     auto length = ::llc::sprintf_s(app.Details[index].Storage, "%s", hint);
     if(n == ::llc::NN_IMAGE && p <= 5) {
      const char * imageHint = p == 1 ? "Training source (max 64px); alpha over white" : p == 2 ? "RGB prediction; progressive fixed-weight pass" : p == 3 ? "Absolute RGB error x4 (clamped for display)" : p == 4 ? "Absolute RGB change removing neuron x4" : "Full-image MSE / completed preview passes";
      length = ::llc::sprintf_s(app.Details[index].Storage, "%s\nNeuron %u | pass %" LLC_FMT_U3 " | MSE %.5g", imageHint, run.Painter->Neuron, run.Painter->Pass, run.Painter->MSE);
     }
     if(p == 6)
-     length = ::llc::sprintf_s(app.Details[index].Storage, "Units %u / %u / %u (bias excluded)\nTarget %.5f  output %.5f\nLoss %.6g | %s", run.Inspection.LayerUnits[0], run.Inspection.LayerUnits[1], run.Inspection.LayerUnits[2], run.Inspection.Target, run.Inspection.Prediction, run.Inspection.SampleLoss, run.Inspection.Training ? "TRAIN" : "EVALUATE");
+     length = ::llc::sprintf_s(app.Details[index].Storage, "Units %u / %u / %u (bias excluded)\nTarget %.5f  output %.5f\nLoss %.6g | %s", run.State.LayerUnits[0], run.State.LayerUnits[1], run.State.LayerUnits[2], run.State.Target, run.State.Prediction, run.State.SampleLoss, run.State.Training ? "TRAIN" : "EVALUATE");
     if_fail_fe(length);
     gui.Controls.Text[client].FontSelected = 7;
     gui.Controls.Text[client].Align = ::llc::ALIGN_TOP_LEFT;
@@ -1044,7 +1109,52 @@ sttc ::llc::err_t nnPicture(::llc::g8bgra target, ::llc::gc8bgra source) {
    }
   }
  }
- if_fail_fe(::llc::guiDraw(gui, window.BackBuffer->Color.View));
+#if defined(LLC_WINDOWS)
+ if(app.UseD3D) {
+  if(app.D3D->GUIStuff.RenderTarget.metrics() != window.Size.u2())
+   if_fail_fe(app.D3D->SetWindowSize(window.Size));
+  if_fail_fe(::llc::guiUpdateMetrics(gui, window.Size, gui.LastSize != window.Size || gui.LastZoom != gui.Zoom));
+  ::DX::D3DDeviceResources & resources = *app.D3D->DeviceResources;
+  ID3D11DeviceContext * context = resources.GetD3DDeviceContext();
+  cnst D3D11_VIEWPORT viewport = resources.GetScreenViewport();
+  context->RSSetViewports(1, &viewport);
+  ID3D11RenderTargetView * target = resources.GetBackBufferRenderTargetView();
+  context->OMSetRenderTargets(1, &target, resources.GetDepthStencilView());
+  cnst ::llc::rgbaf clear = ::llc::bgra{25, 20, 17, 255};
+  context->ClearRenderTargetView(target, &clear.r);
+  if_fail_fe(::llc::d3dGUIDraw(resources, app.D3D->GUIStuff, gui, window.Size));
+  if(app.Capture) {
+   if_fail_fe(window.BackBuffer->resize(window.Size.u2()));
+   if_fail_fe(window.BackBuffer->Color.View.fill(::llc::bgra{25, 20, 17, 255}));
+   if_fail_fe(::llc::guiDraw(gui, window.BackBuffer->Color.View));
+  }
+  if_fail_fe(resources.Present());
+ }
+ else
+#endif
+ {
+  if_fail_fe(window.BackBuffer->resize(window.Size.u2()));
+  if_fail_fe(window.BackBuffer->Color.View.fill(::llc::bgra{25, 20, 17, 255}));
+  if_fail_fe(::llc::guiDraw(gui, window.BackBuffer->Color.View));
+#if defined(LLC_WINDOWS)
+  if(app.D3D) {
+   if(app.D3D->GUIStuff.RenderTarget.metrics() != window.Size.u2())
+    if_fail_fe(app.D3D->SetWindowSize(window.Size));
+   memcpy(app.D3D->GUIStuff.RenderTarget.begin(), window.BackBuffer->Color.begin(), window.BackBuffer->Color.byte_count());
+   for(auto & pixel : app.D3D->GUIStuff.RenderTarget.Texels) pixel.a = 255;
+   ::DX::D3DDeviceResources & resources = *app.D3D->DeviceResources;
+   ID3D11DeviceContext * context = resources.GetD3DDeviceContext();
+   ID3D11RenderTargetView * target = resources.GetBackBufferRenderTargetView();
+   context->OMSetRenderTargets(1, &target, resources.GetDepthStencilView());
+   cnst D3D11_VIEWPORT viewport = resources.GetScreenViewport();
+   context->RSSetViewports(1, &viewport);
+   if_fail_fe(::llc::d3dGUIDraw(resources, app.D3D->GUIStuff));
+   if_fail_fe(resources.Present());
+  }
+  else
+#endif
+   window.Repaint = true;
+ }
  if(app.Capture) {
   ::llc::au0_t png = {};
   if_fail_fe(::llc::pngFileWrite(window.BackBuffer->Color.View, png));
@@ -1053,4 +1163,4 @@ sttc ::llc::err_t nnPicture(::llc::g8bgra target, ::llc::gc8bgra source) {
  }
  rtrn 0;
 }
-LLC_DEFINE_APPLICATION_ENTRY_POINT(SApplication, "Neural Networks at your Fingertips")
+LLC_DEFINE_APPLICATION_ENTRY_POINT(SApplication, LLC_NN_TITLE)

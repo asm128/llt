@@ -220,7 +220,7 @@ llc::err_t cleanup(SApplication & app) {
 	if_fail_e(relayClose(app.Peer));
 	if(app.NetworkStarted) { if_fail_e(llc::tcpipShutdown()); }
 	if_fail_e(llsDesktopClose(app));
-	if(app.UI) { if_fail_e(llc::mainWindowDestroy((*app.UI).Framework.RootWindow)); }
+	if(app.UI) { if_fail_e(llsGUICleanup(app)); }
 #if defined(LLC_WINDOWS) && !defined(LLC_AVOID_LOCAL_APPLICATION_MODEL_EXECUTABLE_RUNTIME)
 	if(app.Restart) {
 		char executable[32768] = {};

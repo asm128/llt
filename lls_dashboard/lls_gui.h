@@ -4,6 +4,10 @@
 #include "lls_explorer.h"
 #include "lls_gui_surface.h"
 
+#if defined(LLC_WINDOWS)
+#include "llc_engine_d3d_app.h"
+#endif
+
 #ifndef LLS_GUI_H
 #define LLS_GUI_H
 
@@ -23,13 +27,19 @@ stct SLLSGUI {
 	llc::SJSONFile Layout;
 	llc::au2_t			Matches;
 	llc::string			Query, Detail, Stats, Notice;
+	llc::astchar<160>	Performance = {};
 	llc::cid_t			Title = -1, Statistics = -1, Hint = -1, Keyboard = -1;
 	llc::cid_t			ListPrev = -1, ListNext = -1, PagePrev = -1, PageNext = -1, OpenPath = -1;
 	llc::u2_t			Tab = 0, ListOffset = 0, LineOffset = 0, Selected = (llc::u2_t)-1;
 	llc::u2_t			Revision = (llc::u2_t)-1, VisibleLines = 0, VisibleRows = 0, Columns = 0;
 	llc::n2u1_t			LastSize = {};
 	double				Refresh = 0;
-	bool				ShowKeyboard = false, Dirty = true;
+	bool				ShowKeyboard = false, ShowPerformance = true, Dirty = true;
+#if defined(LLC_WINDOWS)
+	llc::pobj<llc::SEngineGraphics> Graphics;
+	llc::pobj<llc::SD3DApplication> D3D;
+	bool				UseD3D = false, COMInitialized = false;
+#endif
 
 	explicit SLLSGUI(llc::SRuntimeValues & runtime) : Framework(runtime, {}) {}
 };
@@ -37,6 +47,7 @@ stct SLLSGUI {
 stct SApplication;
 llc::err_t llsGUISetup	(SApplication & app);
 llc::err_t llsGUIUpdate	(SApplication & app);
+llc::err_t llsGUICleanup(SApplication & app);
 llc::err_t llsHelpFind	(llc::vcst_t query, llc::au2_t & matches);
 
 #endif

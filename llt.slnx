@@ -66,6 +66,7 @@
   </Project>
   <Project Path="lls_dashboard/lls_dashboard.vcxproj" Id="9328467e-10ed-411d-bb4e-3210ef1cb754">
     <BuildDependency Project="../llc/llc/llc.vcxproj" />
+    <BuildDependency Project="../llc/llc_engine/llc_engine.vcxproj" />
     <BuildDependency Project="../llc/lrt/lrt.vcxproj" />
     <BuildDependency Project="../zlib/contrib/vstudio/vc14/zlibvc.vcxproj" />
   </Project>
