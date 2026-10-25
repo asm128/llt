@@ -20,7 +20,7 @@ sttc llc::err_t llsCommandOutputSummary(llc::vcst_t output, llc::string & summar
 		output = remaining;
 		llc::trim(line);
 		if(!line.size() || line == "#< CLIXML" || (line.size() >= 5 && 0 == memcmp(line.begin(), "<Objs", 5))) continue;
-		cnst llc::err_t xml = line.find("<Objs");
+		cnst llc::err_t xml = line.find(llc::vcst_t{"<Objs"});
 		if(xml >= 0) line = {line.begin(), (llc::u2_t)xml};
 		llc::trim(line);
 		if(!line.size()) continue;
