@@ -371,12 +371,6 @@
     <None Include="lls_tools.json" />
     <None Include="..\lcp\lcp_help.json" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\zlib\contrib\vstudio\vc14\zlibvc.vcxproj">
-      <Project>{8FD826F8-3739-44E6-8CC8-997122E53B8D}</Project>
-      <LinkLibraryDependencies>true</LinkLibraryDependencies>
-    </ProjectReference>
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <Target Name="CopyLLSCatalogs" AfterTargets="Build">
     <Copy SourceFiles="$(ProjectDir)lls_tools.json;$(ProjectDir)..\lcp\lcp_help.json" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
