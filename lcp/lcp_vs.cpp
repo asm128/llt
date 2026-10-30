@@ -548,7 +548,7 @@ llc::err_t lcpVSCall(cnst llc::SJSONReader & reader, llc::string & body, llc::er
 	if_fail_fe(llc::jsonExpressionResolve("params.arguments.action", reader, 0, action));
 	if(action != "build" && action != "launch" && action != "run" && action != "list" && action != "ping" && action != "close" && action != "restart") {
 		if(operationStatus) *operationStatus = llc::OS_INVALID_PARAMETER;
-		rtrn lcpTextBody(body, "Unknown vs action. Open help: vs.", true);
+		rtrn lcpTextBody(body, "Unknown vstr_t action. Open help: vstr_t.", true);
 	}
 	llc::string text;
 	llc::err_t status = 0;
@@ -571,7 +571,7 @@ llc::err_t lcpVSCall(cnst llc::SJSONReader & reader, llc::string & body, llc::er
 #endif
 	if(llc::failed(status)) {
 		if_fail_fe(text.clear());
-		if_fail_fe(llc::append_strings(text, "Visual Studio ", action, " failed (", llc::str(status), "). Use vs list for an accessible instance; launch requires its exact solution/project/configuration. Close/restart require saved work and no build/debug session."));
+		if_fail_fe(llc::append_strings(text, "Visual Studio ", action, " failed (", llc::str(status), "). Use vstr_t list for an accessible instance; launch requires its exact solution/project/configuration. Close/restart require saved work and no build/debug session."));
 	}
 	if(operationStatus) *operationStatus = status;
 	rtrn lcpTextBody(body, text, llc::failed(status));

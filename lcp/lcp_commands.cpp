@@ -55,7 +55,7 @@ sttc	::llc::err_t	lcpTreeJSON			(cnst ::llc::SPathTree & tree, ::llc::vcs3_t byt
 		if(i) {
 			if_fail_fe(output.push_back(','));
 		}
-		if_fail_fe(::llc::append_strings(output, '[', ::llc::str((::llc::u2_t)tree.Info[i].NestLevel), ',', ::llc::b82vcs(tree.Info[i].Folder), ','));
+		if_fail_fe(::llc::append_strings(output, '[', ::llc::str((::llc::u2_t)tree.Info[i].NestLevel), ',', ::llc::b82st(tree.Info[i].Folder), ','));
 		if_fail_fe(::lcpJSONString(output, tree.Name[i]));
 		if_fail_fe(output.push_back(','));
 		if(bytes[i] < 0) {
@@ -66,7 +66,7 @@ sttc	::llc::err_t	lcpTreeJSON			(cnst ::llc::SPathTree & tree, ::llc::vcs3_t byt
 		}
 		if_fail_fe(output.push_back(']'));
 	}
-	rtrn ::llc::append_strings(output, "],\"truncated\":", ::llc::b82vcs(truncated), ",\"incomplete\":", ::llc::b82vcs(incomplete), '}');
+	rtrn ::llc::append_strings(output, "],\"truncated\":", ::llc::b82st(truncated), ",\"incomplete\":", ::llc::b82st(incomplete), '}');
 }
 
 ::llc::err_t	lcpTreeCall			(cnst ::llc::SJSONReader & reader, ::llc::string & body, ::llc::SPathTree & tree) {

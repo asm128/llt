@@ -19,9 +19,9 @@ stxp llc::minmax<u3_t>          DEFAULT_FILE_SIZE_RANGE     = {0x400 * 0x400 * 5
 struct SFileInfo {
 	llc::string    Path;
 	llc::string    Name;
-	uint64_t       Size;
-	uint64_t       TimestampCreation;
-	uint64_t       TimestampLastWrite;
+	u3_t       Size;
+	u3_t       TimestampCreation;
+	u3_t       TimestampLastWrite;
 };
 struct SFileInfoPair {
 	SFileInfo       A;
@@ -59,7 +59,7 @@ sttc llc::err_t listFolder   (llc::vcst_t path, bool recursiveWalk, llc::functio
 	HANDLE              hFind   = FindFirstFileExA(pathStr, FindExInfoBasic, &data, FindExSearchNameMatch, 0, 0);
 	if_true_vif(0, hFind == INVALID_HANDLE_VALUE, "No files found in \"%s\"", path.begin());
 
-	uint32_t            filesFound = 0;
+	u2_t            filesFound = 0;
 	do {
 		verbose_printf(
 			"\ndwFileAttributes   (DWORD)    : %u"
@@ -136,7 +136,7 @@ sttc llc::err_t movePaths(llc::string & oldPath, llc::string & destinationFolder
 		oldPathDriveLetterFix[colonOffset] = '_';
 		oldPathView = oldPathDriveLetterFix;
 	}
-	if_fail_fe(llc::append_strings(destinationFolder, destinationRoot, '/', oldPathView.cc(), '/'));
+	if_fail_fe(llc::append_strings(destinationFolder, destinationRoot, '/', oldPathView, '/'));
 	return 0;
 }
 
@@ -184,13 +184,13 @@ sttc llc::err_t collectLargeFiles(llc::vcst_t pathToProcess, llc::minmax<u3_t> f
 	info_printf("Scanning path: \"%.*s\"", pathToProcess.size(), pathToProcess.begin());
 	if_fail_fe(::listFolder(pathToProcess, true, [&largeFiles, fileSizeRangeInBytes](const WIN32_FIND_DATAA & entryData, llc::vcst_t folderPath) { 
 		SFileInfo			newInfo         = {};
-		newInfo.Size	= ((uint64_t)entryData.nFileSizeHigh << 32) | entryData.nFileSizeLow;
+		newInfo.Size	= ((u3_t)entryData.nFileSizeHigh << 32) | entryData.nFileSizeLow;
 		if( newInfo.Size < fileSizeRangeInBytes.Min 
 		 || newInfo.Size > fileSizeRangeInBytes.Max
 		 ) // if the file is smaller than the minimum Size or larger than the maximum Size, skip it
 			return 0; 
-		memcpy(&newInfo.TimestampCreation   , &entryData.ftCreationTime     , sizeof(uint64_t));
-		memcpy(&newInfo.TimestampLastWrite , &entryData.ftLastWriteTime   , sizeof(uint64_t));
+		memcpy(&newInfo.TimestampCreation   , &entryData.ftCreationTime     , sizeof(u3_t));
+		memcpy(&newInfo.TimestampLastWrite , &entryData.ftLastWriteTime   , sizeof(u3_t));
 		verbose_printf("Large file found: %s. Size: %llu. Creation Time: %llu", entryData.cFileName, newInfo.Size, newInfo.TimestampCreation);
 		if_fail_fe(llc::append_strings(newInfo.Path, folderPath));
 		if_fail_fe(llc::append_strings(newInfo.Name, entryData.cFileName));
@@ -202,8 +202,8 @@ sttc llc::err_t collectLargeFiles(llc::vcst_t pathToProcess, llc::minmax<u3_t> f
 
 sttc llc::err_t collectPotentialDuplicates(llc::view<const SFileInfo> largeFiles, llc::aobj<SFileInfoPair> & potentiallyDuplicatedFiles) {
 	info_printf("Comparing large files...");
-	for(uint32_t iFile0 = 0; iFile0 < largeFiles.size() - 1; ++iFile0) 
-	for(uint32_t iFile1 = iFile0 + 1; iFile1 < largeFiles.size(); ++iFile1) {
+	for(u2_t iFile0 = 0; iFile0 < largeFiles.size() - 1; ++iFile0) 
+	for(u2_t iFile1 = iFile0 + 1; iFile1 < largeFiles.size(); ++iFile1) {
 		if(largeFiles[iFile0].Size != largeFiles[iFile1].Size) 
 			continue; 
 

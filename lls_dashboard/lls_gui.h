@@ -7,6 +7,13 @@
 #ifndef LLS_GUI_H
 #define LLS_GUI_H
 
+LLC_USING_TYPEINT();
+LLC_USING_VIEW();
+LLC_USING_APOD();
+
+
+using namespace llc;
+
 stct SLLSGUI {
 	llc::SFramework		Framework;
 	SLLSGUISurface Surface;
@@ -28,7 +35,7 @@ stct SLLSGUI {
 	llc::u2_t			Tab = 0, ListOffset = 0, LineOffset = 0, Selected = (llc::u2_t)-1;
 	llc::u2_t			Revision = (llc::u2_t)-1, VisibleLines = 0, VisibleRows = 0, Columns = 0;
 	llc::n2u1_t			LastSize = {};
-	double				Refresh = 0;
+	f3_t				Refresh = 0;
 	bool				ShowKeyboard = false, Dirty = true;
 
 	explicit SLLSGUI(llc::SRuntimeValues & runtime) : Framework(runtime, {}) {}

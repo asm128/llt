@@ -8,7 +8,7 @@ param(
 $ErrorActionPreference = 'Stop'
 # Same MCP connector and service as the app integration; no local command fallback.
 $client = if($ClientConfiguration -ne 'Default') { $ClientConfiguration } else { "$Configuration-MT" }
-$directory = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "../../../../../operations/lls/x64.$client"))
+$directory = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "../../../../../../operations/lls/x64.$client"))
 $start = [Diagnostics.ProcessStartInfo]::new((Join-Path $directory 'lcp.exe'))
 $start.WorkingDirectory = $directory
 $start.Arguments = "--service=$Configuration"

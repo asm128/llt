@@ -15,6 +15,12 @@
 #include "../lcp/lcp_text.h"
 #include "../lcp/lcp_identity.h"
 
+
+LLC_USING_APOD();
+LLC_USING_VIEW();
+LLC_USING_TYPEINT();
+LLC_USING_N2();
+
 #if defined(LLC_WINDOWS) && !defined(LLC_AVOID_LOCAL_APPLICATION_MODEL_EXECUTABLE_RUNTIME)
 #include <process.h>
 LLC_DEFINE_APPLICATION_ENTRY_POINT_MT(SApplication, "LT4 Limb System");
@@ -73,7 +79,7 @@ sttc llc::err_t llsStatus(cnst llc::SJSONReader & reader, llc::err_t id, SApplic
 sttc	::llc::err_t	llsToolCall			(cnst ::llc::SJSONReader & reader, SBuildResult & outcome, SApplication & app, llc::u2_t jobIndex, SRelayPeer *) {
 	llc::vcst_t name, action;
 	if_fail_fe(llc::jsonExpressionResolve("params.name", reader, 0, name));
-	if(name != "vs") {
+	if(name != "vstr_t") {
 		llc::string body;
 		llc::SPathTree tree;
 		if(name == "tree") { if_fail_fe(lcpTreeCall(reader, body, tree)); }
@@ -123,15 +129,15 @@ sttc	::llc::err_t	llsRequest			(::llc::SJSONReader & reader, ::llc::vcst_t reque
 	llc::vcst_t tool;
 	if(method == "tools/call") llc::jsonExpressionResolve("params.name", reader, 0, tool);
 	if(app && tool != "session") { llc::lock_guard guard(app->Lock); ++app->Requests; }
-	if("server/discover" == method)
-		rtrn ::llsRespond(reader, id, "\"result\":{\"resultType\":\"complete\",\"supportedVersions\":[\"2026-07-28\"],\"capabilities\":{\"tools\":{}},\"_meta\":{\"io.modelcontextprotocol/serverInfo\":{\"name\":\"lls\",\"version\":\"0.1.0\"}},\"instructions\":\"Use help path vs for build, launch, list, ping, close and restart. Use forward slashes in paths.\",\"ttlMs\":3600000,\"cacheScope\":\"public\"}", peer);
-	if("initialize" == method)
-		rtrn ::llsRespond(reader, id, "\"result\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{\"tools\":{}},\"serverInfo\":{\"name\":\"lls\",\"version\":\"0.1.0\"},\"instructions\":\"Use vs list to select an IDE instance. Launch requires solution, project and configuration. Supply MSBuild for builds or devenv for a new IDE.\"}", peer);
-	if("ping" == method)
+	if(method == "server/discover")
+		rtrn ::llsRespond(reader, id, "\"result\":{\"resultType\":\"complete\",\"supportedVersions\":[\"2026-07-28\"],\"capabilities\":{\"tools\":{}},\"_meta\":{\"io.modelcontextprotocol/serverInfo\":{\"name\":\"lls\",\"version\":\"0.1.0\"}},\"instructions\":\"Use help path vstr_t for build, launch, list, ping, close and restart. Use forward slashes in paths.\",\"ttlMs\":3600000,\"cacheScope\":\"public\"}", peer);
+	if(method == "initialize")
+		rtrn ::llsRespond(reader, id, "\"result\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{\"tools\":{}},\"serverInfo\":{\"name\":\"lls\",\"version\":\"0.1.0\"},\"instructions\":\"Use vstr_t list to select an IDE instance. Launch requires solution, project and configuration. Supply MSBuild for builds or devenv for a new IDE.\"}", peer);
+	if(method == "ping")
 		rtrn ::llsRespond(reader, id, "\"result\":{\"resultType\":\"complete\"}", peer);
-	if("tools/list" == method)
+	if(method == "tools/list")
 		rtrn ::llsRespond(reader, id, lcpTools(), peer);
-	if("tools/call" == method) {
+	if(method == "tools/call") {
 		llc::vcst_t name;
 		if_fail_fe(llc::jsonExpressionResolve("params.name", reader, 0, name));
 		if(name == "session" && app) {
@@ -160,7 +166,7 @@ sttc	::llc::err_t	llsRequest			(::llc::SJSONReader & reader, ::llc::vcst_t reque
 			rtrn llsRespond(reader, id, body, peer);
 		}
 		if(name == "status" && app) rtrn llsStatus(reader, id, *app, peer);
-		if(name == "vs") {
+		if(name == "vstr_t") {
 			llc::vcst_t action;
 			if_fail_fe(llc::jsonExpressionResolve("params.arguments.action", reader, 0, action));
 			if(action == "list" || action == "ping") {
@@ -169,7 +175,7 @@ sttc	::llc::err_t	llsRequest			(::llc::SJSONReader & reader, ::llc::vcst_t reque
 				rtrn llsRespond(reader, id, body, peer);
 			}
 		}
-		if((name != "vs" && name != "tree" && name != "cmd" && name != "powershell" && name != "wsl") || !app)
+		if((name != "vstr_t" && name != "tree" && name != "cmd" && name != "powershell" && name != "wsl") || !app)
 			rtrn llsRespond(reader, id, "\"error\":{\"code\":-32602,\"message\":\"Unknown tool.\"}", peer);
 		SBuildJob job;
 		job.Peer = route;

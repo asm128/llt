@@ -7,7 +7,12 @@
 #include <cstdio>
 #include <cmath>
 
-GDEFINE_ENUM_TYPE(NN_TEST_RESULT, ::llc::u0_t);
+LLC_USING_APOD();
+LLC_USING_VIEW();
+LLC_USING_TYPEINT();
+LLC_USING_N2();
+
+GDEFINE_ENUM_TYPE(NN_TEST_RESULT, u0_t);
 GDEFINE_ENUM_VALUED(NN_TEST_RESULT, STATE, 0, "NN reset, ownership, step or replay contract failed.");
 GDEFINE_ENUM_VALUED(NN_TEST_RESULT, TOPOLOGY, 1, "NN topology change or validation contract failed.");
 GDEFINE_ENUM_VALUED(NN_TEST_RESULT, IMAGE, 2, "Image learning, preview isolation or replay contract failed.");
@@ -173,10 +178,10 @@ llc::err_t testNN(llc::ATestError & results, llc::vcst_t outputFolder) {
  for(const auto size : targets) {
   if_fail_fe(image.resize(size));
   for(const auto cells : grids)
-   for(const ::llc::u2_t zoom : {0U, 1U, 32U}) if_fail_fe(nnHeatmap(image.View, values, cells, true, zoom));
+   for(const ::llc::u2_t zoom : {0U, 1U, 32U}) if_fail_fe(::llc::nnHeatmap<f3_t>(image.View, values, cells, true, zoom));
  }
  // Fit must retain both ends of a dense strip in the visible image.
- if_fail_fe(nnHeatmap(image.View, values, {625, 1}, true, 0));
+ if_fail_fe(::llc::nnHeatmap<f3_t>(image.View, values, {625, 1}, true, 0));
  bool positive = false, negative = false;
  for(const auto color : image.Texels) {
   positive |= color.b == 244 && color.r == 70;

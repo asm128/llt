@@ -49,7 +49,7 @@ sttc	::llc::err_t	lcpText				(cnst ::llc::SJSONReader & reader, ::llc::err_t id,
 sttc	::llc::err_t	lcpToolCall			(cnst ::llc::SJSONReader & reader, ::llc::err_t id, ::llc::SPathTree & tree) {
 	::llc::vcst_t name = {};
 	if_fail_fe(::llc::jsonExpressionResolve("params.name", reader, 0, name));
-	if("help" == name) {
+	if(name == "help") {
 		llc::vcst_t path;
 		cnst llc::err_t field = llc::jsonExpressionResolve("params.arguments.path", reader, 0);
 		if(field >= 0 && llc::failed(llc::jsonObjectGetString(reader, (llc::u2_t)field, path)))
@@ -58,12 +58,12 @@ sttc	::llc::err_t	lcpToolCall			(cnst ::llc::SJSONReader & reader, ::llc::err_t 
 		if_fail_fe(lcpToolsAvailable(path, text));
 		rtrn lcpText(reader, id, text, false);
 	}
-	if("tree" == name) {
+	if(name == "tree") {
 		llc::string body;
 		if_fail_fe(lcpTreeCall(reader, body, tree));
 		rtrn lcpRespond(reader, id, body);
 	}
-	if("lls" == name) {
+	if(name == "lls") {
 		llc::string body;
 		if_fail_fe(lcpServiceCall(reader, body));
 		rtrn lcpRespond(reader, id, body);
@@ -74,7 +74,7 @@ sttc	::llc::err_t	lcpToolCall			(cnst ::llc::SJSONReader & reader, ::llc::err_t 
 		rtrn lcpRespond(reader, id, body);
 	}
 	if(name == "status" || name == "session" || name == "failures" || name == "inbox") rtrn lcpText(reader, id, "Use --service=Debug or --service=Release for service status and inboxes.", true);
-	if("vs" != name)
+	if(name != "vstr_t")
 		rtrn ::lcpRespond(reader, id, "\"error\":{\"code\":-32602,\"message\":\"Unknown tool. Call help for available commands.\"}");
 	llc::string body;
 	if_fail_fe(lcpVSCall(reader, body));
@@ -89,10 +89,10 @@ sttc	::llc::err_t	lcpRequest			(::llc::SJSONReader & reader, ::llc::vcst_t reque
 	if(0 > id) rtrn 0;
 	::llc::vcst_t method = {};
 	if_fail_fe(::llc::jsonExpressionResolve("method", reader, 0, method));
-	if("server/discover" == method)
-		rtrn ::lcpRespond(reader, id, "\"result\":{\"resultType\":\"complete\",\"supportedVersions\":[\"2026-07-28\"],\"capabilities\":{\"tools\":{}},\"_meta\":{\"io.modelcontextprotocol/serverInfo\":{\"name\":\"lcp\",\"version\":\"0.1.0\"}},\"instructions\":\"Use help path vs for build, launch, list, ping, close and restart. Use forward slashes in paths.\",\"ttlMs\":3600000,\"cacheScope\":\"public\"}");
-	if("initialize" == method)
-		rtrn ::lcpRespond(reader, id, "\"result\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{\"tools\":{}},\"serverInfo\":{\"name\":\"lcp\",\"version\":\"0.1.0\"},\"instructions\":\"Use vs list to select an IDE instance. Launch requires solution, project and configuration. Supply MSBuild for builds or devenv for a new IDE.\"}");
+	if(method == "server/discover")
+		rtrn ::lcpRespond(reader, id, "\"result\":{\"resultType\":\"complete\",\"supportedVersions\":[\"2026-07-28\"],\"capabilities\":{\"tools\":{}},\"_meta\":{\"io.modelcontextprotocol/serverInfo\":{\"name\":\"lcp\",\"version\":\"0.1.0\"}},\"instructions\":\"Use help path vstr_t for build, launch, list, ping, close and restart. Use forward slashes in paths.\",\"ttlMs\":3600000,\"cacheScope\":\"public\"}");
+	if(method == "initialize")
+		rtrn ::lcpRespond(reader, id, "\"result\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{\"tools\":{}},\"serverInfo\":{\"name\":\"lcp\",\"version\":\"0.1.0\"},\"instructions\":\"Use vstr_t list to select an IDE instance. Launch requires solution, project and configuration. Supply MSBuild for builds or devenv for a new IDE.\"}");
 	llc::vcst_t name, path;
 	if(method == "tools/call") {
 		if_fail_fe(llc::jsonExpressionResolve("params.name", reader, 0, name));
@@ -107,11 +107,11 @@ sttc	::llc::err_t	lcpRequest			(::llc::SJSONReader & reader, ::llc::vcst_t reque
 		}
 		rtrn lcpWrite(response);
 	}
-	if("ping" == method)
+	if(method == "ping")
 		rtrn ::lcpRespond(reader, id, "\"result\":{\"resultType\":\"complete\"}");
-	if("tools/list" == method)
+	if(method == "tools/list")
 		rtrn ::lcpRespond(reader, id, lcpTools());
-	if("tools/call" == method) {
+	if(method == "tools/call") {
 		rtrn ::lcpToolCall(reader, id, tree);
 	}
 	rtrn ::lcpRespond(reader, id, "\"error\":{\"code\":-32601,\"message\":\"Method not found\"}");

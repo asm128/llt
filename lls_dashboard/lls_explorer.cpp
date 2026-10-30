@@ -67,7 +67,7 @@ sttc llc::err_t describePath(SExplorer & explorer, llc::vcst_t path, llc::err_t 
 	if(kind == 1 && normalized.size() && normalized[normalized.size() - 1] != '/') {
 		if_fail_fe(explorer.Crumbs.push_back(normalized));
 	}
-	rtrn explorer.Summary.append("\nClick folders to expand/collapse. Breadcrumbs change the scan root.\nFiles are read-only; double-click only lls.exe or lrt.exe to start LLS.");
+	rtrn explorer.Summary.append("\nClick folders to expand/collapse. Breadcrumbs change the scan root.\nFiles are read-only; f3_t-click only lls.exe or lrt.exe to start LLS.");
 }
 
 llc::err_t llsExplorerOpen(SExplorer & explorer, llc::vcst_t path) {

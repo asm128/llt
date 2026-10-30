@@ -1,9 +1,8 @@
 // Composed from llc_sample_gui_viewport and llc_sample_gui_components.
 #include "llc_nn.h"
 #include "llc_nn_view.h"
-#include "llc_framework.h"
 #include "llc_app_impl.h"
-#include "llc_runtime.h"
+#include "llc_framework.h"
 #include "llc_gui_viewport.h"
 #include "llc_engine.h"
 #include "llc_apod_serialize.h"
@@ -12,13 +11,47 @@
 #include "llc_minmax.h"
 #include "llc_png.h"
 #include "llc_file.h"
-#include "llc_nn_log.h"
 #include "llc_chrono.h"
-#include <cmath>
-#ifdef LLC_WINDOWS
-#include <commdlg.h>
-#pragma comment(lib, "comdlg32.lib")
-#endif
+
+#include "llc_event_input.h"
+
+LLC_USING_APOD();
+LLC_USING_VIEW();
+LLC_USING_TYPEINT();
+LLC_USING_N2();
+LLC_USING_N3();
+
+usng nmsp llc;
+
+tplt<tpnm _tValues>
+sttc	llc::err_t	nnHeatmap(::llc::g8bgra target, ::llc::view<const _tValues> values, ::llc::n2u2_t cells, bool autoScale, ::llc::u2_t cellPixels) {
+	 if_fail_fe(target.fill(::llc::bgra{22, 18, 16}));
+	 if_zero_vwf(1, cells.x && cells.y && values.size(), "cells.x:%u, cells.y:%u, values.size():%u", cells.x, cells.y, values.size());
+	 f3_t scale = 1;
+	 if(autoScale) { scale = 0.000001; for(auto v : values) if(std::isfinite(v)) scale = ::llc::max(scale, std::abs(v)); }
+	 const auto size = target.metrics();
+	 if(size.x < 48 || size.y < 100) rtrn 0;
+	 const f3_t cell = cellPixels ? f3_t(cellPixels) : ::llc::min(f3_t(size.x - 24) / cells.x, f3_t(size.y - 96) / cells.y);
+	 // Keep thin strips visible while subsampling their long axis to fit.
+	 const f3_t cellX = !cellPixels && cells.x <= size.x - 24 ? ::llc::max(1.0, cell) : cell;
+	 const f3_t cellY = !cellPixels && cells.y <= size.y - 96 ? ::llc::max(1.0, cell) : cell;
+	 const f3_t originX = (size.x - cellX * cells.x) / 2, originY = 64 + (size.y - 64 - cellY * cells.y) / 2;
+	 for(::llc::u2_t py = 64; py < size.y; ++py)
+	 for(::llc::u2_t px = 0; px < size.x; ++px) {
+	  const f3_t gx = (px + 0.5 - originX) / cellX, gy = (py + 0.5 - originY) / cellY;
+	  if(gx < 0 || gy < 0 || gx >= cells.x || gy >= cells.y) continue;
+	  const auto x = (::llc::u2_t)gx, y = (::llc::u2_t)gy;
+	  if(cell >= 4 && ((gx - x) * cell < 1 || (gy - y) * cell < 1)) continue;
+	  const auto index = y * cells.x + x;
+	  if(index >= values.size()) continue;
+	  const auto value = std::isfinite(values[index]) ? values[index] : 0;
+	  const auto magnitude = ::llc::min(1.0, std::abs(value) / scale);
+	  const ::llc::bgra tone = value >= 0 ? ::llc::bgra{244, 202, 70} : ::llc::bgra{38, 138, 244};
+	  const ::llc::bgra color = tone * (0.12 + 0.88 * magnitude);
+	  target[py][px] = color;
+	 }
+	 rtrn 0;
+}
 
 stct SSampleCheckBox {
 	::llc::cid_t		IdControl	= ::llc::CID_INVALID;
@@ -33,15 +66,15 @@ stct SSampleSlider {
 	::llc::s3_t		ValueStep	= 1;
 	::llc::s3_t		ValuePage	= 10;
 	bool			Vertical	= false;
-	::llc::astchar<64>	ValueText	= {};
+	::llc::astsc_t<64>	ValueText	= {};
 };
 
 
-stacxpr ::llc::u0_t SAMPLE_GUI_THEME_COUNT = 3;
-stacxpr ::llc::u0_t PALETTE_SHADE_COUNT = 16;
+stxp ::llc::u0_t SAMPLE_GUI_THEME_COUNT = 3;
+stxp ::llc::u0_t PALETTE_SHADE_COUNT = 16;
 
 sttc ::llc::SColorBGRA sampleGUIThemeColor(::llc::u0_t theme) nxpt {
-	stacxpr ::llc::SColorBGRA colors[SAMPLE_GUI_THEME_COUNT] =
+	stxp ::llc::SColorBGRA colors[SAMPLE_GUI_THEME_COUNT] =
 		{ {248, 208,  72}
 		, { 32, 176, 248}
 		, {232, 232, 232}
@@ -64,12 +97,12 @@ sttc ::llc::SColorBGRA sampleGUIDesaturate(::llc::SColorBGRA color) nxpt {
 }
 
 sttc ::llc::u0_t sampleGUIStateShade(::llc::u0_t state) nxpt {
-	stacxpr ::llc::u0_t shades[::llc::GUI_CONTROL_PALETTE_COUNT] = {8, 10, 5, 11, 4, 7, 2, 7, 1, 13};
+	stxp ::llc::u0_t shades[::llc::GUI_CONTROL_PALETTE_COUNT] = {8, 10, 5, 11, 4, 7, 2, 7, 1, 13};
 	rtrn shades[state % ::llc::GUI_CONTROL_PALETTE_COUNT];
 }
 
 sttc ::llc::u0_t sampleGUIStateBorderOffset(::llc::u0_t state) nxpt {
-	stacxpr ::llc::u0_t offsets[::llc::GUI_CONTROL_PALETTE_COUNT] = {5, 1, 7, 3, 0, 1, 7, 3, 5, 5};
+	stxp ::llc::u0_t offsets[::llc::GUI_CONTROL_PALETTE_COUNT] = {5, 1, 7, 3, 0, 1, 7, 3, 5, 5};
 	rtrn offsets[state % ::llc::GUI_CONTROL_PALETTE_COUNT];
 }
 
@@ -178,8 +211,8 @@ sttc ::llc::err_t sampleSliderSetValue(SSampleSlider & slider, ::llc::SGUI & gui
 	cnst ::llc::s2_t nonClientLength = slider.Vertical ? ncSpacing.y : ncSpacing.x;
 	cnst ::llc::s2_t thumbLength = slider.Vertical ? thumbPlacement.Area.Size.y : thumbPlacement.Area.Size.x;
 	cnst ::llc::s2_t trackLength = ::llc::max((::llc::s2_t)0, rootLength - nonClientLength - thumbLength);
-	cnst long double range = (long double)slider.ValueLimits.Max - (long double)slider.ValueLimits.Min;
-	cnst long double proportion = range ? ((long double)slider.ValueCurrent - (long double)slider.ValueLimits.Min) / range : 0;
+	cnst f3_t range = (f3_t)slider.ValueLimits.Max - (f3_t)slider.ValueLimits.Min;
+	cnst f3_t proportion = range ? ((f3_t)slider.ValueCurrent - (f3_t)slider.ValueLimits.Min) / range : 0;
 	cnst ::llc::s1_t offsetNext = (::llc::s1_t)(trackLength * (slider.Vertical ? 1.0L - proportion : proportion));
 	if(slider.Vertical)
 		thumbPlacement.Area.Offset.y = offsetNext;
@@ -245,11 +278,11 @@ sttc ::llc::err_t sampleSliderUpdate(SSampleSlider & slider, ::llc::SGUI & gui, 
 			cnst ::llc::s2_t cursorPosition = slider.Vertical ? input.MouseCurrent.Position.y : input.MouseCurrent.Position.x;
 			cnst ::llc::s2_t rootOffset = slider.Vertical ? rootArea.Client.Global.Offset.y : rootArea.Client.Global.Offset.x;
 			cnst ::llc::s2_t cursor = cursorPosition - rootOffset - thumbSize / 2;
-			long double proportion = (long double)::llc::max<::llc::s2_t>(0, ::llc::min(trackLength, cursor)) / trackLength;
+			f3_t proportion = (f3_t)::llc::max<::llc::s2_t>(0, ::llc::min(trackLength, cursor)) / trackLength;
 			if(slider.Vertical)
-				proportion = 1.0L - proportion;
-			cnst long double range = (long double)slider.ValueLimits.Max - (long double)slider.ValueLimits.Min;
-			valueNext = (::llc::s3_t)((long double)slider.ValueLimits.Min + range * proportion);
+				proportion = 1.0 - proportion;
+			cnst f3_t range = (f3_t)slider.ValueLimits.Max - (f3_t)slider.ValueLimits.Min;
+			valueNext = (::llc::s3_t)((f3_t)slider.ValueLimits.Min + range * proportion);
 		}
 	}
 	else if(input.ButtonDown(0) && gui.Controls.IsPressed(slider.IdRoot)) {
@@ -277,7 +310,7 @@ sttc ::llc::err_t sampleGUIViewportDoubleClick(cnst ::llc::TQueueSystemEvent & e
 		::llc::vcu0_t input = eventMouse.Data;
 		::llc::u0_t button = 0;
 		if_fail_fe(::llc::loadPOD(input, button));
-		if_true_fef(input.size(), "Unexpected mouse double-click payload tail:%u.", input.size());
+		if_true_fef(input.size(), "Unexpected mouse f3_t-click payload tail:%u.", input.size());
 		if(0 == button)
 			doubleClick = true;
 	}
@@ -301,20 +334,20 @@ stct SNNSession {
  ::llc::u2_t DisplayLayout = 0; // Native, strip, square: presentation only, never connectivity.
  SSampleCheckBox AutoScale = {};
  ::llc::img8bgra TraceImage = {};
- ::llc::astchar<256> StatusText = {};
+ ::llc::astsc_t<256> StatusText = {};
  ::llc::n2s1_t LastSize = {};
  bool Running = false;
  ::llc::u3_t LastImagePass = 0;
- ::llc::astchar<160> ImageMessage = {};
+ ::llc::astsc_t<160> ImageMessage = {};
 };
 
 stct SApplication {
- SNNLog Log;
+ //SNNLog Log;
  ::llc::SFramework Framework;
  ::llc::astatic<SNNSession, ::llc::NN_COUNT> Sessions = {};
  ::llc::astatic<::llc::SViewport, ::llc::NN_COUNT * NN_PANES + 1> Viewports = {};
  ::llc::astatic<::llc::img8bgra, ::llc::NN_COUNT * NN_PANES> Images = {};
- ::llc::astatic<::llc::astchar<256>, ::llc::NN_COUNT * NN_PANES> Details = {}, Captions = {};
+ ::llc::astatic<::llc::astsc_t<256>, ::llc::NN_COUNT * NN_PANES> Details = {}, Captions = {};
  ::llc::astatic<::llc::cid_t, ::llc::NN_COUNT> Choices = {};
  ::llc::cid_t Desktop = -1, Title = -1, Exit = -1, Restore = -1, Save = -1;
  ::llc::n2u1_t LastSize = {};
@@ -324,8 +357,8 @@ stct SApplication {
  ::llc::cid_t Logs = -1, LogHeader = -1, LogPrevious = -1, LogNext = -1, LogLive = -1;
  ::llc::astatic<::llc::cid_t, 32> LogRows = {};
  ::llc::astatic<::llc::cid_t, 5> LogErrorRows = {};
- ::llc::astchar<65537> LogSnapshot = {};
- ::llc::astchar<256> LogHeaderText = {};
+ ::llc::astsc_t<65537> LogSnapshot = {};
+ ::llc::astsc_t<256> LogHeaderText = {};
  ::llc::au2_t LogLines;
  ::llc::u2_t LogPage = 0;
  ::llc::u3_t LogRevision = ~::llc::u3_t(0);
@@ -334,7 +367,7 @@ stct SApplication {
  SApplication(::llc::SRuntimeValues & runtime) : Framework(runtime, {}) {}
 };
 
-stacxpr ::llc::u2_t NN_LOG_VIEW = ::llc::NN_COUNT * NN_PANES;
+stxp ::llc::u2_t NN_LOG_VIEW = ::llc::NN_COUNT * NN_PANES;
 #if defined(_DEBUG)
 sttc ::llc::err_t nnVerifyLog(SApplication & app);
 #endif
@@ -416,67 +449,67 @@ sttc ::llc::err_t nnSessionLayout(SApplication & app, ::llc::u2_t n) {
 sttc ::llc::err_t nnLogUpdate(SApplication & app) {
  auto & gui = *app.Framework.GUI;
  auto & viewport = app.Viewports[NN_LOG_VIEW];
- if(app.Log.Alert || gui.Controls.IsAction(app.Logs)) {
-  gui.Controls.SetHidden(viewport.IdControl, false);
-  if(viewport.Folded) if_fail_fe(::llc::viewportFold(gui, viewport));
-  if_fail_fe(::llc::viewportActivate(gui, app.Desktop, app.Viewports, (::llc::u0_t)NN_LOG_VIEW));
-  app.LogFollowing = true; app.LogRevision = ~::llc::u3_t(0);
-  app.Log.Alert = false;
- }
- if(gui.Controls.IsHidden(viewport.IdControl) || viewport.Folded) rtrn 0;
- const auto size = gui.Controls.Placement[viewport.IdControls[::llc::VIEWPORT_CONTROL_TARGET]].Area.Size;
- const auto columns = (::llc::u2_t)::llc::max(1, (int(size.x) - 24) / 8);
- const char * reason = strstr(app.Log.LastError.Storage, ")->");
- reason = reason ? reason + 3 : app.Log.LastError.Storage;
- const auto errorLength = (::llc::u2_t)strlen(reason);
- const auto errorRows = ::llc::min(5U, (errorLength + columns - 1) / columns);
- const int bodyTop = 32 + 20 * errorRows;
- const auto rows = (::llc::u2_t)::llc::max(1, ::llc::min(32, (int(size.y) - bodyTop - 44) / 18));
- bool changed = app.LogSize != size || app.LogRevision != app.Log.Revision;
- if(changed) {
-  app.LogSize = size; app.LogRevision = app.Log.Revision;
-  for(::llc::u2_t i = 0; i < app.Log.Count; ++i) app.LogSnapshot[i] = app.Log.Bytes[(app.Log.Start + i) % app.Log.Bytes.size()];
-  app.LogSnapshot[app.Log.Count] = 0;
-  app.LogLines.clear();
-  for(::llc::u2_t i = 0; i < app.Log.Count;) {
-   if_fail_fe(app.LogLines.push_back(i));
-   ::llc::u2_t length = 0;
-   while(i < app.Log.Count && app.LogSnapshot[i] != '\n' && length < columns) { ++i; ++length; }
-   if(i < app.Log.Count && app.LogSnapshot[i] == '\n') ++i;
-  }
- }
- const auto last = app.LogLines.size() > rows ? app.LogLines.size() - rows : 0;
- if(gui.Controls.IsAction(app.LogPrevious)) { app.LogFollowing = false; app.LogPage = app.LogPage > rows ? app.LogPage - rows : 0; changed = true; }
- if(gui.Controls.IsAction(app.LogNext)) { app.LogPage = ::llc::min(last, app.LogPage + rows); changed = true; }
- if(gui.Controls.IsAction(app.LogLive)) { app.LogFollowing = true; changed = true; }
- app.LogPage = app.LogFollowing ? last : ::llc::min(last, app.LogPage);
- if(!changed) rtrn 0;
- auto & header = app.LogHeaderText;
- if(app.Log.FileError) { if_fail_fe(::llc::sprintf_s(header.Storage, "LOG FILE FAILED (errno %d) - memory log still available", app.Log.FileError)); }
- else { if_fail_fe(::llc::sprintf_s(header.Storage, "NN_SESSION.log | recent 64 KiB | rows %u-%u / %u", app.LogPage + 1, ::llc::min(app.LogPage + rows, app.LogLines.size()), app.LogLines.size())); }
- if_fail_fe(::llc::controlTextSet(gui, app.LogHeader, header.Storage));
- if_fail_fe(nnPlace(gui, app.LogHeader, 4, 0, size.x - 8, 28));
- for(::llc::u2_t r = 0; r < app.LogErrorRows.size(); ++r) {
-  gui.Controls.SetHidden(app.LogErrorRows[r], r >= errorRows);
-  if(r >= errorRows) continue;
-  if_fail_fe(nnPlace(gui, app.LogErrorRows[r], 4, 32 + 20 * r, size.x - 8, 20));
-  if_fail_fe(::llc::controlTextSet(gui, app.LogErrorRows[r], {reason + r * columns, ::llc::min(columns, errorLength - r * columns)}));
- }
- for(::llc::u2_t r = 0; r < app.LogRows.size(); ++r) {
-  const auto line = app.LogPage + r;
-  const bool visible = r < rows && line < app.LogLines.size();
-  gui.Controls.SetHidden(app.LogRows[r], !visible);
-  if(!visible) continue;
-  const auto start = app.LogLines[line];
-  auto end = line + 1 < app.LogLines.size() ? app.LogLines[line + 1] : app.Log.Count;
-  while(end > start && (app.LogSnapshot[end - 1] == '\n' || app.LogSnapshot[end - 1] == '\r')) --end;
-  if_fail_fe(::llc::controlTextSet(gui, app.LogRows[r], {app.LogSnapshot.Storage + start, end - start}));
-  if_fail_fe(nnPlace(gui, app.LogRows[r], 4, bodyTop + 18 * r, size.x - 8, 18));
- }
- if_fail_fe(nnPlace(gui, app.LogPrevious, 4, size.y - 32, 100, 28));
- if_fail_fe(nnPlace(gui, app.LogNext, 112, size.y - 32, 100, 28));
- if_fail_fe(nnPlace(gui, app.LogLive, 220, size.y - 32, 100, 28));
- gui.Controls.SetSelected(app.LogLive, app.LogFollowing);
+ //if(app.Log.Alert || gui.Controls.IsAction(app.Logs)) {
+ // gui.Controls.SetHidden(viewport.IdControl, false);
+ // if(viewport.Folded) if_fail_fe(::llc::viewportFold(gui, viewport));
+ // if_fail_fe(::llc::viewportActivate(gui, app.Desktop, app.Viewports, (::llc::u0_t)NN_LOG_VIEW));
+ // app.LogFollowing = true; app.LogRevision = ~::llc::u3_t(0);
+ // app.Log.Alert = false;
+ //}
+ //if(gui.Controls.IsHidden(viewport.IdControl) || viewport.Folded) rtrn 0;
+ const n2u2_t size = gui.Controls.Placement[viewport.IdControls[::llc::VIEWPORT_CONTROL_TARGET]].Area.Size.Cast<u2_t>();
+ //const u2_t columns = (::llc::u2_t)::llc::max<int>(1, (int(size.x) - 24) / 8);
+ //const char * reason = strstr(app.Log.LastError.Storage, ")->");
+ //reason = reason ? reason + 3 : app.Log.LastError.Storage;
+ //const auto errorLength = (::llc::u2_t)strlen(reason);
+ //const auto errorRows = ::llc::min(5U, (errorLength + columns - 1) / columns);
+ //const int bodyTop = 32 + 20 * errorRows;
+ //const auto rows = (::llc::u2_t)::llc::max(1, ::llc::min(32, (int(size.y) - bodyTop - 44) / 18));
+ //bool changed = app.LogSize != size || app.LogRevision != app.Log.Revision;
+ //if(changed) {
+ // app.LogSize = size; app.LogRevision = app.Log.Revision;
+ // for(::llc::u2_t i = 0; i < app.Log.Count; ++i) app.LogSnapshot[i] = app.Log.Bytes[(app.Log.Start + i) % app.Log.Bytes.size()];
+ // app.LogSnapshot[app.Log.Count] = 0;
+ // app.LogLines.clear();
+ // for(::llc::u2_t i = 0; i < app.Log.Count;) {
+ //  if_fail_fe(app.LogLines.push_back(i));
+ //  ::llc::u2_t length = 0;
+ //  while(i < app.Log.Count && app.LogSnapshot[i] != '\n' && length < columns) { ++i; ++length; }
+ //  if(i < app.Log.Count && app.LogSnapshot[i] == '\n') ++i;
+ // }
+ //}
+ //const auto last = app.LogLines.size() > rows ? app.LogLines.size() - rows : 0;
+ //if(gui.Controls.IsAction(app.LogPrevious)) { app.LogFollowing = false; app.LogPage = app.LogPage > rows ? app.LogPage - rows : 0; changed = true; }
+ //if(gui.Controls.IsAction(app.LogNext)) { app.LogPage = ::llc::min(last, app.LogPage + rows); changed = true; }
+ //if(gui.Controls.IsAction(app.LogLive)) { app.LogFollowing = true; changed = true; }
+ //app.LogPage = app.LogFollowing ? last : ::llc::min(last, app.LogPage);
+ //if(!changed) rtrn 0;
+ //auto & header = app.LogHeaderText;
+ //if(app.Log.FileError) { if_fail_fe(::llc::sprintf_s(header.Storage, "LOG FILE FAILED (errno %d) - memory log still available", app.Log.FileError)); }
+ //else { if_fail_fe(::llc::sprintf_s(header.Storage, "NN_SESSION.log | recent 64 KiB | rows %u-%u / %u", app.LogPage + 1, ::llc::min(app.LogPage + rows, app.LogLines.size()), app.LogLines.size())); }
+ //if_fail_fe(::llc::controlTextSet(gui, app.LogHeader, header.Storage));
+ //if_fail_fe(nnPlace(gui, app.LogHeader, 4, 0, size.x - 8, 28));
+ //for(::llc::u2_t r = 0; r < app.LogErrorRows.size(); ++r) {
+ // gui.Controls.SetHidden(app.LogErrorRows[r], r >= errorRows);
+ // if(r >= errorRows) continue;
+ // if_fail_fe(nnPlace(gui, app.LogErrorRows[r], 4, 32 + 20 * r, size.x - 8, 20));
+ // if_fail_fe(::llc::controlTextSet(gui, app.LogErrorRows[r], {reason + r * columns, ::llc::min(columns, errorLength - r * columns)}));
+ //}
+ //for(::llc::u2_t r = 0; r < app.LogRows.size(); ++r) {
+ // const auto line = app.LogPage + r;
+ // const bool visible = r < rows && line < app.LogLines.size();
+ // gui.Controls.SetHidden(app.LogRows[r], !visible);
+ // if(!visible) continue;
+ // const auto start = app.LogLines[line];
+ // auto end = line + 1 < app.LogLines.size() ? app.LogLines[line + 1] : app.Log.Count;
+ // while(end > start && (app.LogSnapshot[end - 1] == '\n' || app.LogSnapshot[end - 1] == '\r')) --end;
+ // if_fail_fe(::llc::controlTextSet(gui, app.LogRows[r], {app.LogSnapshot.Storage + start, end - start}));
+ // if_fail_fe(nnPlace(gui, app.LogRows[r], 4, bodyTop + 18 * r, size.x - 8, 18));
+ //}
+ //if_fail_fe(nnPlace(gui, app.LogPrevious, 4, size.y - 32, 100, 28));
+ //if_fail_fe(nnPlace(gui, app.LogNext, 112, size.y - 32, 100, 28));
+ //if_fail_fe(nnPlace(gui, app.LogLive, 220, size.y - 32, 100, 28));
+ //gui.Controls.SetSelected(app.LogLive, app.LogFollowing);
  rtrn 0;
 }
 
@@ -526,7 +559,7 @@ sttc ::llc::err_t nnShowNetwork(SApplication & app, ::llc::u2_t n, bool show) {
 }
 
 ::llc::err_t setup(SApplication & app) {
- if_fail_fe(nnLogStart(app.Log));
+ //if_fail_fe(nnLogStart(app.Log));
 #if defined(_DEBUG)
  app.Capture = true;
 #endif
@@ -653,7 +686,7 @@ sttc ::llc::err_t nnShowNetwork(SApplication & app, ::llc::u2_t n, bool show) {
  if_fail_fe(nnControl(app, logParent, app.LogNext, "Later >"));
  if_fail_fe(nnControl(app, logParent, app.LogLive, "LIVE"));
  gui.Controls.SetHidden(logViewport.IdControl, true);
- app.Log.Armed = true;
+ //app.Log.Armed = true;
  if_fail_fe(nnWorkspaceLayout(app, true));
  if_fail_fe(nnShowNetwork(app, ::llc::NN_IMAGE, true));
  app.Sessions[::llc::NN_IMAGE].Running = ::llc::argsOptionIndex(app.Framework.RuntimeValues.EntryPointArgs, "learn") >= 0;
@@ -681,115 +714,115 @@ sttc ::llc::err_t nnShowNetwork(SApplication & app, ::llc::u2_t n, bool show) {
  for(auto & session : app.Sessions) if_fail_fe(::llc::nnReset(session.Network));
  rtrn ::llc::mainWindowDestroy(app.Framework.RootWindow);
 }
+//
+//sttc ::llc::err_t nnLoadImagePath(SApplication & app, SNNSession & session, const char * path) {
+// always_printf("Load PNG: %s", path);
+// const ::llc::vcst_t filename = {path, (::llc::u2_t)strlen(path)};
+// const auto bytes = ::llc::fileSize(filename);
+// if_true_fef(bytes < 0, "Cannot access PNG file: %s (fileSize=%" LLC_FMT_S3 ")", path, bytes);
+// if_true_fef(bytes < 24, "PNG header is truncated: %s has %" LLC_FMT_S3 " bytes; at least 24 needed", path, bytes);
+// if_true_fef(bytes > 8 * 1024 * 1024, "PNG file too large: %s has %" LLC_FMT_S3 " bytes; limit is 8388608 bytes (8 MiB)", path, bytes);
+// ::llc::au0_t encoded;
+// if_fail_fef(::llc::fileToMemory(filename, encoded, 8 * 1024 * 1024), "Cannot read PNG file: %s", path);
+// if_true_fef(encoded.size() < 24, "PNG header truncated while reading: %s (%u bytes)", path, encoded.size());
+// const ::llc::u0_t signature[] = {137, 80, 78, 71, 13, 10, 26, 10};
+// for(::llc::u2_t i = 0; i < 8; ++i) if_true_fef(encoded[i] != signature[i], "Not a PNG: %s; signature byte %u is %u, expected %u", path, i, encoded[i], signature[i]);
+// ::llc::n2u2_t size = {};
+// for(::llc::u2_t i = 0; i < 4; ++i) { size.x = (size.x << 8) | encoded[16 + i]; size.y = (size.y << 8) | encoded[20 + i]; }
+// if_true_fef(!size.x || !size.y, "Invalid PNG dimensions: %s is %ux%u", path, size.x, size.y);
+// if_true_fef(size.x > 1024 || size.y > 1024, "PNG dimensions too large: %s is %ux%u; limit is 1024x1024. Resize the source image first.", path, size.x, size.y);
+// ::llc::img8bgra decoded, reduced;
+// if_fail_fef(::llc::pngFileLoad(encoded, decoded), "PNG decoding failed: %s; decoder diagnostics appear immediately above", path);
+// const f3_t scale = ::llc::min(1.0, 64.0 / ::llc::max(size.x, size.y));
+// if_fail_fe(reduced.resize(::llc::n2u2_t{::llc::max(1U, (::llc::u2_t)(size.x * scale)), ::llc::max(1U, (::llc::u2_t)(size.y * scale))}));
+// for(::llc::u2_t y = 0; y < reduced.metrics().y; ++y) for(::llc::u2_t x = 0; x < reduced.metrics().x; ++x) {
+//  auto color = decoded[y * size.y / reduced.metrics().y][x * size.x / reduced.metrics().x];
+//  color.r = (::llc::u0_t)((color.r * color.a + 255 * (255 - color.a)) / 255);
+//  color.g = (::llc::u0_t)((color.g * color.a + 255 * (255 - color.a)) / 255);
+//  color.b = (::llc::u0_t)((color.b * color.a + 255 * (255 - color.a)) / 255); color.a = 255;
+//  reduced[y][x] = color;
+// }
+// if_fail_fe(::llc::nnImageSource(session.Network, reduced.View));
+// session.Running = false; session.HistoryCount = session.HistoryCursor = 0; session.LastImagePass = 0;
+// if_fail_fe(::llc::sprintf_s(session.ImageMessage.Storage, "PNG %ux%u -> %ux%u; alpha over white", size.x, size.y, reduced.metrics().x, reduced.metrics().y));
+// if_fail_fe(::sampleSliderSetValue(session.CellSize, *app.Framework.GUI, 0));
+// rtrn 1;
+//}
 
-sttc ::llc::err_t nnLoadImagePath(SApplication & app, SNNSession & session, const char * path) {
- always_printf("Load PNG: %s", path);
- const ::llc::vcst_t filename = {path, (::llc::u2_t)strlen(path)};
- const auto bytes = ::llc::fileSize(filename);
- if_true_fef(bytes < 0, "Cannot access PNG file: %s (fileSize=%" LLC_FMT_S3 ")", path, bytes);
- if_true_fef(bytes < 24, "PNG header is truncated: %s has %" LLC_FMT_S3 " bytes; at least 24 needed", path, bytes);
- if_true_fef(bytes > 8 * 1024 * 1024, "PNG file too large: %s has %" LLC_FMT_S3 " bytes; limit is 8388608 bytes (8 MiB)", path, bytes);
- ::llc::au0_t encoded;
- if_fail_fef(::llc::fileToMemory(filename, encoded, 8 * 1024 * 1024), "Cannot read PNG file: %s", path);
- if_true_fef(encoded.size() < 24, "PNG header truncated while reading: %s (%u bytes)", path, encoded.size());
- const ::llc::u0_t signature[] = {137, 80, 78, 71, 13, 10, 26, 10};
- for(::llc::u2_t i = 0; i < 8; ++i) if_true_fef(encoded[i] != signature[i], "Not a PNG: %s; signature byte %u is %u, expected %u", path, i, encoded[i], signature[i]);
- ::llc::n2u2_t size = {};
- for(::llc::u2_t i = 0; i < 4; ++i) { size.x = (size.x << 8) | encoded[16 + i]; size.y = (size.y << 8) | encoded[20 + i]; }
- if_true_fef(!size.x || !size.y, "Invalid PNG dimensions: %s is %ux%u", path, size.x, size.y);
- if_true_fef(size.x > 1024 || size.y > 1024, "PNG dimensions too large: %s is %ux%u; limit is 1024x1024. Resize the source image first.", path, size.x, size.y);
- ::llc::img8bgra decoded, reduced;
- if_fail_fef(::llc::pngFileLoad(encoded, decoded), "PNG decoding failed: %s; decoder diagnostics appear immediately above", path);
- const double scale = ::llc::min(1.0, 64.0 / ::llc::max(size.x, size.y));
- if_fail_fe(reduced.resize(::llc::n2u2_t{::llc::max(1U, (::llc::u2_t)(size.x * scale)), ::llc::max(1U, (::llc::u2_t)(size.y * scale))}));
- for(::llc::u2_t y = 0; y < reduced.metrics().y; ++y) for(::llc::u2_t x = 0; x < reduced.metrics().x; ++x) {
-  auto color = decoded[y * size.y / reduced.metrics().y][x * size.x / reduced.metrics().x];
-  color.r = (::llc::u0_t)((color.r * color.a + 255 * (255 - color.a)) / 255);
-  color.g = (::llc::u0_t)((color.g * color.a + 255 * (255 - color.a)) / 255);
-  color.b = (::llc::u0_t)((color.b * color.a + 255 * (255 - color.a)) / 255); color.a = 255;
-  reduced[y][x] = color;
- }
- if_fail_fe(::llc::nnImageSource(session.Network, reduced.View));
- session.Running = false; session.HistoryCount = session.HistoryCursor = 0; session.LastImagePass = 0;
- if_fail_fe(::llc::sprintf_s(session.ImageMessage.Storage, "PNG %ux%u -> %ux%u; alpha over white", size.x, size.y, reduced.metrics().x, reduced.metrics().y));
- if_fail_fe(::sampleSliderSetValue(session.CellSize, *app.Framework.GUI, 0));
- rtrn 1;
-}
-
-sttc ::llc::err_t nnLoadImage(SApplication & app, SNNSession & session) {
-#ifdef LLC_WINDOWS
- char path[4096] = {};
- OPENFILENAMEA dialog = {};
- dialog.lStructSize = sizeof(dialog); dialog.hwndOwner = app.Framework.RootWindow.PlatformDetail.WindowHandle;
- dialog.lpstrFilter = "PNG image\0*.png\0\0"; dialog.lpstrFile = path; dialog.nMaxFile = sizeof(path);
- dialog.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
- if(!GetOpenFileNameA(&dialog)) {
-  const auto error = CommDlgExtendedError();
-  if_true_fef(error, "PNG file picker failed: Windows dialog error 0x%lX", error);
-  rtrn 0;
- }
- rtrn nnLoadImagePath(app, session, path);
-#else
- (void)app; (void)session; rtrn -1;
-#endif
-}
-
+//sttc ::llc::err_t nnLoadImage(SApplication & app, SNNSession & session) {
+//#ifdef LLC_WINDOWS
+// char path[4096] = {};
+// OPENFILENAMEA dialog = {};
+// dialog.lStructSize = sizeof(dialog); dialog.hwndOwner = app.Framework.RootWindow.PlatformDetail.WindowHandle;
+// dialog.lpstrFilter = "PNG image\0*.png\0\0"; dialog.lpstrFile = path; dialog.nMaxFile = sizeof(path);
+// dialog.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+// if(!GetOpenFileNameA(&dialog)) {
+//  const auto error = CommDlgExtendedError();
+//  if_true_fef(error, "PNG file picker failed: Windows dialog error 0x%lX", error);
+//  rtrn 0;
+// }
+// rtrn nnLoadImagePath(app, session, path);
+//#else
+// (void)app; (void)session; rtrn -1;
+//#endif
+//}
+//
 #if defined(_DEBUG)
-sttc ::llc::err_t nnVerifyLog(SApplication & app) {
+sttc ::llc::err_t nnVerifyLog(SApplication & ) {
  // Exercise split callback writes, bounded retention, and alert classification without replacing the installed callbacks.
- SNNLog probe;
- nnLogActive = &probe;
- const auto printed = ::llc::log_print("split");
- const auto written = ::llc::log_write(" body\n", 6);
- bool valid = printed == 5 && written == 6 && probe.Count == 11 && 0 == memcmp(probe.Bytes.begin(), "split body\n", 11);
- probe.Armed = true;
- ::llc::log_print("1|test: "); ::llc::log_write("expected error", 14);
- valid &= probe.Alert && 0 == strcmp(probe.LastError.Storage, "expected error");
- probe.Armed = false;
- ::llc::astatic<char, 1024> block = {}; for(auto & value : block) value = 'x';
- for(int i = 0; i < 65; ++i) ::llc::log_write(block.begin(), block.size());
- valid &= probe.Count == probe.Bytes.size();
- for(auto value : probe.Bytes) valid &= value == 'x';
- nnLogActive = &app.Log;
- if_true_fef(!valid, "%s", "NN log callback regression: split writes, ring wrap or error capture failed");
- always_printf("NN LOG CHECK: callbacks, bounded wrap and severity capture passed");
-
- auto & session = app.Sessions[::llc::NN_IMAGE];
- const auto original = session.Network.Painter->Source.metrics();
- const auto samples = session.Network.Painter->Samples;
- // A uniquely named fixture is removed after use; never overwrite a user's source image.
- ::llc::astchar<128> fixture = {};
- if_fail_fe(::llc::sprintf_s(fixture.Storage, "NN_LOG_TEST_%llu.png", ::llc::timeCurrentInMs()));
- ::llc::astatic<::llc::u0_t, 24> invalid = {};
- if_fail_fe(::llc::fileFromMemory(fixture.Storage, ::llc::vcu0_t{invalid.begin(), invalid.size()}));
- const auto signatureResult = nnLoadImagePath(app, session, fixture.Storage);
- const bool signatureReason = strstr(app.Log.LastError.Storage, "Not a PNG") != nullptr;
- const ::llc::u0_t signature[] = {137, 80, 78, 71, 13, 10, 26, 10};
- for(::llc::u2_t i = 0; i < 8; ++i) invalid[i] = signature[i];
- invalid[18] = 8; invalid[22] = 8; // 2048 x 2048
- if_fail_fe(::llc::fileFromMemory(fixture.Storage, ::llc::vcu0_t{invalid.begin(), invalid.size()}));
- const auto sizeResult = nnLoadImagePath(app, session, fixture.Storage);
- const bool sizeReason = strstr(app.Log.LastError.Storage, "2048x2048") && strstr(app.Log.LastError.Storage, "1024x1024");
- if_fail_fe(::llc::fileDelete(fixture.Storage));
- if_true_fef(signatureResult >= 0 || !signatureReason || sizeResult >= 0 || !sizeReason, "%s", "NN log regression: missing PNG failure reason");
- if_true_fe(session.Network.Painter->Source.metrics() != original || session.Network.Painter->Samples != samples);
- // Use shared reading while the persistent writer is open (fopen_s read mode denies existing writers).
-#ifdef LLC_WINDOWS
- FILE * saved = ::_fsopen("NN_SESSION.log", "rb", _SH_DENYNO);
-#else
- FILE * saved = fopen("NN_SESSION.log", "rb");
-#endif
- if_null_fe(saved);
- ::llc::astchar<8193> persisted = {};
- const auto seekResult = fseek(saved, -8192, SEEK_END);
- if(seekResult) rewind(saved);
- const auto read = fread(persisted.Storage, 1, 8192, saved);
- const bool readError = ferror(saved) != 0;
- const auto closeResult = fclose(saved);
- persisted[(::llc::u2_t)read] = 0;
- if_true_fe(readError || closeResult || nullptr == strstr(persisted.Storage, fixture.Storage));
- always_printf("NN LOG CHECK: invalid signature, exact dimension reason, source preservation and file persistence passed; intentional failure remains visible for review");
- app.Log.Alert = true;
+ ////SNNLog probe;
+ ////nnLogActive = &probe;
+ ////const auto printed = ::llc::log_print("split");
+ ////const auto written = ::llc::log_write(" body\n", 6);
+ ////bool valid = printed == 5 && written == 6 && probe.Count == 11 && 0 == memcmp(probe.Bytes.begin(), "split body\n", 11);
+ ////probe.Armed = true;
+ ////::llc::log_print("1|test: "); ::llc::log_write("expected error", 14);
+ ////valid &= probe.Alert && 0 == strcmp(probe.LastError.Storage, "expected error");
+ ////probe.Armed = false;
+ ////::llc::astatic<char, 1024> block = {}; for(auto & value : block) value = 'x';
+ ////for(int i = 0; i < 65; ++i) ::llc::log_write(block.begin(), block.size());
+ ////valid &= probe.Count == probe.Bytes.size();
+ ////for(auto value : probe.Bytes) valid &= value == 'x';
+ ////nnLogActive = &app.Log;
+ ////if_true_fef(!valid, "%s", "NN log callback regression: split writes, ring wrap or error capture failed");
+ ////always_printf("NN LOG CHECK: callbacks, bounded wrap and severity capture passed");
+ ////
+ ////auto & session = app.Sessions[::llc::NN_IMAGE];
+ ////const auto original = session.Network.Painter->Source.metrics();
+ ////const auto samples = session.Network.Painter->Samples;
+ ////// A uniquely named fixture is removed after use; never overwrite a user's source image.
+ ////::llc::astsc_t<128> fixture = {};
+ ////if_fail_fe(::llc::sprintf_s(fixture.Storage, "NN_LOG_TEST_%llu.png", ::llc::timeCurrentInMs()));
+ ////::llc::astatic<::llc::u0_t, 24> invalid = {};
+ ////if_fail_fe(::llc::fileFromMemory(fixture.Storage, ::llc::vcu0_t{invalid.begin(), invalid.size()}));
+ ////const auto signatureResult = nnLoadImagePath(app, session, fixture.Storage);
+ ////const bool signatureReason = strstr(app.Log.LastError.Storage, "Not a PNG") != nullptr;
+ ////const ::llc::u0_t signature[] = {137, 80, 78, 71, 13, 10, 26, 10};
+ ////for(::llc::u2_t i = 0; i < 8; ++i) invalid[i] = signature[i];
+ ////invalid[18] = 8; invalid[22] = 8; // 2048 x 2048
+ ////if_fail_fe(::llc::fileFromMemory(fixture.Storage, ::llc::vcu0_t{invalid.begin(), invalid.size()}));
+ //////const auto sizeResult = nnLoadImagePath(app, session, fixture.Storage);
+ //////const bool sizeReason = strstr(app.Log.LastError.Storage, "2048x2048") && strstr(app.Log.LastError.Storage, "1024x1024");
+ ////if_fail_fe(::llc::fileDelete(fixture.Storage));
+ //////if_true_fef(signatureResult >= 0 || !signatureReason || sizeResult >= 0 || !sizeReason, "%s", "NN log regression: missing PNG failure reason");
+ ////if_true_fe(session.Network.Painter->Source.metrics() != original || session.Network.Painter->Samples != samples);
+ ////// Use shared reading while the persistent writer is open (fopen_s read mode denies existing writers).
+//#//ifdef LLC_WINDOWS
+ ////FILE * saved = ::_fsopen("NN_SESSION.log", "rb", _SH_DENYNO);
+//#//else
+ ////FILE * saved = fopen("NN_SESSION.log", "rb");
+//#//endif
+ ////if_null_fe(saved);
+ ////::llc::astsc_t<8193> persisted = {};
+ ////const auto seekResult = fseek(saved, -8192, SEEK_END);
+ ////if(seekResult) rewind(saved);
+ ////const auto read = fread(persisted.Storage, 1, 8192, saved);
+ ////const bool readError = ferror(saved) != 0;
+ ////const auto closeResult = fclose(saved);
+ ////persisted[(::llc::u2_t)read] = 0;
+ ////if_true_fe(readError || closeResult || nullptr == strstr(persisted.Storage, fixture.Storage));
+ ////always_printf("NN LOG CHECK: invalid signature, exact dimension reason, source preservation and file persistence passed; intentional failure remains visible for review");
+ ////app.Log.Alert = true;
  rtrn 0;
 }
 #endif
@@ -815,11 +848,11 @@ sttc ::llc::err_t nnVerifyLog(SApplication & app) {
    if_fail_fe(::sampleCheckBoxUpdate(session.AutoScale, gui));
    if_fail_fe(::sampleSliderUpdate(session.CellSize, gui, *window.Input));
    if(n == ::llc::NN_IMAGE && gui.Controls.IsAction(session.Layout)) {
-    const auto loaded = nnLoadImage(app, session);
-    if(loaded < 0) {
-     app.Log.Alert = true;
-     if_fail_fe(::llc::sprintf_s(session.ImageMessage.Storage, "PNG LOAD FAILED - see the opened diagnostic log"));
-    }
+    //const auto loaded = nnLoadImage(app, session);
+    //if(loaded < 0) {
+    // //app.Log.Alert = true;
+    // if_fail_fe(::llc::sprintf_s(session.ImageMessage.Storage, "PNG LOAD FAILED - see the opened diagnostic log"));
+    //}
    }
    if(n == ::llc::NN_IMAGE && run.Painter->Neuron != (::llc::u2_t)session.CellSize.ValueCurrent)
     if_fail_fe(::llc::nnImageInspect(run, (::llc::u2_t)session.CellSize.ValueCurrent));
@@ -974,7 +1007,7 @@ sttc ::llc::err_t nnPicture(::llc::g8bgra target, ::llc::gc8bgra source) {
  if_fail_fe(target.fill(::llc::bgra{22, 18, 16, 255}));
  const auto size = target.metrics(), pixels = source.metrics();
  if(size.x < 24 || size.y < 80 || !pixels.x || !pixels.y) rtrn 0;
- const double scale = ::llc::min(double(size.x - 16) / pixels.x, double(size.y - 64) / pixels.y);
+ const f3_t scale = ::llc::min(f3_t(size.x - 16) / pixels.x, f3_t(size.y - 64) / pixels.y);
  const ::llc::n2u2_t extent = {::llc::max(1U, (::llc::u2_t)(pixels.x * scale)), ::llc::max(1U, (::llc::u2_t)(pixels.y * scale))};
  const ::llc::n2u2_t origin = {(size.x - extent.x) / 2, 56 + (size.y - 56 - extent.y) / 2};
  for(::llc::u2_t y = 0; y < extent.y; ++y) for(::llc::u2_t x = 0; x < extent.x; ++x)
@@ -1009,7 +1042,7 @@ sttc ::llc::err_t nnPicture(::llc::g8bgra target, ::llc::gc8bgra source) {
     ::llc::view<const ::llc::f3_t> values = {run.Inspection.Values.begin(), run.Inspection.Count};
     ::llc::n2u2_t cells = {run.Inspection.Width, run.Inspection.Width ? (run.Inspection.Count + run.Inspection.Width - 1) / run.Inspection.Width : 0};
     if(p <= 1 && run.Inspection.Count && session.DisplayLayout) {
-     cells.x = session.DisplayLayout == 1 ? run.Inspection.Count : (::llc::u2_t)std::ceil(std::sqrt(double(run.Inspection.Count)));
+     cells.x = session.DisplayLayout == 1 ? run.Inspection.Count : (::llc::u2_t)std::ceil(std::sqrt(f3_t(run.Inspection.Count)));
      cells.y = (run.Inspection.Count + cells.x - 1) / cells.x;
     }
     if(p == 2 || p == 3 || p == 4) {
@@ -1020,7 +1053,7 @@ sttc ::llc::err_t nnPicture(::llc::g8bgra target, ::llc::gc8bgra source) {
      const auto & data = p == 6 ? run.Inspection.Activations : run.Inspection.ErrorTerms;
      values = {data.begin(), run.Inspection.Inspected ? 96U : 0U}; cells = {32, 3};
     }
-    if_fail_fe(nnHeatmap(image.View, values, cells, session.AutoScale.Checked, n == ::llc::NN_IMAGE ? 0U : (::llc::u2_t)session.CellSize.ValueCurrent));
+    if_fail_fe(::llc::nnHeatmap(image.View, values, cells, session.AutoScale.Checked, n == ::llc::NN_IMAGE ? 0U : (::llc::u2_t)session.CellSize.ValueCurrent));
    }
    if_fail_fe(nnImageSet(gui, client, image));
    if(p) {

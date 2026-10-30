@@ -488,7 +488,7 @@ llc::err_t llsGUIUpdate(SApplication & app) {
 	if_fail_fe(llc::controlTextSet(gui, ui.Hint, ui.Tab == 8
 		? llc::vcst_t{"Choose a template to load it. Edit the JSON if needed; Enter or Send JSON sends it."}
 		: ui.Tab == 4
-		? llc::vcst_t{"PATH (not search): click folders to expand; double-click lls.exe or lrt.exe to start LLS."}
+		? llc::vcst_t{"PATH (not search): click folders to expand; f3_t-click lls.exe or lrt.exe to start LLS."}
 		: llc::vcst_t{"Type to filter. Click paths in details to browse. Open path uses the text box. Mouse wheel scrolls."}));
 	ui.Refresh += ui.Framework.FrameInfo.Seconds.LastFrame;
 	if(ui.Dirty || ui.Refresh >= .2) { if_fail_fe(llsSessionView(app)); ui.Refresh = 0; }

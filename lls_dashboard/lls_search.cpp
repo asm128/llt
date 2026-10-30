@@ -114,10 +114,10 @@ llc::err_t llsSearchTest() {
 	llc::aobj<llc::vcst_t> paths;
 	if_fail_fe(helpPaths(paths, true));
 	if_fail_fe(llsHelpFind("BuIlD", output));
-	if_true_fe(!output.size() || paths[output[0]] != "vs build");
+	if_true_fe(!output.size() || paths[output[0]] != "build");
 	if_fail_fe(llsHelpFind("visu", output));
 	bool foundBuild = false, foundRun = false;
-	for(llc::u2_t id : output) { foundBuild |= paths[id] == "vs build"; foundRun |= paths[id] == "vs run"; }
+	for(llc::u2_t id : output) { foundBuild |= paths[id] == "build"; foundRun |= paths[id] == "run"; }
 	if_true_fe(!foundBuild || !foundRun);
 	for(llc::u2_t i = 0; i < output.size(); ++i)
 		for(llc::u2_t j = i + 1; j < output.size(); ++j) { if_true_fe(output[i] == output[j]); }

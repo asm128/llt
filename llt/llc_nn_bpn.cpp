@@ -583,8 +583,8 @@ llc::err_t llc::nnCreateImage(SNN & run) {
  if(!run.Painter->Source.size()) {
   if_fail_fe(run.Painter->Source.resize(n2u2_t{64, 64}));
   for(u2_t y = 0; y < 64; ++y) for(u2_t x = 0; x < 64; ++x) {
-   const double dx = (x - 31.5) / 32, dy = (y - 31.5) / 32;
-   const double glow = exp(-5 * (dx * dx + dy * dy));
+   const f3_t dx = (x - 31.5) / 32, dy = (y - 31.5) / 32;
+   const f3_t glow = exp(-5 * (dx * dx + dy * dy));
    run.Painter->Source[y][x] = {(u0_t)(220 * glow), (u0_t)(40 + 180 * y / 63), (u0_t)(40 + 180 * x / 63), 255};
   }
  }
