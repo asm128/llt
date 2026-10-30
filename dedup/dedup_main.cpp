@@ -108,8 +108,8 @@ sttc llc::err_t compareFileContents(const SFileInfoPair& pair) {
 	llc::string     filePathA, filePathB;
 	if_fail_fe(llc::append_strings(filePathA, pair.A.Path, "/", pair.A.Name));
 	if_fail_fe(llc::append_strings(filePathB, pair.B.Path, "/", pair.B.Name));
-	if_true_fwf(0 != fopen_s(&A.Handle, filePathA, "rb"), "Failed to open file: \"%s\"", filePathA.begin());
-	if_true_fwf(0 != fopen_s(&B.Handle, filePathB, "rb"), "Failed to open file: \"%s\"", filePathB.begin());
+	if_true_fwf(0 != llc::fopen_s(A.Handle, filePathA, "rb"), "Failed to open file: \"%s\"", filePathA.begin());
+	if_true_fwf(0 != llc::fopen_s(B.Handle, filePathB, "rb"), "Failed to open file: \"%s\"", filePathB.begin());
 	llc::STimer     timer           = {};
 	u3_t            remainingBytes  = pair.A.Size;
 	while(remainingBytes) {
