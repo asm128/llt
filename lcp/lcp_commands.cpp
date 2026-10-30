@@ -14,6 +14,9 @@
 #include "llc_encoding.h"
 #include "llc_base64.h"
 
+LLC_USING_TYPEINT();
+LLC_USING_VIEW();
+
 #ifdef LLC_WINDOWS
 #include <shellapi.h>
 #pragma comment(lib, "shell32.lib")
@@ -154,7 +157,7 @@ llc::err_t lcpShellCall(cnst llc::SJSONReader & reader, llc::string & body, llc:
 	}
 	if(elevated && shell == "wsl")
 		rtrn lcpTextBody(body, "WSL uses its configured Linux user; Windows elevation is not supported for this tool.", true);
-	llc::string application = shell == "cmd" ? "cmd.exe" : shell == "powershell" ? "powershell.exe" : "wsl.exe";
+	llc::string application = (shell == "cmd") ? vcst_t{"cmd.exe"} : (shell == "powershell") ? vcst_t{"powershell.exe"} : vcst_t{"wsl.exe"};
 	llc::string arguments, input, command, result;
 	if(shell == "cmd") {
 		if_fail_fe(llc::append_strings(arguments, "/D /S /C \"", script, '"'));

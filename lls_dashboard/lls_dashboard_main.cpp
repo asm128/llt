@@ -331,7 +331,7 @@ llc::err_t draw(SApplication & app) {
 		if_fail_e(relayClose(app.Peer));
 		llc::lock_guard guard(app.Lock);
 		app.Connected = false;
-		app.Connection = llc::failed(called) ? "OFFLINE - last snapshot is stale" : "INVALID SNAPSHOT - last data is stale";
+		app.Connection = llc::failed(called) ? vcst_t{"OFFLINE - last snapshot is stale"} : vcst_t{"INVALID SNAPSHOT - last data is stale"};
 		++app.Revision;
 	}
 	app.NextPoll = llc::timeCurrentInUs() + 1000000;
