@@ -47,7 +47,8 @@ sttc llc::err_t configure(bool installLocker) {
 
     llc::string			keyPath, debugger;
     for (const auto name : BLOCKED) {
-		keyPath = debugger = {};
+		keyPath.resize(0);
+		debugger.resize(0);
 		if_fail_fe(llc::append_strings(keyPath, ROOT, name));
 		if_fail_fe(llc::append_strings(debugger, '"', executable, "\" --blocked"));
 
