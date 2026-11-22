@@ -60,14 +60,10 @@
     <BuildDependency Project="llt/llt.vcxproj" />
     <BuildDependency Project="../llc/llc/llc.vcxproj" />
     <BuildDependency Project="../llc/llc_engine/llc_engine.vcxproj" />
-    <BuildType Solution="Debug-MT|*" Project="Debug" />
-    <BuildType Solution="Release-MT|*" Project="Release" />
   </Project>
   <Project Path="llc_test_llt/llc_test_llt.vcxproj" Id="f6ecaf73-5dbf-42e2-96b1-78c0ed611c22">
     <BuildDependency Project="llt/llt.vcxproj" />
     <BuildDependency Project="../llc/llc/llc.vcxproj" />
     <BuildDependency Project="../llc/llc_engine/llc_engine.vcxproj" />
-    <BuildType Solution="Debug-MT|*" Project="Debug" />
-    <BuildType Solution="Release-MT|*" Project="Release" />
   </Project>
 </Solution>
