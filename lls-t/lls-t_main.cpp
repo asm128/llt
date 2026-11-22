@@ -1,5 +1,3 @@
-#include "lls-l.h"
-
 #include "llc_runtime.h"
 
 LLC_USING_TYPEINT();
