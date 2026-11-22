@@ -159,6 +159,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)../llc/llc;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>
       </SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -181,6 +182,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)../llc/llc;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>
       </SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -205,6 +207,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)../llc/llc;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>
       </SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -229,6 +232,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)../llc/llc;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>
       </SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -251,6 +255,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)../llc/llc;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>
       </SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -273,6 +278,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)../llc/llc;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>
       </SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -297,6 +303,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)../llc/llc;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>
       </SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -321,6 +328,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)../llc/llc;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>
       </SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>

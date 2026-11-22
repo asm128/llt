@@ -159,9 +159,9 @@
       <AdditionalIncludeDirectories>$(SolutionDir)../llc/llc;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir)</AdditionalLibraryDirectories>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
       <AdditionalDependencies>llc.lib; user32.lib; Advapi32.lib; </AdditionalDependencies>
     </Link>
@@ -180,9 +180,9 @@
       <AdditionalIncludeDirectories>$(SolutionDir)../llc/llc;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir)</AdditionalLibraryDirectories>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
       <AdditionalDependencies>llc.lib; user32.lib; Advapi32.lib; </AdditionalDependencies>
     </Link>
@@ -203,9 +203,9 @@
       <AdditionalIncludeDirectories>$(SolutionDir)../llc/llc;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir)</AdditionalLibraryDirectories>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
       <AdditionalDependencies>llc.lib; user32.lib; Advapi32.lib; </AdditionalDependencies>
     </Link>
@@ -226,9 +226,9 @@
       <AdditionalIncludeDirectories>$(SolutionDir)../llc/llc;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir)</AdditionalLibraryDirectories>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
       <AdditionalDependencies>llc.lib; user32.lib; Advapi32.lib; </AdditionalDependencies>
     </Link>
@@ -247,9 +247,9 @@
       <AdditionalIncludeDirectories>$(SolutionDir)../llc/llc;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir)</AdditionalLibraryDirectories>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
       <AdditionalDependencies>llc.lib; user32.lib; Advapi32.lib; </AdditionalDependencies>
     </Link>
@@ -268,9 +268,9 @@
       <AdditionalIncludeDirectories>$(SolutionDir)../llc/llc;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir)</AdditionalLibraryDirectories>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
       <AdditionalDependencies>llc.lib; user32.lib; Advapi32.lib; </AdditionalDependencies>
     </Link>
@@ -291,9 +291,9 @@
       <AdditionalIncludeDirectories>$(SolutionDir)../llc/llc;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir)</AdditionalLibraryDirectories>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
       <AdditionalDependencies>llc.lib; user32.lib; Advapi32.lib; </AdditionalDependencies>
     </Link>
@@ -314,9 +314,9 @@
       <AdditionalIncludeDirectories>$(SolutionDir)../llc/llc;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir)</AdditionalLibraryDirectories>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
       <AdditionalDependencies>llc.lib; user32.lib; Advapi32.lib; </AdditionalDependencies>
     </Link>

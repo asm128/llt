@@ -34,6 +34,7 @@
   <Project Path="llc_build/llc_build.vcxproj" Id="583eb508-17dc-40ad-b954-ea2bb402bdd3">
     <BuildDependency Project="../llc/llc/llc.vcxproj" />
   </Project>
+  <Project Path="llc-build/llc-build.vcxproj" Id="9adb4613-1095-4c08-adc6-86dc3c183a4a" />
   <Project Path="lls-l/lls-l.vcxproj" Id="a27d9742-43a4-4655-a036-bec01a953597">
     <BuildDependency Project="../llc/llc/llc.vcxproj" />
     <BuildDependency Project="llt/llt.vcxproj" />
@@ -60,14 +61,10 @@
     <BuildDependency Project="llt/llt.vcxproj" />
     <BuildDependency Project="../llc/llc/llc.vcxproj" />
     <BuildDependency Project="../llc/llc_engine/llc_engine.vcxproj" />
-    <BuildType Solution="Debug-MT|*" Project="Debug" />
-    <BuildType Solution="Release-MT|*" Project="Release" />
   </Project>
   <Project Path="llc_test_llt/llc_test_llt.vcxproj" Id="f6ecaf73-5dbf-42e2-96b1-78c0ed611c22">
     <BuildDependency Project="llt/llt.vcxproj" />
     <BuildDependency Project="../llc/llc/llc.vcxproj" />
     <BuildDependency Project="../llc/llc_engine/llc_engine.vcxproj" />
-    <BuildType Solution="Debug-MT|*" Project="Debug" />
-    <BuildType Solution="Release-MT|*" Project="Release" />
   </Project>
 </Solution>

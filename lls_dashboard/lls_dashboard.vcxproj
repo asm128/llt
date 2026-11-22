@@ -160,9 +160,9 @@
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <AdditionalDependencies>llc.lib;ws2_32.lib; </AdditionalDependencies>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
@@ -182,10 +182,10 @@
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>$(SolutionDir)../llc/llc/llc_module_exports.def</ModuleDefinitionFile>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <AdditionalDependencies>llc.lib;ws2_32.lib;</AdditionalDependencies>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
@@ -207,9 +207,9 @@
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <AdditionalDependencies>llc.lib;ws2_32.lib; </AdditionalDependencies>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
@@ -231,10 +231,10 @@
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>$(SolutionDir)../llc/llc/llc_module_exports.def</ModuleDefinitionFile>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <AdditionalDependencies>llc.lib;ws2_32.lib;</AdditionalDependencies>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
@@ -254,9 +254,9 @@
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <AdditionalDependencies>llc.lib;ws2_32.lib; </AdditionalDependencies>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
@@ -276,10 +276,10 @@
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>$(SolutionDir)../llc/llc/llc_module_exports.def</ModuleDefinitionFile>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <AdditionalDependencies>llc.lib;ws2_32.lib;</AdditionalDependencies>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
@@ -301,9 +301,9 @@
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <AdditionalDependencies>llc.lib;ws2_32.lib; </AdditionalDependencies>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
@@ -325,10 +325,10 @@
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>$(SolutionDir)../llc/llc/llc_module_exports.def</ModuleDefinitionFile>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <AdditionalDependencies>llc.lib;ws2_32.lib;</AdditionalDependencies>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>

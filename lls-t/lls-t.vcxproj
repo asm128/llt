@@ -160,10 +160,10 @@
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>lls-l.lib; llc.lib; </AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
     <Manifest>
@@ -182,10 +182,10 @@
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>lls-l.lib; llc.lib; </AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
     <Manifest>
@@ -206,10 +206,10 @@
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>lls-l.lib; llc.lib; </AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
     <Manifest>
@@ -230,10 +230,10 @@
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>lls-l.lib; llc.lib; </AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
     <Manifest>
@@ -252,10 +252,10 @@
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>lls-l.lib; llc.lib; </AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
     <Manifest>
@@ -274,10 +274,10 @@
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>lls-l.lib; llc.lib; </AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
     <Manifest>
@@ -298,10 +298,10 @@
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>lls-l.lib; llc.lib; </AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
     <Manifest>
@@ -322,10 +322,10 @@
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>lls-l.lib; llc.lib; </AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
     <Manifest>

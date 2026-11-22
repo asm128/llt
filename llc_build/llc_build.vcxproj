@@ -159,9 +159,9 @@
       <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir); </AdditionalLibraryDirectories>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
       <AdditionalDependencies>llc.lib; </AdditionalDependencies>
     </Link>
@@ -180,9 +180,9 @@
       <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir); </AdditionalLibraryDirectories>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
       <AdditionalDependencies>llc.lib; </AdditionalDependencies>
     </Link>
@@ -203,9 +203,9 @@
       <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir); </AdditionalLibraryDirectories>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
       <AdditionalDependencies>llc.lib; </AdditionalDependencies>
     </Link>
@@ -226,9 +226,9 @@
       <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir); </AdditionalLibraryDirectories>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
       <AdditionalDependencies>llc.lib; </AdditionalDependencies>
     </Link>
@@ -247,9 +247,9 @@
       <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir); </AdditionalLibraryDirectories>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
       <AdditionalDependencies>llc.lib; </AdditionalDependencies>
     </Link>
@@ -268,9 +268,9 @@
       <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir); </AdditionalLibraryDirectories>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
       <AdditionalDependencies>llc.lib; </AdditionalDependencies>
     </Link>
@@ -291,9 +291,9 @@
       <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir); </AdditionalLibraryDirectories>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
       <AdditionalDependencies>llc.lib; </AdditionalDependencies>
     </Link>
@@ -314,9 +314,9 @@
       <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
     <Link>
+      <AdditionalLibraryDirectories>$(OutDir);</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir); </AdditionalLibraryDirectories>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
       <AdditionalDependencies>llc.lib; </AdditionalDependencies>
     </Link>
