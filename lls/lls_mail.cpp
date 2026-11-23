@@ -137,7 +137,7 @@ err_t mailJSON(cnst SMail & mail, string & json, bool includeText = true) {
 	if(includeText) { if_fail_fe(pair(json, "text", mail.Text)); }
 	if_fail_fe(pair(json, "folder", mail.Folder));
 	if_fail_fe(pair(json, "previous", mail.Previous));
-	rtrn append_strings(json, ",\"read\":", b82vcs(mail.Read), '}');
+	rtrn append_strings(json, ",\"read\":", b82st(mail.Read), '}');
 }
 err_t mailPath(cnst SBox & box, vcst_t id, string & path) {
 	if_true_fe(!safeName(id));
@@ -213,7 +213,7 @@ err_t call(cnst SJSONReader & reader, string & body) {
 		mail.Folder = vcst_t{"sent"}; mail.Read = true;
 		cnst bool sentCopy = succeeded(saveMail(box, mail, false));
 		string json, text;
-		if_fail_fe(append_strings(json, "{\"delivered\":true,\"sentCopy\":", b82vcs(sentCopy)));
+		if_fail_fe(append_strings(json, "{\"delivered\":true,\"sentCopy\":", b82st(sentCopy)));
 		if_fail_fe(pair(json, "id", mail.Id));
 		if_fail_fe(json.push_back('}'));
 		if_fail_fe(append_strings(text, "Delivered ", mail.Id, sentCopy ? vcst_t{".\n"} : vcst_t{". Sent-copy save failed; do not resend.\n"}));

@@ -84,9 +84,9 @@ sttc llc::err_t llsJobSummaryJSON(cnst SBuildJob & job, llc::string & json) {
 	if_fail_fe(lcpJSONString(json, summary));
 	rtrn llc::append_strings(json, ",\"pid\":", llc::str(job.PID), ",\"elapsedMs\":", llc::str(job.Historical ? job.SavedElapsedMs : elapsed.LastTimeMicroseconds / 1000),
 		",\"logStatus\":", llc::str(job.OutputLogStatus), ",\"status\":", llc::str(job.Result.Status), ",\"exitCode\":", llc::str(job.Result.ExitCode),
-		",\"exitKnown\":", llc::b82vcs(job.Result.ExitKnown), ",\"started\":", llc::b82vcs(job.ProcessStarted), ",\"finished\":", llc::b82vcs(job.ProcessFinished),
-		",\"detached\":", llc::b82vcs(job.Detached), ",\"session\":", llc::str(job.OriginSession), ",\"sequence\":", llc::str(job.Sequence),
-		",\"historical\":", llc::b82vcs(job.Historical), '}');
+		",\"exitKnown\":", llc::b82st(job.Result.ExitKnown), ",\"started\":", llc::b82st(job.ProcessStarted), ",\"finished\":", llc::b82st(job.ProcessFinished),
+		",\"detached\":", llc::b82st(job.Detached), ",\"session\":", llc::str(job.OriginSession), ",\"sequence\":", llc::str(job.Sequence),
+		",\"historical\":", llc::b82st(job.Historical), '}');
 }
 
 llc::err_t llsSession(cnst llc::SJSONReader & reader, SApplication & app, llc::string & body) {
@@ -105,7 +105,7 @@ llc::err_t llsSession(cnst llc::SJSONReader & reader, SApplication & app, llc::s
 	cnst bool changed = session != app.SessionId || revision != app.Revision || app.Busy;
 	if_fail_fe(llc::append_strings(body, "\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"isError\":false,\"structuredContent\":{\"session\":",
 		llc::str(app.SessionId), ",\"revision\":", llc::str(app.Revision), ",\"requests\":", llc::str(app.Requests),
-		",\"elapsedMs\":", llc::str(timer.LastTimeMicroseconds / 1000), ",\"changed\":", llc::b82vcs(changed)));
+		",\"elapsedMs\":", llc::str(timer.LastTimeMicroseconds / 1000), ",\"changed\":", llc::b82st(changed)));
 	if_fail_fe(llc::append_strings(body, ",\"logError\":", llc::str(logError), ",\"historyError\":", llc::str(app.HistoryError)));
 	if(changed) {
 		if_fail_fe(body.append_string(",\"jobs\":["));

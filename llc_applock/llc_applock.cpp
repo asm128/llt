@@ -34,7 +34,7 @@ sttc llc::err_t		installKeys		(llc::vcst_t keyPath, llc::vcst_t debugger) {
 		return ERROR_ALREADY_EXISTS;
 	}
 	if_true_fef(result && result != ERROR_FILE_NOT_FOUND, "0x%X", result);
-	result				= RegSetValueEx(key, "Debugger", 0, REG_SZ, debugger.cu8().begin(), debugger.size() + 1);
+	result				= RegSetValueEx(key, "Debugger", 0, REG_SZ, debugger.as<::llc::u0_c>().begin(), debugger.size() + 1);
 	RegCloseKey(key);
 	if_true_fef(result, "RegSetValueEx() --> 0x%X", result);
 	return 0;
@@ -50,7 +50,7 @@ sttc llc::err_t configure(bool installLocker) {
 		keyPath.clear();
 		debugger.clear();
 		if_fail_fe(llc::append_strings(keyPath, ROOT, name));
-		if_fail_fe(llc::append_strings(debugger, '"', executable, "\" --blocked"));
+		if_fail_fe(llc::append_strings(debugger, '"', executable.as<::llc::sc_c>(), "\" --blocked"));
 
         if_fail_fe(installLocker ? installKeys(keyPath, debugger) : uninstallKeys(keyPath, debugger)); 
     }

@@ -136,7 +136,7 @@ sttc llc::err_t movePaths(llc::string & oldPath, llc::string & destinationFolder
 		oldPathDriveLetterFix[colonOffset] = '_';
 		oldPathView = oldPathDriveLetterFix;
 	}
-	if_fail_fe(llc::append_strings(destinationFolder, destinationRoot, '/', oldPathView.cc(), '/'));
+	if_fail_fe(llc::append_strings(destinationFolder, destinationRoot, '/', oldPathView.as<::llc::sc_c>(), '/'));
 	return 0;
 }
 
