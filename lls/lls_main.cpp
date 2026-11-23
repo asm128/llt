@@ -15,6 +15,12 @@
 #include "../lcp/lcp_text.h"
 #include "../lcp/lcp_identity.h"
 
+#ifdef LLC_WINDOWS
+stxp bool LLS_PROCESS_EXIT_KNOWN = false;
+#else
+stxp bool LLS_PROCESS_EXIT_KNOWN = true;
+#endif
+
 #if defined(LLC_WINDOWS) && !defined(LLC_AVOID_LOCAL_APPLICATION_MODEL_EXECUTABLE_RUNTIME)
 #include <process.h>
 LLC_DEFINE_APPLICATION_ENTRY_POINT_MT(SApplication, "LT4 Limb System");
@@ -78,9 +84,9 @@ sttc	::llc::err_t	llsToolCall			(cnst ::llc::SJSONReader & reader, SBuildResult 
 		llc::SPathTree tree;
 		if(name == "tree") { if_fail_fe(lcpTreeCall(reader, body, tree)); }
 		else {
-			if_fail_fe(lcpShellCall(reader, body, name, [&](llc::vcst_t command, llc::vcu0_t input, llc::au0_t & output, llc::u2_t & exitCode) -> llc::err_t {
-				cnst llc::err_t status = llsProcess(app, jobIndex, {}, command, true, output, exitCode, input);
-				outcome = {status, exitCode, llc::succeeded(status)};
+				if_fail_fe(lcpShellCall(reader, body, name, [&](llc::vcst_t application, llc::vcst_t command, llc::vcu0_t input, llc::au0_t & output, llc::u2_t & exitCode) -> llc::err_t {
+					cnst llc::err_t status = llsProcess(app, jobIndex, application, command, true, output, exitCode, input);
+					outcome = {status, exitCode, LLS_PROCESS_EXIT_KNOWN && llc::succeeded(status)};
 				rtrn status;
 			}));
 		}
@@ -100,7 +106,7 @@ sttc	::llc::err_t	llsToolCall			(cnst ::llc::SJSONReader & reader, SBuildResult 
 	::llc::au0_t output = {};
 	::llc::u2_t exitCode = 0;
 	cnst llc::err_t status = llsProcess(app, jobIndex, msbuild, command, build, output, exitCode);
-	outcome = {status, exitCode, build && llc::succeeded(status)};
+	outcome = {status, exitCode, LLS_PROCESS_EXIT_KNOWN && build && llc::succeeded(status)};
 	llc::string text;
 	if_fail_fe(lcpVSBuildSummary({(cnst char*)output.begin(), output.size()}, status, exitCode, text));
 	if_fail_fe(lcpTextBody(result, text, llc::failed(status) || exitCode != 0));

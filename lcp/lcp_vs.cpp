@@ -2,7 +2,8 @@
 #include "lcp_metrics.h"
 #include "lcp_text.h"
 #include "llc_json_expression.h"
-#include "llc_process.h"
+#include "llc_process_broker.h"
+#include "llc_args.h"
 #include "llc_complus.h"
 
 llc::err_t lcpVSBuildCommand(cnst llc::SJSONReader & reader, llc::string & application, llc::string & command) {
@@ -448,13 +449,15 @@ err_t startIDE(vcst_t executable, vcst_t solution, u2_t & pid) {
 	string command;
 	if_fail_fe(append_strings(command, '"', executable, '"'));
 	if(solution.size()) { if_fail_fe(append_strings(command, " \"", solution, '"')); }
-	SProcessManager processes;
-	cnst err_t id = processes.Create(executable, command, {});
-	if_fail_fe(id);
-	SProcessManager<>::TProcessScope scope{processes, (u2_t)id};
-	if_fail_fe(processes.Launch(id));
-	pid = processes.PlatformState[id].Info.Id;
-	rtrn scope.Close();
+	as0_t environment;
+	aobj<vcst_t> environmentViews;
+	if_fail_fe(viewsFromEnvp(environmentViews, environ));
+	if_fail_fe(environmentBlock(environment, environmentViews));
+	SProcess process;
+	cnst err_t result = createChildProcess(process, {(u0_t*)environment.begin(), environment.size()}, executable, command);
+	if(llc::failed(result)) { if_fail_e(closeProcess(process)); rtrn result; }
+	pid = process.ProcessInfo.dwProcessId;
+	rtrn closeProcess(process);
 }
 err_t automation(cnst SJSONReader & reader, vcst_t action, string & text) {
 	SApartment apartment;
@@ -557,7 +560,19 @@ llc::err_t lcpVSCall(cnst llc::SJSONReader & reader, llc::string & body, llc::er
 		status = lcpVSBuildCommand(reader, application, command);
 		llc::au0_t output;
 		llc::u2_t exitCode = 0;
-		if(llc::succeeded(status)) status = llc::SProcessManager{}.Execute(application, command, {}, output, exitCode, {});
+		if(llc::succeeded(status)) {
+			llc::SProcessBrokerJob process;
+			process.CommandLineApp = application;
+			process.CommandLine = command;
+			llc::as0_t environment;
+			llc::aobj<llc::vcst_t> environmentViews;
+			if_fail_fe(llc::viewsFromEnvp(environmentViews, environ));
+			if_fail_fe(llc::environmentBlock(environment, environmentViews));
+			if_fail_fe(process.Request.append((cnst llc::u0_t*)environment.begin(), environment.size()));
+			status = llc::processBrokerRun(process);
+			if_fail_fe(output.append(process.Response));
+			if_fail_fe(output.append(process.ErrorOutput));
+		}
 		if_fail_fe(lcpMetricsRecord(COMMUNICATION_CHANNEL::Process, true, output));
 		if_fail_fe(lcpVSBuildSummary({(cnst llc::sc_t*)output.begin(), output.size()}, status, exitCode, text));
 		if(operationStatus) *operationStatus = llc::failed(status) ? status : exitCode ? -1 : 0;
