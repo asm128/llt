@@ -232,7 +232,7 @@ sttc	::llc::err_t	llsRequest			(::llc::SJSONReader & reader, ::llc::vcst_t reque
 }
 ::llc::err_t cleanup(SApplication & app) {
 	for(auto & peer : app.Relay.Peers) { if_fail_e(relayClose(*peer)); }
-	app.Relay.Listener.close();
+	app.Relay.Listener.Socket.close();
 	if(app.NetworkStarted) { if_fail_e(llc::tcpipShutdown()); }
 	if_fail_fe(llsDesktopClose(app));
 	rtrn app.WorkerResult;
