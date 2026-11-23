@@ -11,6 +11,10 @@
   <Project Path="blitter/blitter.vcxproj" Id="7a6de552-449a-4b19-8daa-dfbf7714335d">
     <BuildDependency Project="../llc/llc/llc.vcxproj" />
   </Project>
+  <Project Path="blitter_dashboard/blitter_dashboard.vcxproj" Id="d5b80441-6a6e-4d50-8b2a-7d7a4ca6f419">
+    <BuildDependency Project="../llc/llc/llc.vcxproj" />
+    <BuildDependency Project="blitter/blitter.vcxproj" />
+  </Project>
   <Project Path="blit/blit.vcxproj" Id="b9a529d1-4253-4b32-b7f7-336ab4d8ac31">
     <BuildDependency Project="../llc/llc/llc.vcxproj" />
     <BuildDependency Project="blitter/blitter.vcxproj" />
