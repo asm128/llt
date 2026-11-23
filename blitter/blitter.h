@@ -6,6 +6,7 @@
 #include "llc_expression.h"
 #include "llc_deflate.h"
 #include "llc_file_pack.h"
+#include "llc_index.h"
 
 #ifndef BLITTER_H_20190712
 #define BLITTER_H_20190712
@@ -56,6 +57,10 @@ namespace blt
 	stxp	u3_c					MAX_TABLE_RECORD_COUNT				= 0x7FFFFFFFFFFFFFFF;
 	stxp	u3_c					MAX_TABLE_BLOCKS_IN_MEMORY			= 1024;
 	struct SDatabase {
+		::llc::vcst_t							SearchFormat						= {};
+		::llc::aobj<::llc::SWordIndices>		SearchWords						= {};
+		::llc::u2_t							SearchItemCount					= 0;
+		bool										SearchReady						= false;
 		::llc::aobj<::llc::vcst_t>		Bindings							= {};
 		u2_t							BlockSize							= 0;
 		::llc::au3_t					Offsets								= {};
@@ -71,6 +76,7 @@ namespace blt
 	};
 
 	struct SBlitterQuery {
+		::llc::vcst_t					SearchText						= {};
 		::llc::vcst_t					Database							= "";
 		::llc::vcst_t					Command								= "";
 		::llc::vcst_t					Path								= "";
