@@ -67,6 +67,44 @@ GDEFINE_ENUM_VALUE(EXPLORER_VIEWPORT, Previous, 17);
 GDEFINE_ENUM_VALUE(EXPLORER_VIEWPORT, Next    , 18);
 GDEFINE_ENUM_VALUE(EXPLORER_VIEWPORT, Summary , 19);
 
+GDEFINE_ENUM_TYPE(HELP_VIEWPORT, llc::u0_t);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Topic00      ,  0);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Topic01      ,  1);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Topic02      ,  2);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Topic03      ,  3);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Topic04      ,  4);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Topic05      ,  5);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Topic06      ,  6);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Topic07      ,  7);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Topic08      ,  8);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Topic09      ,  9);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Topic10      , 10);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Topic11      , 11);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, TopicPrevious, 12);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, TopicNext    , 13);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Line00       , 14);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Line01       , 15);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Line02       , 16);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Line03       , 17);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Line04       , 18);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Line05       , 19);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Line06       , 20);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Line07       , 21);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Line08       , 22);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Line09       , 23);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Line10       , 24);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Line11       , 25);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Line12       , 26);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Line13       , 27);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Line14       , 28);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Line15       , 29);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Line16       , 30);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Line17       , 31);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Line18       , 32);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, Line19       , 33);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, PagePrevious , 34);
+GDEFINE_ENUM_VALUE(HELP_VIEWPORT, PageNext     , 35);
+
 enum LLS_GUI_VIEWPORT : llc::u0_t {
 	LLS_GUI_VIEWPORT_SESSION,
 	LLS_GUI_VIEWPORT_WORKSPACE,
@@ -77,7 +115,7 @@ enum LLS_GUI_VIEWPORT : llc::u0_t {
 stct SLLSGUI {
 	llc::SFramework		Framework;
 	SLLSGUISurface Surface;
-	llc::cid_t Host = -1, Toolbar = -1, Processes = -1, Services = -1;
+	llc::cid_t Host = -1, Toolbar = -1, Processes = -1, Services = -1, Help = -1;
 	llc::acid Explorers;
 	llc::aobj<SExplorer> ExplorerState;
 	llc::aobj<llc::aobj<llc::string>> ExplorerText;
@@ -91,6 +129,7 @@ stct SLLSGUI {
 	llc::acid			Rows, Lines, Processable, Tabs, Breadcrumbs;
 	llc::aobj<llc::string> RowText, TabText, CommandTemplateText, CommandTemplateJSON;
 	llc::aobj<llc::vcst_t> Paths, DetailLines, DetailPaths;
+	llc::aobj<llc::vcst_t> HelpLines;
 	llc::au2_t TabValues;
 	SGUIFamily Family;
 	SExplorer Explorer;
@@ -100,6 +139,7 @@ stct SLLSGUI {
 	llc::cid_t			Title = -1, Statistics = -1, Hint = -1, Keyboard = -1;
 	llc::cid_t			ListPrev = -1, ListNext = -1, PagePrev = -1, PageNext = -1, OpenPath = -1;
 	llc::u2_t			Tab = 0, ListOffset = 0, LineOffset = 0, Selected = (llc::u2_t)-1;
+	llc::u2_t			HelpSelected = 0, HelpTopicOffset = 0, HelpLineOffset = 0, HelpColumns = 0;
 	llc::u2_t			Revision = (llc::u2_t)-1, VisibleLines = 0, VisibleRows = 0, Columns = 0;
 	llc::n2u1_t			LastSize = {};
 	double				Refresh = 0;
