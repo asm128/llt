@@ -1,3 +1,4 @@
+#include "llc_string_compose.h"
 #include "lls_store.h"
 #include "lls_mail.h"
 #include "../lcp/lcp_text.h"
@@ -45,16 +46,16 @@ err_t pair(string & json, vcst_t key, vcst_t value, bool comma = true) {
 	rtrn lcpJSONString(json, value);
 }
 err_t boxJSON(cnst SBox & box, string & json) {
-	if_fail_fe(json.append_string("{\"version\":1"));
+	if_fail_fe(::llc::append_string(json, "{\"version\":1"));
 	if_fail_fe(pair(json, "task", box.Task));
 	if_fail_fe(pair(json, "status", box.Status));
 	if_fail_fe(pair(json, "next", box.Next));
-	if_fail_fe(json.append_string(",\"folders\":["));
+	if_fail_fe(::llc::append_string(json, ",\"folders\":["));
 	for(u2_t i = 0; i < box.Folders.size(); ++i) {
 		if(i) { if_fail_fe(json.push_back(',')); }
 		if_fail_fe(lcpJSONString(json, box.Folders[i]));
 	}
-	if_fail_fe(json.append_string("],\"filters\":["));
+	if_fail_fe(::llc::append_string(json, "],\"filters\":["));
 	for(u2_t i = 0; i < box.Rules.size(); ++i) {
 		if(i) { if_fail_fe(json.push_back(',')); }
 		if_fail_fe(json.push_back('{'));
@@ -63,7 +64,7 @@ err_t boxJSON(cnst SBox & box, string & json) {
 		if_fail_fe(pair(json, "folder", box.Rules[i].Folder));
 		if_fail_fe(json.push_back('}'));
 	}
-	rtrn json.append_string("]}");
+	rtrn ::llc::append_string(json, "]}");
 }
 err_t saveBox(cnst SBox & box) {
 	string json, path;
@@ -165,14 +166,14 @@ err_t saveMail(cnst SBox & box, cnst SMail & mail, bool replace = true) {
 	rtrn llsStoreSave(path, json, replace);
 }
 err_t response(string & body, vcst_t text, vcst_t data) {
-	if_fail_fe(body.append_string("\"result\":{\"isError\":false,\"content\":[{\"type\":\"text\",\"text\":"));
+	if_fail_fe(::llc::append_string(body, "\"result\":{\"isError\":false,\"content\":[{\"type\":\"text\",\"text\":"));
 	if_fail_fe(lcpJSONString(body, text));
 	rtrn append_strings(body, "}],\"structuredContent\":", data, '}');
 }
 // Explicit profile only, short single-line feedback; no guessed chat state.
 err_t focus(cnst SBox & box, string & text) {
-	if_fail_fe(text.append_string("Focus: "));
-	if(!box.Task.size() && !box.Status.size() && !box.Next.size()) rtrn text.append_string("not set.");
+	if_fail_fe(::llc::append_string(text, "Focus: "));
+	if(!box.Task.size() && !box.Status.size() && !box.Next.size()) rtrn ::llc::append_string(text, "not set.");
 	string source;
 	if_fail_fe(append_strings(source, box.Task, " | ", box.Status, " | next: ", box.Next));
 	u2_t length = llc::min((u2_t)144, source.size());
@@ -181,7 +182,7 @@ err_t focus(cnst SBox & box, string & text) {
 		char c = source[i]; if((u0_t)c < 32 || c == 127) c = ' ';
 		if_fail_fe(text.push_back(c));
 	}
-	if(length < source.size()) { if_fail_fe(text.append_string("...")); }
+	if(length < source.size()) { if_fail_fe(::llc::append_string(text, "...")); }
 	rtrn 0;
 }
 err_t call(cnst SJSONReader & reader, string & body) {

@@ -13,7 +13,7 @@ GDEFINE_ENUM_VALUED(NN_TEST_RESULT, TOPOLOGY, 1, "NN topology change or validati
 GDEFINE_ENUM_VALUED(NN_TEST_RESULT, IMAGE, 2, "Image learning, preview isolation or replay contract failed.");
 GDEFINE_ENUM_VALUED(NN_TEST_RESULT, HEATMAP, 3, "Heatmap lost a signed endpoint.");
 
-llc::err_t testNN(llc::ATestError & results, llc::vcst_t outputFolder) {
+llc::err_t test_nn(llc::ATestError & results, llc::vcst_t outputFolder) {
  for(llc::u2_t network = 0; network < llc::NN_COUNT; ++network) {
   llc::SNN serial, batch;
   if_fail_fe(llc::nnBegin(serial, network));
@@ -164,7 +164,7 @@ llc::err_t testNN(llc::ATestError & results, llc::vcst_t outputFolder) {
  rtrn 0;
 }
 
-::llc::err_t testNNHeatmap(::llc::ATestError & results, ::llc::vcst_t) {
+::llc::err_t test_nn_heatmap(::llc::ATestError & results, ::llc::vcst_t) {
  ::llc::img8bgra image;
  ::llc::astatic<::llc::f3_t, 625> values = {};
  for(::llc::u2_t i = 0; i < values.size(); ++i) values[i] = i < 312 ? -1 : 1;

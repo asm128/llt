@@ -37,11 +37,11 @@ stct SSampleSlider {
 };
 
 
-stacxpr ::llc::u0_t SAMPLE_GUI_THEME_COUNT = 3;
-stacxpr ::llc::u0_t PALETTE_SHADE_COUNT = 16;
+stxp ::llc::u0_t SAMPLE_GUI_THEME_COUNT = 3;
+stxp ::llc::u0_t PALETTE_SHADE_COUNT = 16;
 
 sttc ::llc::SColorBGRA sampleGUIThemeColor(::llc::u0_t theme) nxpt {
-	stacxpr ::llc::SColorBGRA colors[SAMPLE_GUI_THEME_COUNT] =
+	stxp ::llc::SColorBGRA colors[SAMPLE_GUI_THEME_COUNT] =
 		{ {248, 208,  72}
 		, { 32, 176, 248}
 		, {232, 232, 232}
@@ -64,12 +64,12 @@ sttc ::llc::SColorBGRA sampleGUIDesaturate(::llc::SColorBGRA color) nxpt {
 }
 
 sttc ::llc::u0_t sampleGUIStateShade(::llc::u0_t state) nxpt {
-	stacxpr ::llc::u0_t shades[::llc::GUI_CONTROL_PALETTE_COUNT] = {8, 10, 5, 11, 4, 7, 2, 7, 1, 13};
+	stxp ::llc::u0_t shades[::llc::GUI_CONTROL_PALETTE_COUNT] = {8, 10, 5, 11, 4, 7, 2, 7, 1, 13};
 	rtrn shades[state % ::llc::GUI_CONTROL_PALETTE_COUNT];
 }
 
 sttc ::llc::u0_t sampleGUIStateBorderOffset(::llc::u0_t state) nxpt {
-	stacxpr ::llc::u0_t offsets[::llc::GUI_CONTROL_PALETTE_COUNT] = {5, 1, 7, 3, 0, 1, 7, 3, 5, 5};
+	stxp ::llc::u0_t offsets[::llc::GUI_CONTROL_PALETTE_COUNT] = {5, 1, 7, 3, 0, 1, 7, 3, 5, 5};
 	rtrn offsets[state % ::llc::GUI_CONTROL_PALETTE_COUNT];
 }
 
@@ -334,7 +334,7 @@ stct SApplication {
  SApplication(::llc::SRuntimeValues & runtime) : Framework(runtime, {}) {}
 };
 
-stacxpr ::llc::u2_t NN_LOG_VIEW = ::llc::NN_COUNT * NN_PANES;
+stxp ::llc::u2_t NN_LOG_VIEW = ::llc::NN_COUNT * NN_PANES;
 #if defined(_DEBUG)
 sttc ::llc::err_t nnVerifyLog(SApplication & app);
 #endif
@@ -533,7 +533,7 @@ sttc ::llc::err_t nnShowNetwork(SApplication & app, ::llc::u2_t n, bool show) {
  auto & window = app.Framework.RootWindow;
  auto & gui = *app.Framework.GUI;
  window.Size = {1600, 960};
- if_null_ve(::llc::OS_NO_MEMORY, window.BackBuffer.create());
+ if_null_ve(-1, window.BackBuffer.create());
  if_fail_fe(window.BackBuffer->resize(window.Size.u2()));
  if_fail_fe(::llc::mainWindowCreate(window, app.Framework.RuntimeValues.PlatformDetail, window.Input));
  if_fail_fe(::sampleGUIResourcesCreate(gui));
