@@ -30,6 +30,7 @@ namespace blt {
 		::llc::aobj<::llc::string> DatabaseRowText = {};
 		::llc::aobj<::llc::vcst_t> OutputTextRows = {};
 		::blt::SBlitter Blitter = {};
+		::llc::n2u1_t LayoutSize = {};
 		DASHBOARD_INPUT_MODE InputMode = DASHBOARD_INPUT_Config;
 		s2_t SelectedDatabase = -1;
 		SBlitterDashboard(::llc::SRuntimeValues & runtimeValues) : Framework(runtimeValues) {}
