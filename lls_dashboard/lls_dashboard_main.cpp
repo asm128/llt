@@ -8,7 +8,8 @@
 #include "../lcp/lcp_text.h"
 #include "llc_json_expression.h"
 #include "llc_chrono.h"
-#include "llc_process.h"
+#include "llc_process_broker.h"
+#include "llc_args.h"
 
 #define lls_dashboard_info_printf(...) do {} while(0) // info_printf
 
@@ -228,11 +229,14 @@ llc::err_t cleanup(SApplication & app) {
 		cnst DWORD length = GetModuleFileNameA(0, executable, (DWORD)llc::size(executable));
 		if_true_fe(!length || length >= llc::size(executable));
 		llc::string command = llc::vcst_t{GetCommandLineA(), (llc::u2_t)-1};
-		llc::SProcessManager<> processes;
-		cnst llc::err_t process = processes.Create({executable, length}, command, {}, CREATE_NO_WINDOW);
-		if_fail_fe(process);
-		if_fail_fe(processes.Launch((llc::u2_t)process));
-		if_fail_fe(processes.Close((llc::u2_t)process));
+		llc::as0_t environment;
+		llc::aobj<llc::vcst_t> environmentViews;
+		if_fail_fe(llc::viewsFromEnvp(environmentViews, environ));
+		if_fail_fe(llc::environmentBlock(environment, environmentViews));
+		llc::SProcess process;
+		cnst llc::err_t result = llc::createChildProcess(process, {(llc::u0_t*)environment.begin(), environment.size()}, {executable, length}, command);
+		if(llc::failed(result)) { if_fail_e(llc::closeProcess(process)); rtrn result; }
+		if_fail_fe(llc::closeProcess(process));
 	}
 #endif
 	rtrn 0;
