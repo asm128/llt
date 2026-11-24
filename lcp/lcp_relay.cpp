@@ -65,20 +65,21 @@ sttc err_t relayFileRead(SRelayPeer & peer, au0_t & payload) {
 	rtrn 0;
 }
 
-sttc err_t relaySocket(auto_socket_close & output, u1_t port) {
-	output.close();
-	output.Handle = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	if_true_fe(output == INVALID_SOCKET);
+sttc err_t relaySocket(SSocketConnection & output, u1_t port) {
+	output.Socket.close();
+	output.Socket.Handle = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if_true_fe(output.Socket == INVALID_SOCKET);
+	output.Address = {SIPv4{127, 0, 0, 1}, port};
 	sockaddr_in local = {};
-	if_fail_fe(tcpipAddressToSockaddr(127, 0, 0, 1, port, local));
+	if_fail_fe(tcpipAddressToSockaddr(output.Address, local));
 	BOOL exclusive = TRUE;
-	if_true_fe(setsockopt(output, SOL_SOCKET, SO_EXCLUSIVEADDRUSE, (cnst char*)&exclusive, sizeof(exclusive)));
-	if_true_fe(bind(output, (sockaddr*)&local, sizeof(local)));
+	if_true_fe(setsockopt(output.Socket, SOL_SOCKET, SO_EXCLUSIVEADDRUSE, (cnst char*)&exclusive, sizeof(exclusive)));
+	if_true_fe(bind(output.Socket, (sockaddr*)&local, sizeof(local)));
 	u_long nonblocking = 1;
-	if_true_fe(ioctlsocket(output, FIONBIO, &nonblocking));
+	if_true_fe(ioctlsocket(output.Socket, FIONBIO, &nonblocking));
 	rtrn 0;
 }
-sttc err_t relayCommand(SUDPConnection & connection, SUDPCommand command) {
+sttc err_t relayCommand(SSocketConnection & connection, SCommand command) {
 	sockaddr_in remote = {};
 	if_fail_fe(tcpipAddressToSockaddr(connection.Address, remote));
 	rtrn sendto(connection.Socket, (cnst char*)&command, sizeof(command), 0, (sockaddr*)&remote, sizeof(remote)) == sizeof(command) ? 0 : -1;
@@ -88,15 +89,15 @@ sttc err_t relayCommand(SUDPConnection & connection, SUDPCommand command) {
 err_t relayClose(SRelayPeer & peer) {
 	llc::lock_guard guard(peer.Lock);
 #ifdef LLC_WINDOWS
-	if(peer.Connection.Socket != INVALID_SOCKET && peer.Connection.State == UDP_CONNECTION_STATE_IDLE) {
-		SUDPCommand command = {};
+	if(peer.Socket.Socket != INVALID_SOCKET && peer.Connection.State == CONNECTION_STATE_IDLE) {
+		SCommand command = {};
 		command.Command = ENDPOINT_COMMAND_DISCONNECT;
-		if_fail_e(relayCommand(peer.Connection, command));
+		if_fail_e(relayCommand(peer.Socket, command));
 	}
 #endif
 	peer.Closed = true;
-	peer.Connection.State = UDP_CONNECTION_STATE_DISCONNECTED;
-	peer.Connection.Socket.close();
+	peer.Connection.State = CONNECTION_STATE_DISCONNECTED;
+	peer.Socket.Socket.close();
 	if_fail_fe(peer.Outgoing.clear());
 	for(cnst string & path : peer.Files) {
 #ifdef LLC_WINDOWS
@@ -136,10 +137,10 @@ err_t relayListen(SRelayServer & server, bool debug) {
 err_t relayAccept(SRelayServer & server) {
 #ifdef LLC_WINDOWS
 	for(u2_t count = 0; count < 16; ++count) {
-		SUDPCommand command = {};
+		SCommand command = {};
 		sockaddr_in remote = {};
 		int remoteSize = sizeof(remote);
-		cnst int received = recvfrom(server.Listener, (char*)&command, sizeof(command), 0, (sockaddr*)&remote, &remoteSize);
+		cnst int received = recvfrom(server.Listener.Socket, (char*)&command, sizeof(command), 0, (sockaddr*)&remote, &remoteSize);
 		if(received < 0) {
 			cnst int error = WSAGetLastError();
 			if(error == WSAEWOULDBLOCK) rtrn 0;
@@ -152,16 +153,14 @@ err_t relayAccept(SRelayServer & server) {
 			continue;
 		if(server.Peers.size() >= 128) continue;
 		pobj<SRelayPeer> peer;
-		SIPv4End listener;
-		if_fail_fe(tcpipAddress(server.Listener, listener));
-		if_fail_fe(relaySocket(peer->Connection.Socket, 0));
-		if_fail_fe(relaySpool(*peer, listener.Port == relayPort(true)));
-		if_fail_fe(tcpipAddressFromSockaddr(remote, peer->Connection.Address));
-		peer->Connection.State = UDP_CONNECTION_STATE_HANDSHAKE;
+		if_fail_fe(relaySocket(peer->Socket, 0));
+		if_fail_fe(relaySpool(*peer, server.Listener.Address.Port == relayPort(true)));
+		if_fail_fe(tcpipAddressFromSockaddr(remote, peer->Socket.Address.IP, peer->Socket.Address.Port));
+		peer->Connection.State = CONNECTION_STATE_HANDSHAKE;
 		peer->Connection.FirstPing = peer->Connection.LastPing = timeCurrentInUs();
 		peer->Connection.KeyPing = 1; // Plain local mode does not use the historical encryption clock recovery.
 		command.Type = ENDPOINT_COMMAND_TYPE_RESPONSE;
-		if_fail_fe(relayCommand(peer->Connection, command));
+		if_fail_fe(relayCommand(peer->Socket, command));
 		if_fail_fe(server.Peers.push_back(peer));
 	}
 	rtrn 0;
@@ -173,28 +172,29 @@ err_t relayAccept(SRelayServer & server) {
 
 err_t relayPump(SRelayPeer & peer) {
 #ifdef LLC_WINDOWS
-	SUDPConnection & connection = peer.Connection;
-	if(peer.Closed || connection.Socket == INVALID_SOCKET) rtrn -1;
-	if_fail_fe(peer.Buffer.resize(UDP_PAYLOAD_SIZE_LIMIT + sizeof(SUDPPayloadHeader) + 1));
+	SConnection & connection = peer.Connection;
+	SSocketConnection & socketConnection = peer.Socket;
+	if(peer.Closed || socketConnection.Socket == INVALID_SOCKET) rtrn -1;
+	if_fail_fe(peer.Buffer.resize(UDP_PAYLOAD_SIZE_LIMIT + sizeof(SPayloadHeader) + 1));
 	for(u2_t count = 0; count < 32; ++count) {
 		sockaddr_in remote = {};
 		int remoteSize = sizeof(remote);
-		cnst int received = recvfrom(connection.Socket, (char*)peer.Buffer.begin(), (int)peer.Buffer.size(), MSG_PEEK, (sockaddr*)&remote, &remoteSize);
+		cnst int received = recvfrom(socketConnection.Socket, (char*)peer.Buffer.begin(), (int)peer.Buffer.size(), MSG_PEEK, (sockaddr*)&remote, &remoteSize);
 		if(received < 0) {
 			cnst int error = WSAGetLastError();
 			if(error == WSAEWOULDBLOCK) break;
 			if(error != WSAEMSGSIZE) rtrn -1;
 		}
 		SIPv4End source;
-		if_fail_fe(tcpipAddressFromSockaddr(remote, source));
-		bool valid = received >= (int)sizeof(SUDPCommand) && source == connection.Address;
-		SUDPCommand command = valid ? *(SUDPCommand*)peer.Buffer.begin() : SUDPCommand{};
+		if_fail_fe(tcpipAddressFromSockaddr(remote, source.IP, source.Port));
+		bool valid = received >= (int)sizeof(SCommand) && source == socketConnection.Address;
+		SCommand command = valid ? *(SCommand*)peer.Buffer.begin() : SCommand{};
 		valid &= !command.Encrypted && !command.Compressed && !command.Multipart && !command.Resend;
 		bool duplicate = false;
 		if(valid && command.Command == ENDPOINT_COMMAND_PAYLOAD) {
-			valid = !command.Packed && received >= (int)sizeof(SUDPPayloadHeader) && connection.State == UDP_CONNECTION_STATE_IDLE;
+			valid = !command.Packed && received >= (int)sizeof(SPayloadHeader) && connection.State == CONNECTION_STATE_IDLE;
 			if(valid) {
-				cnst SUDPPayloadHeader & header = *(cnst SUDPPayloadHeader*)peer.Buffer.begin();
+				cnst SPayloadHeader & header = *(cnst SPayloadHeader*)peer.Buffer.begin();
 				valid = header.Size <= UDP_PAYLOAD_SIZE_LIMIT && (u2_t)received == sizeof(header) + header.Size;
 				if(valid && command.Type == ENDPOINT_COMMAND_TYPE_REQUEST) {
 					duplicate = peer.Seen.find(header.MessageId) >= 0;
@@ -203,24 +203,24 @@ err_t relayPump(SRelayPeer & peer) {
 			}
 		}
 		else if(valid)
-			valid = received == sizeof(SUDPCommand);
+			valid = received == sizeof(SCommand);
 		if(valid && !duplicate) {
 			connection.LastPing = timeCurrentInUs();
 			if(command.Command == ENDPOINT_COMMAND_NOOP) {
 				if(command.Type == ENDPOINT_COMMAND_TYPE_REQUEST) {
 					command.Type = ENDPOINT_COMMAND_TYPE_RESPONSE;
-					if_fail_fe(relayCommand(connection, command));
+					if_fail_fe(relayCommand(socketConnection, command));
 				}
 				else { peer.Pong = true; peer.LastPong = timeCurrentInUs(); }
 			}
 			else {
 				au0_t payload;
-				if_fail_fe(connectionHandleCommand(connection, command, payload));
+				if_fail_fe(connectionHandleCommand(connection, socketConnection, command, payload));
 			}
 		}
-		if(connection.Socket == INVALID_SOCKET) { if_fail_fe(relayClose(peer)); rtrn -1; }
+		if(socketConnection.Socket == INVALID_SOCKET) { if_fail_fe(relayClose(peer)); rtrn -1; }
 		// The recovered handler peeks. Consume exactly this datagram, even when rejected.
-		recvfrom(connection.Socket, (char*)peer.Buffer.begin(), (int)peer.Buffer.size(), 0, 0, 0);
+		recvfrom(socketConnection.Socket, (char*)peer.Buffer.begin(), (int)peer.Buffer.size(), 0, 0, 0);
 	}
 	{
 		llc::lock_guard guard(peer.Lock);
@@ -237,7 +237,7 @@ err_t relayPump(SRelayPeer & peer) {
 		if_fail_fe(relayFileRead(peer, peer.Received[i]->Payload));
 		if_fail_fe(lcpMetricsRecord(COMMUNICATION_CHANNEL::Relay, true, peer.Received[i]->Payload));
 	}
-	if_fail_fe(connectionSendQueue(connection, peer.Sent, peer.Send, false));
+	if_fail_fe(connectionSendQueue(connection, socketConnection, peer.Sent, peer.Send));
 	rtrn 0;
 #else
 	(void)peer;
@@ -248,26 +248,26 @@ err_t relayPump(SRelayPeer & peer) {
 err_t relayConnect(SRelayPeer & peer, bool debug) {
 #ifdef LLC_WINDOWS
 	if_fail_fe(relaySpool(peer, debug));
-	if_fail_fe(relaySocket(peer.Connection.Socket, 0));
+	if_fail_fe(relaySocket(peer.Socket, 0));
 	peer.Closed = false;
-	peer.Connection.State = UDP_CONNECTION_STATE_HANDSHAKE;
-	peer.Connection.Address = {SIPv4{127, 0, 0, 1}, relayPort(debug)};
-	SUDPCommand command = {};
+	peer.Connection.State = CONNECTION_STATE_HANDSHAKE;
+	peer.Socket.Address = {SIPv4{127, 0, 0, 1}, relayPort(debug)};
+	SCommand command = {};
 	command.Command = ENDPOINT_COMMAND_CONNECT;
-	if_fail_fe(relayCommand(peer.Connection, command));
+	if_fail_fe(relayCommand(peer.Socket, command));
 	cnst s3_t deadline = timeCurrentInUs() + 2000000;
 	while(timeCurrentInUs() < deadline) {
 		sockaddr_in remote = {};
 		int remoteSize = sizeof(remote);
-		SUDPCommand response = {};
-		cnst int received = recvfrom(peer.Connection.Socket, (char*)&response, sizeof(response), 0, (sockaddr*)&remote, &remoteSize);
+		SCommand response = {};
+		cnst int received = recvfrom(peer.Socket.Socket, (char*)&response, sizeof(response), 0, (sockaddr*)&remote, &remoteSize);
 		if(received == sizeof(response) && remote.sin_addr.s_addr == htonl(INADDR_LOOPBACK)
 			&& response.Command == ENDPOINT_COMMAND_CONNECT && response.Type == ENDPOINT_COMMAND_TYPE_RESPONSE
 			&& !response.Packed && !response.Encrypted && !response.Compressed && !response.Multipart) {
-			if_fail_fe(tcpipAddressFromSockaddr(remote, peer.Connection.Address));
+			if_fail_fe(tcpipAddressFromSockaddr(remote, peer.Socket.Address.IP, peer.Socket.Address.Port));
 			command.Packed = 1;
-			if_fail_fe(relayCommand(peer.Connection, command));
-			peer.Connection.State = UDP_CONNECTION_STATE_IDLE;
+			if_fail_fe(relayCommand(peer.Socket, command));
+			peer.Connection.State = CONNECTION_STATE_IDLE;
 			peer.Connection.FirstPing = peer.Connection.LastPing = timeCurrentInUs();
 			peer.Connection.KeyPing = 1;
 			rtrn 0;
@@ -285,8 +285,8 @@ err_t relayConnect(SRelayPeer & peer, bool debug) {
 #ifdef LLC_WINDOWS
 sttc err_t relayProbe(SRelayPeer & peer) {
 	peer.Pong = false;
-	SUDPCommand ping = {};
-	if_fail_fe(relayCommand(peer.Connection, ping));
+	SCommand ping = {};
+	if_fail_fe(relayCommand(peer.Socket, ping));
 	cnst s3_t deadline = timeCurrentInUs() + 2000000;
 	while(timeCurrentInUs() < deadline) {
 		if_fail_fe(relayPump(peer));
@@ -299,10 +299,10 @@ sttc err_t relayProbe(SRelayPeer & peer) {
 
 err_t relayCall(SRelayPeer & peer, bool debug, vcst_t request, string & response, u2_t timeoutMs) {
 #ifdef LLC_WINDOWS
-	if(peer.Connection.State == UDP_CONNECTION_STATE_IDLE && failed(relayProbe(peer))) {
+	if(peer.Connection.State == CONNECTION_STATE_IDLE && failed(relayProbe(peer))) {
 		if_fail_fe(relayClose(peer));
 	}
-	if(peer.Connection.State != UDP_CONNECTION_STATE_IDLE) {
+	if(peer.Connection.State != CONNECTION_STATE_IDLE) {
 		if_fail_fe(relayConnect(peer, debug));
 		if_fail_fe(relayProbe(peer));
 	}
@@ -320,8 +320,8 @@ err_t relayCall(SRelayPeer & peer, bool debug, vcst_t request, string & response
 		}
 		cnst u3_t now = timeCurrentInUs();
 		if(now >= heartbeat) {
-			SUDPCommand ping = {};
-			if_fail_fe(relayCommand(peer.Connection, ping));
+			SCommand ping = {};
+			if_fail_fe(relayCommand(peer.Socket, ping));
 			heartbeat = now + 1000000;
 		}
 		if(now - peer.LastPong > 5000000) break;
