@@ -158,7 +158,7 @@ sttc llc::err_t llsSessionView(SApplication & app) {
 				if_fail_fe(llc::controlTextSet(*ui.Framework.GUI, ui.Rows[i], ui.RowText[i]));
 			}
 			if(app.CommandResponse.size()) { if_fail_fe(llc::append_strings(ui.Detail, "MCP RESPONSE JSON\n\n", app.CommandResponse)); }
-			else { if_fail_fe(ui.Detail.append_string("LCP CONSOLE\n\nChoose a template to load its JSON into the edit box. Edit it if needed, then press Enter or Send JSON.")); }
+			else { if_fail_fe(::llc::append_string(ui.Detail, "LCP CONSOLE\n\nChoose a template to load its JSON into the edit box. Edit it if needed, then press Enter or Send JSON.")); }
 		}
 		else if(ui.Tab == 6) {
 			if_fail_fe(llc::append_strings(ui.Detail, "DASHBOARD\nSERVICE / ", app.Service, "\n", app.Connection,
@@ -234,13 +234,13 @@ sttc llc::err_t llsSessionView(SApplication & app) {
 		if_fail_fe(llc::append_strings(ui.Detail, "REQUEST ", job.Id, "  /  ", job.State, "\nPID ", llc::str(job.PID),
 			"   Elapsed ", llc::str(job.ElapsedMs), " ms\n"));
 		if_fail_fe(llc::append_strings(ui.Detail, "Origin session ", llc::str(job.OriginSession), job.Historical ? llc::vcst_t{" / restored history\n"} : llc::vcst_t{" / current\n"}));
-		if(job.State == "interrupted") { if_fail_fe(ui.Detail.append_string("Interrupted / outcome unknown. Not replayed.\n")); }
+		if(job.State == "interrupted") { if_fail_fe(::llc::append_string(ui.Detail, "Interrupted / outcome unknown. Not replayed.\n")); }
 		if(job.State == "completed") {
 			if_fail_fe(llc::append_strings(ui.Detail, "Operation status ", llc::str(job.Result.Status), "   Exit "));
 			if(job.Result.ExitKnown) { if_fail_fe(llc::append_strings(ui.Detail, llc::str(job.Result.ExitCode))); }
-			else { if_fail_fe(ui.Detail.append_string("unknown")); }
+			else { if_fail_fe(::llc::append_string(ui.Detail, "unknown")); }
 		}
-		if(job.Detached) { if_fail_fe(ui.Detail.append_string("\nLaunch only: completion is not tracked.")); }
+		if(job.Detached) { if_fail_fe(::llc::append_string(ui.Detail, "\nLaunch only: completion is not tracked.")); }
 		if_fail_fe(llc::append_strings(ui.Detail, "\n\nRESULT\n", job.Summary));
 	}
 	cnst llc::u2_t rows = ui.Rows.size();
@@ -255,7 +255,12 @@ sttc llc::err_t llsSessionView(SApplication & app) {
 		}
 		else {
 			cnst auto & job = app.Jobs[selected];
-			if_fail_fe(llc::append_strings(ui.RowText[i], job.Id, "  ", job.State, "  PID ", llc::str(job.PID)));
+			if(ui.Tab == 3 || ui.Tab == 5) {
+				if_fail_fe(llc::append_strings(ui.RowText[i], job.Summary, "  PID ", llc::str(job.PID)));
+			}
+			else {
+				if_fail_fe(llc::append_strings(ui.RowText[i], job.Id, "  ", job.State, "  PID ", llc::str(job.PID)));
+			}
 		}
 		if_fail_fe(llc::controlTextSet(*ui.Framework.GUI, ui.Rows[i], ui.RowText[i]));
 	}
@@ -369,7 +374,7 @@ llc::err_t llsGUIUpdate(SApplication & app) {
 		if(llc::failed(queued)) {
 			llc::lock_guard guard(app.Lock);
 			if_fail_fe(app.ServiceResponse.clear());
-			if_fail_fe(app.ServiceResponse.append_string("A service control operation is already running."));
+			if_fail_fe(::llc::append_string(app.ServiceResponse, "A service control operation is already running."));
 			++app.Revision;
 		}
 		ui.Tab = 6;
@@ -419,7 +424,7 @@ llc::err_t llsGUIUpdate(SApplication & app) {
 		if(llc::failed(queued)) {
 			llc::lock_guard guard(app.Lock);
 			if_fail_fe(app.CommandResponse.clear());
-			if_fail_fe(app.CommandResponse.append_string("Invalid command JSON or command already running."));
+			if_fail_fe(::llc::append_string(app.CommandResponse, "Invalid command JSON or command already running."));
 			++app.Revision;
 		}
 		ui.Dirty = true;
@@ -443,7 +448,7 @@ llc::err_t llsGUIUpdate(SApplication & app) {
 					if(llc::failed(queued)) {
 						llc::lock_guard guard(app.Lock);
 						if_fail_fe(app.ServiceResponse.clear());
-						if_fail_fe(app.ServiceResponse.append_string("A service control operation is already running."));
+						if_fail_fe(::llc::append_string(app.ServiceResponse, "A service control operation is already running."));
 						++app.Revision;
 					}
 				}

@@ -370,8 +370,6 @@
     <None Include="lls_gui.json" />
     <None Include="..\lcp\lcp_help.json" />
   </ItemGroup>
-  <ItemGroup>
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <Target Name="CopyDashboardCatalogs" AfterTargets="Build">
     <Copy SourceFiles="$(ProjectDir)..\lls\lls_tools.json;$(ProjectDir)lls_gui.json;$(ProjectDir)..\lcp\lcp_help.json" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />

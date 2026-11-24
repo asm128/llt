@@ -371,8 +371,6 @@
     <None Include="lls_tools.json" />
     <None Include="..\lcp\lcp_help.json" />
   </ItemGroup>
-  <ItemGroup>
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <Target Name="CopyLLSCatalogs" AfterTargets="Build">
     <Copy SourceFiles="$(ProjectDir)lls_tools.json;$(ProjectDir)..\lcp\lcp_help.json" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />

@@ -50,7 +50,7 @@ llc::err_t lcpToolsLoad(llc::vcst_t fileName) {
 	if_fail_fe(llc::jsonParse(file.Reader, file.Bytes, llc::JSON_PARSE_STRICT));
 	if_fail_fe(Tools.clear());
 	if_fail_fe(ToolWordDict.clear());
-	if_fail_fe(Tools.append_string("\"result\":"));
+	if_fail_fe(::llc::append_string(Tools, "\"result\":"));
 	cnst llc::err_t array = llc::jsonExpressionResolve("tools", file.Reader, 0);
 	if_fail_fe(array);
 	cnst llc::err_t count = llc::jsonArraySize(file.Reader, array);
@@ -103,7 +103,7 @@ llc::err_t lcpToolsAvailable(llc::vcst_t query, llc::string & output) {
 				}
 	}
 	if_fail_fe(output.clear());
-	if_fail_fe(output.append_string("available commands:"));
+	if_fail_fe(::llc::append_string(output, "available commands:"));
 	for(llc::u2_t i = 0; i < ToolNames.size(); ++i)
 		if(matched[i]) { if_fail_fe(llc::append_strings(output, '\n', ToolNames[i])); }
 	rtrn output.size();

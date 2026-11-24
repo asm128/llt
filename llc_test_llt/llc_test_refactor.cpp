@@ -8,7 +8,7 @@ GDEFINE_ENUM_VALUED(REFACTOR_TEST_RESULT, SIMILARITY, 2, "Refactor similarity di
 GDEFINE_ENUM_VALUED(REFACTOR_TEST_RESULT, RETRIEVAL, 3, "Historical before-code retrieval did not preserve the matching after hunk and provenance.");
 GDEFINE_ENUM_VALUED(REFACTOR_TEST_RESULT, STRING, 4, "String literal assignment counted bytes after the first null terminator.");
 
-::llc::err_t testRefactorAtlas(::llc::ATestError & results, ::llc::vcst_t) {
+::llc::err_t test_refactor_atlas(::llc::ATestError & results, ::llc::vcst_t) {
 	cnst ::llc::vcst_t patch =
 		"diff --git a/llc/llc_ref.h b/llc/llc_ref.h\n"
 		"--- a/llc/llc_ref.h\n"

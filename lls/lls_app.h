@@ -57,6 +57,10 @@ llc::err_t llsProcess(SApplication & app, llc::u2_t job, llc::vcst_t application
 
 llc::err_t llsSession(cnst llc::SJSONReader & reader, SApplication & app, llc::string & body);
 llc::err_t llsFailures(cnst llc::SJSONReader & reader, SApplication & app, llc::string & body);
+llc::err_t llsJobSummary(cnst SBuildJob & job, llc::string & summary);
+#ifdef _DEBUG
+llc::err_t llsJobSummaryTest();
+#endif
 llc::err_t llsJobJSON(cnst SBuildJob & job, llc::string & json);
 llc::err_t llsHistoryLoad(SApplication & app);
 llc::err_t llsHistorySave(SApplication & app, cnst SBuildJob & job);
