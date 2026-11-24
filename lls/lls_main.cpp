@@ -15,6 +15,12 @@
 #include "../lcp/lcp_text.h"
 #include "../lcp/lcp_identity.h"
 
+#ifdef LLC_WINDOWS
+stxp bool LLS_PROCESS_EXIT_KNOWN = false;
+#else
+stxp bool LLS_PROCESS_EXIT_KNOWN = true;
+#endif
+
 #if defined(LLC_WINDOWS) && !defined(LLC_AVOID_LOCAL_APPLICATION_MODEL_EXECUTABLE_RUNTIME)
 #include <process.h>
 LLC_DEFINE_APPLICATION_ENTRY_POINT_MT(SApplication, "LT4 Limb System");
@@ -26,8 +32,8 @@ sttc	::llc::err_t	llsWrite			(::llc::vcst_t message, FILE * stream = stdout) {
 	if_zero_vw(0, message.size());
 	sttc ::llc::mutex lock;
 	::llc::lock_guard guard(lock);
-	if_true_ve(::llc::OS_ERROR, message.size() != fwrite(message.begin(), 1, message.size(), stream));
-	if_true_ve(::llc::OS_ERROR, fflush(stream));
+	if_true_ve(-1, message.size() != fwrite(message.begin(), 1, message.size(), stream));
+	if_true_ve(-1, fflush(stream));
 	if(stream == stdout) { if_fail_fe(lcpMetricsRecord(COMMUNICATION_CHANNEL::Stdio, false, message)); }
 	rtrn message.size();
 }
@@ -56,12 +62,12 @@ sttc llc::err_t llsStatus(cnst llc::SJSONReader & reader, llc::err_t id, SApplic
 				"\"}],\"structuredContent\":{\"id\":", job.Id, ",\"state\":\"", job.State, "\",\"elapsedMs\":", llc::str(timer.LastTimeMicroseconds / 1000),
 				",\"status\":"));
 			if(completed) { if_fail_fe(llc::append_strings(body, llc::str(job.Result.Status))); }
-			else { if_fail_fe(body.append_string("null")); }
-			if_fail_fe(body.append_string(",\"exitCode\":"));
+			else { if_fail_fe(::llc::append_string(body, "null")); }
+			if_fail_fe(::llc::append_string(body, ",\"exitCode\":"));
 			if(completed && job.Result.ExitKnown) { if_fail_fe(llc::append_strings(body, llc::str(job.Result.ExitCode))); }
-			else { if_fail_fe(body.append_string("null")); }
+			else { if_fail_fe(::llc::append_string(body, "null")); }
 			if_fail_fe(llc::append_strings(body, ",\"pid\":", llc::str(job.PID), ",\"outputBytes\":", llc::str(job.Output.size())));
-			if_fail_fe(body.append_string("},\"isError\":false}"));
+			if_fail_fe(::llc::append_string(body, "},\"isError\":false}"));
 			break;
 		}
 	}
@@ -78,9 +84,9 @@ sttc	::llc::err_t	llsToolCall			(cnst ::llc::SJSONReader & reader, SBuildResult 
 		llc::SPathTree tree;
 		if(name == "tree") { if_fail_fe(lcpTreeCall(reader, body, tree)); }
 		else {
-			if_fail_fe(lcpShellCall(reader, body, name, [&](llc::vcst_t command, llc::vcu0_t input, llc::au0_t & output, llc::u2_t & exitCode) -> llc::err_t {
-				cnst llc::err_t status = llsProcess(app, jobIndex, {}, command, true, output, exitCode, input);
-				outcome = {status, exitCode, llc::succeeded(status)};
+				if_fail_fe(lcpShellCall(reader, body, name, [&](llc::vcst_t application, llc::vcst_t command, llc::vcu0_t input, llc::au0_t & output, llc::u2_t & exitCode) -> llc::err_t {
+					cnst llc::err_t status = llsProcess(app, jobIndex, application, command, true, output, exitCode, input);
+					outcome = {status, exitCode, LLS_PROCESS_EXIT_KNOWN && llc::succeeded(status)};
 				rtrn status;
 			}));
 		}
@@ -100,7 +106,7 @@ sttc	::llc::err_t	llsToolCall			(cnst ::llc::SJSONReader & reader, SBuildResult 
 	::llc::au0_t output = {};
 	::llc::u2_t exitCode = 0;
 	cnst llc::err_t status = llsProcess(app, jobIndex, msbuild, command, build, output, exitCode);
-	outcome = {status, exitCode, build && llc::succeeded(status)};
+	outcome = {status, exitCode, LLS_PROCESS_EXIT_KNOWN && build && llc::succeeded(status)};
 	llc::string text;
 	if_fail_fe(lcpVSBuildSummary({(cnst char*)output.begin(), output.size()}, status, exitCode, text));
 	if_fail_fe(lcpTextBody(result, text, llc::failed(status) || exitCode != 0));
@@ -123,15 +129,15 @@ sttc	::llc::err_t	llsRequest			(::llc::SJSONReader & reader, ::llc::vcst_t reque
 	llc::vcst_t tool;
 	if(method == "tools/call") llc::jsonExpressionResolve("params.name", reader, 0, tool);
 	if(app && tool != "session") { llc::lock_guard guard(app->Lock); ++app->Requests; }
-	if("server/discover" == method)
+	if(method == "server/discover")
 		rtrn ::llsRespond(reader, id, "\"result\":{\"resultType\":\"complete\",\"supportedVersions\":[\"2026-07-28\"],\"capabilities\":{\"tools\":{}},\"_meta\":{\"io.modelcontextprotocol/serverInfo\":{\"name\":\"lls\",\"version\":\"0.1.0\"}},\"instructions\":\"Use help path vs for build, launch, list, ping, close and restart. Use forward slashes in paths.\",\"ttlMs\":3600000,\"cacheScope\":\"public\"}", peer);
-	if("initialize" == method)
+	if(method == "initialize")
 		rtrn ::llsRespond(reader, id, "\"result\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{\"tools\":{}},\"serverInfo\":{\"name\":\"lls\",\"version\":\"0.1.0\"},\"instructions\":\"Use vs list to select an IDE instance. Launch requires solution, project and configuration. Supply MSBuild for builds or devenv for a new IDE.\"}", peer);
-	if("ping" == method)
+	if(method == "ping")
 		rtrn ::llsRespond(reader, id, "\"result\":{\"resultType\":\"complete\"}", peer);
-	if("tools/list" == method)
+	if(method == "tools/list")
 		rtrn ::llsRespond(reader, id, lcpTools(), peer);
-	if("tools/call" == method) {
+	if(method == "tools/call") {
 		llc::vcst_t name;
 		if_fail_fe(llc::jsonExpressionResolve("params.name", reader, 0, name));
 		if(name == "session" && app) {
@@ -292,7 +298,7 @@ sttc	::llc::err_t	llsRequest			(::llc::SJSONReader & reader, ::llc::vcst_t reque
 		}
 		if(read == 4095) rtrn 0;
 	}
-	if_true_ve(::llc::OS_ERROR, ferror(stdin));
+	if_true_ve(-1, ferror(stdin));
 	app.InputClosed = true;
 	if(app.Request.size()) {
 		if_fail_fe(lcpMetricsRecord(COMMUNICATION_CHANNEL::Stdio, true, app.Request));

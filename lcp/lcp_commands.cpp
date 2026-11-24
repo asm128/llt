@@ -5,7 +5,8 @@
 #include "lcp_vs.h"
 #include "lcp_service.h"
 #include "lcp_text.h"
-#include "llc_process.h"
+#include "llc_process_broker.h"
+#include "llc_args.h"
 #include "llc_path.h"
 #include "llc_file.h"
 #include "llc_cstdio.h"
@@ -154,7 +155,7 @@ llc::err_t lcpShellCall(cnst llc::SJSONReader & reader, llc::string & body, llc:
 	}
 	if(elevated && shell == "wsl")
 		rtrn lcpTextBody(body, "WSL uses its configured Linux user; Windows elevation is not supported for this tool.", true);
-	llc::string application = shell == "cmd" ? "cmd.exe" : shell == "powershell" ? "powershell.exe" : "wsl.exe";
+	llc::string application = ::llc::vcst_t{shell == "cmd" ? "cmd.exe" : shell == "powershell" ? "powershell.exe" : "wsl.exe", (::llc::u2_t)-1};
 	llc::string arguments, input, command, result;
 	if(shell == "cmd") {
 		if_fail_fe(llc::append_strings(arguments, "/D /S /C \"", script, '"'));
@@ -188,21 +189,31 @@ llc::err_t lcpShellCall(cnst llc::SJSONReader & reader, llc::string & body, llc:
 		rtrn lcpTextBody(body, result, true);
 	}
 	if_fail_fe(llc::append_strings(command, application, ' ', arguments));
+	llc::sc_t applicationPath[32768] = {};
+	cnst DWORD applicationPathLength = SearchPathA(0, application.begin(), 0, llc::size(applicationPath), applicationPath, 0);
+	if_true_fe(!applicationPathLength || applicationPathLength >= llc::size(applicationPath));
+	cnst llc::vcst_t resolvedApplication = {applicationPath, applicationPathLength};
 	llc::au0_t output;
 	llc::u2_t exitCode = 0;
-	llc::SProcessManager processes;
 	llc::err_t status;
 	cnst llc::vcu0_t stdinBytes = {(cnst llc::u0_t*)input.begin(), input.size()};
 	if(execute)
-		status = execute(command, stdinBytes, output, exitCode);
+		status = execute(resolvedApplication, command, stdinBytes, output, exitCode);
 	else {
-		cnst llc::err_t process = processes.Create({}, command, {}, CREATE_NO_WINDOW);
-		if(llc::failed(process)) status = process;
-		else {
-			if_fail_fe(lcpMetricsRecord(COMMUNICATION_CHANNEL::Process, false, stdinBytes));
-			status = processes.Execute((llc::u2_t)process, stdinBytes, output, exitCode);
-			if_fail_fe(lcpMetricsRecord(COMMUNICATION_CHANNEL::Process, true, output));
-		}
+		llc::SProcessBrokerJob process;
+		process.CommandLineApp = resolvedApplication;
+		process.CommandLine = command;
+		llc::as0_t environment;
+		llc::aobj<llc::vcst_t> environmentViews;
+		if_fail_fe(llc::viewsFromEnvp(environmentViews, environ));
+		if_fail_fe(llc::environmentBlock(environment, environmentViews));
+		if_fail_fe(process.Request.append((cnst llc::u0_t*)environment.begin(), environment.size()));
+		if_fail_fe(process.Request.append(stdinBytes));
+		if_fail_fe(lcpMetricsRecord(COMMUNICATION_CHANNEL::Process, false, stdinBytes));
+		status = llc::processBrokerRun(process);
+		if_fail_fe(output.append(process.Response));
+		if_fail_fe(output.append(process.ErrorOutput));
+		if_fail_fe(lcpMetricsRecord(COMMUNICATION_CHANNEL::Process, true, output));
 	}
 	if_fail_fe(llc::append_strings(result, "status ", llc::str(status), ", exit code ", llc::str(exitCode), '\n', llc::vcst_t{(cnst llc::sc_t*)output.begin(), output.size()}));
 	rtrn lcpTextBody(body, result, llc::failed(status) || exitCode != 0);
