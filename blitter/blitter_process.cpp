@@ -6,6 +6,8 @@
 #include "llc_view_bit.h"
 #include "llc_bit.h"
 #include "llc_chrono.h"
+#include "llc_json_expression.h"
+#include "llc_array_static.h"
 
 LLC_USING_TYPEINT();
 
@@ -144,6 +146,55 @@ static	::llc::err_t	queryGetDetail
 		}
 	}
 	return 0;
+}
+
+static ::llc::err_t querySearch
+	( ::llc::SLoadCache & loadCache
+	, ::blt::TNamedBlitterDB & namedDatabase
+	, ::llc::vcst_t folder
+	, ::llc::vcst_t searchText
+	, ::llc::string & output
+	) {
+	::blt::SDatabase & database = namedDatabase.Val;
+	if_true_fef(0 == database.SearchFormat.size(), "Search format missing for database '%.*s'.", LLC_VIEW_ARGS(namedDatabase.Key));
+	if(false == database.SearchReady) {
+		if_fail_fe(database.SearchWords.clear());
+		::llc::SWordDictData workspace = {};
+		::llc::asc_t formatted = {};
+		if(0 == database.BlockSize)
+			if_fail_fe(::blt::tableFileLoad(loadCache, namedDatabase, folder));
+		for(::llc::u2_t iDisk = 0; iDisk < database.BlocksOnDisk.size(); ++iDisk) {
+			const ::llc::u2_t blockId = database.BlocksOnDisk[iDisk];
+			const ::llc::err_t iBlock = database.BlockSize
+				? ::blt::blockFileLoad(loadCache, namedDatabase, folder, blockId)
+				: ::blt::tableFileLoad(loadCache, namedDatabase, folder);
+			if_fail_fe(iBlock);
+			const ::llc::SJSONReader & reader = database.Blocks[iBlock]->Reader;
+			const ::llc::err_t recordCount = ::llc::jsonArraySize(*reader[0]);
+			if_fail_fe(recordCount);
+			auto project = [&](::llc::u2_t iRecord, ::llc::u2_t & itemIndex, ::llc::aobj<::llc::vcst_t> & words) -> ::llc::err_t {
+				if_fail_fe(formatted.clear());
+				const ::llc::err_t iNode = ::llc::jsonArrayValueGet(*reader[0], iRecord);
+				if_fail_fe(iNode);
+				if_fail_fe(::llc::jsonStringFormat(database.SearchFormat, reader, iNode, formatted));
+				itemIndex = database.BlockSize ? blockId * database.BlockSize + iRecord : iRecord;
+				rtrn ::llc::split(::llc::vcst_t{formatted.begin(), formatted.size()}, ' ', words);
+			};
+			if_fail_fe(::llc::getWordDict(workspace, database.SearchWords, recordCount, project));
+			database.SearchItemCount = ::llc::max(database.SearchItemCount, database.BlockSize ? blockId * database.BlockSize + (::llc::u2_t)recordCount : (::llc::u2_t)recordCount);
+		}
+		database.SearchReady = true;
+	}
+	::llc::au2_t indices = {};
+	if_fail_fe(::llc::wordDictResolve(database.SearchWords, searchText, database.SearchItemCount, indices));
+	if_fail_fe(output.push_back('['));
+	for(::llc::u2_t i = 0; i < indices.size(); ++i) {
+		if(i && ::llc::failed(output.push_back(',')))
+			rtrn -1;
+		if_fail_fe(::llc::append_strings(output, ::llc::str(indices[i])));
+	}
+	if_fail_fe(output.push_back(']'));
+	rtrn indices.size();
 }
 
 static	::llc::err_t	fillEmptyBlocks				(const ::llc::vcst_t & emptyBlockData, const u2_t  emptyBlocks, bool appendComma, ::llc::string & output)	{
@@ -387,6 +438,11 @@ s3_t											blt::queryProcess
 					: ::queryGetRange	(loadCache, expressionReader, databases, iDB, query, output, folder, 0)
 					;
 		}
+	}
+	else if(query.Command == ::llc::vcst_t{"search"}) {
+		for(u2_t iDB = 0; iDB < databases.size(); ++iDB)
+			if(query.Database == databases[iDB].Key)
+				rtrn ::querySearch(loadCache, databases[iDB], folder, query.SearchText, output);
 	}
 	else if(query.Command == ::llc::vcst_t{"model"}) {
 		for(u2_t  iDB = 0; iDB < databases.size(); ++iDB) {
