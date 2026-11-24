@@ -18,7 +18,7 @@ stct SNNLog {
  int FileError = 0;
  bool Alert = false, Armed = false, Installed = false;
  bool ErrorBody = false;
- ::llc::astchar<4096> LastError = {};
+ ::llc::astsc_t<4096> LastError = {};
  ::llc::log_print_t PreviousPrint = {};
  ::llc::log_write_t PreviousWrite = {};
  ~SNNLog();

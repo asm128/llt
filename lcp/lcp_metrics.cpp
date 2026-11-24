@@ -52,7 +52,7 @@ llc::err_t update(SCommunicationMetrics & metrics, COMMUNICATION_CHANNEL channel
 llc::err_t lcpMetricsStart(SCommunicationMetrics & metrics, llc::vcst_t owner, llc::u3_t session) {
 	if_true_fe(metrics.Installed || Active);
 #ifdef LLC_WINDOWS
-	if(!CreateDirectoryA("lls_logs", 0) && GetLastError() != ERROR_ALREADY_EXISTS) rtrn llc::OS_ERROR;
+	if(!CreateDirectoryA("lls_logs", 0) && GetLastError() != ERROR_ALREADY_EXISTS) rtrn -1;
 #endif
 	llc::string relative;
 	if_fail_fe(llc::append_strings(relative, "lls_logs/", owner, '_', llc::str(session), ".communications.log"));
