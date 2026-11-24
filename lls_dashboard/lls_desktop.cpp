@@ -98,12 +98,12 @@ llc::err_t llsDesktopStart() {
 	// One dashboard per build in this Windows session; service ownership is separate.
 	// Access denied is an error, never permission to start a duplicate dashboard.
 	Desktop.Activate = CreateEventA(0, FALSE, FALSE, ActivateName);
-	if_null_ve(llc::OS_ERROR, Desktop.Activate);
+	if_null_ve(-1, Desktop.Activate);
 	Desktop.Instance = CreateMutexA(0, FALSE, Control.Instance);
 	cnst DWORD status = GetLastError();
-	if_null_ve(llc::OS_ERROR, Desktop.Instance);
+	if_null_ve(-1, Desktop.Instance);
 	if(status == ERROR_ALREADY_EXISTS) {
-		if_zero_ve(llc::OS_ERROR, SetEvent(Desktop.Activate));
+		if_zero_ve(-1, SetEvent(Desktop.Activate));
 		rtrn 1;
 	}
 	rtrn 0;
@@ -112,9 +112,9 @@ llc::err_t llsDesktopStart() {
 llc::err_t llsDesktopAttach(SApplication & app) {
 	HWND window = (*app.UI).Framework.RootWindow.PlatformDetail.WindowHandle;
 	SetWindowTextA(window, WindowTitle);
-	if_zero_ve(llc::OS_ERROR, SetPropA(window, AppProperty, &app));
+	if_zero_ve(-1, SetPropA(window, AppProperty, &app));
 	Desktop.Previous = (WNDPROC)SetWindowLongPtrA(window, GWLP_WNDPROC, (LONG_PTR)desktopWindow);
-	if_null_ve(llc::OS_ERROR, Desktop.Previous);
+	if_null_ve(-1, Desktop.Previous);
 	Desktop.TaskbarCreated = RegisterWindowMessageA("TaskbarCreated");
 	Desktop.Icon.hWnd = window;
 	Desktop.Icon.uID = 1;
@@ -123,15 +123,15 @@ llc::err_t llsDesktopAttach(SApplication & app) {
 	Desktop.Icon.hIcon = LoadIconA(0, IDI_APPLICATION);
 	lstrcpynA(Desktop.Icon.szTip, WindowTitle, sizeof(Desktop.Icon.szTip));
 	Desktop.Added = Shell_NotifyIconA(NIM_ADD, &Desktop.Icon) != FALSE;
-	if_zero_ve(llc::OS_ERROR, Desktop.Added);
+	if_zero_ve(-1, Desktop.Added);
 	Desktop.Shutdown = RegisterWindowMessageA("LT4.Dashboard.Quit.v1");
-	if_zero_ve(llc::OS_ERROR, Desktop.Shutdown);
+	if_zero_ve(-1, Desktop.Shutdown);
 	rtrn 0;
 }
 
 llc::err_t llsDesktopUpdate(SApplication & app) {
 	if(!Desktop.Published) {
-		if_zero_ve(llc::OS_ERROR, SetPropA((*app.UI).Framework.RootWindow.PlatformDetail.WindowHandle, Control.Window, (HANDLE)1));
+		if_zero_ve(-1, SetPropA((*app.UI).Framework.RootWindow.PlatformDetail.WindowHandle, Control.Window, (HANDLE)1));
 		Desktop.Published = true;
 	}
 	if(WaitForSingleObject(Desktop.Activate, 0) == WAIT_OBJECT_0)
