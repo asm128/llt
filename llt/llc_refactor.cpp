@@ -1,3 +1,5 @@
+#include <cctype>
+#include "llc_string_compose.h"
 #include "llc_refactor.h"
 #include "llc_minmax.h"
 #include <cstring>
@@ -38,7 +40,7 @@ namespace {
 	}
 
 	::llc::err_t appendLine(::llc::string & output, ::llc::vcst_t line) {
-		if_fail_fe(output.append_string(line));
+		if_fail_fe(::llc::append_string(output, line));
 		rtrn output.push_back('\n');
 	}
 
@@ -48,7 +50,7 @@ namespace {
 
 	::llc::err_t appendToken(::llc::string & output, ::llc::vcst_t token) {
 		if(output.size()) if_fail_fe(output.push_back(' '));
-		rtrn output.append_string(token);
+		rtrn ::llc::append_string(output, token);
 	}
 }
 
@@ -102,7 +104,7 @@ namespace {
 			if_fail_fe(appendToken(output, {code.begin() + begin, i - begin}));
 			continue;
 		}
-		if(digit(current)) {
+		if(::std::isdigit(static_cast<unsigned char>(current))) {
 			++i; while(i < code.size() && (identifierPart(code[i]) || code[i] == '.' || code[i] == '\'')) ++i;
 			if_fail_fe(appendToken(output, "<number>"));
 			continue;

@@ -1,3 +1,4 @@
+#include "llc_string_compose.h"
 #include "llc_app_impl.h"
 #include "dashboard_app.h"
 #include "../lcp/lcp_help.h"
@@ -132,7 +133,7 @@ llc::err_t llsCommandQueue(SApplication & app, llc::vcst_t command) {
 	if_fail_fe(app.CommandRequest.clear());
 	if_fail_fe(app.CommandRequest.append(request));
 	if_fail_fe(app.CommandResponse.clear());
-	if_fail_fe(app.CommandResponse.append_string("Sending..."));
+	if_fail_fe(::llc::append_string(app.CommandResponse, "Sending..."));
 	app.CommandPending = true;
 	++app.Revision;
 	rtrn 0;
@@ -148,14 +149,14 @@ llc::err_t llsServiceQueue(SApplication & app, llc::vcst_t action, llc::vcst_t e
 	if_fail_fe(app.ServiceExecutable.clear());
 	if_fail_fe(app.ServiceExecutable.append(executable));
 	if_fail_fe(app.ServiceResponse.clear());
-	if_fail_fe(app.ServiceResponse.append_string(action == "shutdown" ? "Stopping LLS..." : "Starting LLS..."));
+	if_fail_fe(::llc::append_string(app.ServiceResponse, action == "shutdown" ? "Stopping LLS..." : "Starting LLS..."));
 	app.ServiceCommandPending = true;
 	++app.Revision;
 	rtrn 0;
 }
 
 sttc llc::err_t dashboardCommandResult(llc::err_t called, llc::vcst_t response, llc::string & output) {
-	if(llc::failed(called)) rtrn output.append_string("Command transport failed.");
+	if(llc::failed(called)) rtrn ::llc::append_string(output, "Command transport failed.");
 	llc::SJSONReader reader;
 	if_fail_fe(llc::jsonParse(reader, response, llc::JSON_PARSE_STRICT));
 	rtrn output.append(response);
@@ -310,7 +311,7 @@ llc::err_t draw(SApplication & app) {
 		cnst llc::err_t called = relayCall(app.Peer, app.Service == "Debug", command, response, 1800000);
 		cnst llc::err_t parsed = dashboardCommandResult(called, response, result);
 		if(llc::failed(called)) { if_fail_e(relayClose(app.Peer)); }
-		if(llc::failed(parsed) && !result.size()) { if_fail_fe(result.append_string("Invalid command response.")); }
+		if(llc::failed(parsed) && !result.size()) { if_fail_fe(::llc::append_string(result, "Invalid command response.")); }
 		{
 			llc::lock_guard guard(app.Lock);
 			if_fail_fe(app.CommandResponse.clear());
@@ -331,7 +332,7 @@ llc::err_t draw(SApplication & app) {
 		if_fail_e(relayClose(app.Peer));
 		llc::lock_guard guard(app.Lock);
 		app.Connected = false;
-		app.Connection = llc::failed(called) ? "OFFLINE - last snapshot is stale" : "INVALID SNAPSHOT - last data is stale";
+		app.Connection = ::llc::vcst_t{llc::failed(called) ? "OFFLINE - last snapshot is stale" : "INVALID SNAPSHOT - last data is stale", (::llc::u2_t)-1};
 		++app.Revision;
 	}
 	app.NextPoll = llc::timeCurrentInUs() + 1000000;

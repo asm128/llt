@@ -1,3 +1,4 @@
+#include "llc_string_compose.h"
 #include "lcp_vs.h"
 #include "lcp_metrics.h"
 #include "lcp_text.h"
@@ -85,7 +86,7 @@ llc::err_t buildDiagnosticCallsite(llc::vcst_t location, llc::vcst_t reason, llc
 		if(separator >= 0) location = {location.begin() + separator + 1, location.size() - (llc::u2_t)(separator + 1)};
 	}
 	if_fail_fe(summary.append(location));
-	if_fail_fe(summary.append_string(": "));
+	if_fail_fe(::llc::append_string(summary, ": "));
 	rtrn summary.append(reason);
 }
 
@@ -129,7 +130,7 @@ llc::err_t buildDiagnosticFind(llc::vcst_t output, bool located, llc::string & s
 
 llc::err_t lcpVSBuildSummary(llc::vcst_t output, llc::err_t status, llc::u2_t exitCode, llc::string & summary) {
 	if_fail_fe(summary.clear());
-	if(llc::succeeded(status) && !exitCode) rtrn summary.append_string("Build succeeded.");
+	if(llc::succeeded(status) && !exitCode) rtrn ::llc::append_string(summary, "Build succeeded.");
 	if_fail_fe(buildDiagnosticFind(output, true, summary));
 	if(!summary.size()) { if_fail_fe(buildDiagnosticFind(output, false, summary)); }
 	if(!summary.size()) { if_fail_fe(llc::append_strings(summary, "Build failed (", llc::str(status), "/", llc::str(exitCode), ").")); }
@@ -306,7 +307,7 @@ err_t state(SInstance & instance, string & output) {
 	}
 	if_fail_fe(append_strings(output, "{\"instance\":", str(instance.PID), ",\"solution\":"));
 	if_fail_fe(lcpJSONString(output, solutionPath));
-	if_fail_fe(output.append_string(",\"configuration\":"));
+	if_fail_fe(::llc::append_string(output, ",\"configuration\":"));
 	string configuration;
 	if(name.size()) { if_fail_fe(append_strings(configuration, name, '|', platform)); }
 	if_fail_fe(lcpJSONString(output, configuration));
@@ -317,17 +318,17 @@ err_t idle(IDispatch * dte) {
 	_variant_t mode, building;
 	if_fail_fe(child(dte, L"Debugger", debugger));
 	if_fail_fe(get(debugger, L"CurrentMode", mode));
-	if_true_vef(OS_BUSY, (long)mode != 1, "%s", "IDE is debugging; stop it explicitly first.");
+	if_true_vef(-1, (long)mode != 1, "%s", "IDE is debugging; stop it explicitly first.");
 	if_fail_fe(child(dte, L"Solution", solution));
 	if_fail_fe(child(solution, L"SolutionBuild", build));
 	if_fail_fe(get(build, L"BuildState", building));
-	if_true_vef(OS_BUSY, (long)building == 2, "%s", "IDE is building.");
+	if_true_vef(-1, (long)building == 2, "%s", "IDE is building.");
 	rtrn 0;
 }
 err_t saved(IDispatch * object) {
 	_variant_t value;
 	if_fail_fe(get(object, L"Saved", value));
-	if_true_vef(OS_BUSY, !(bool)value, "%s", "Unsaved work; save or discard it in Visual Studio first.");
+	if_true_vef(-1, !(bool)value, "%s", "Unsaved work; save or discard it in Visual Studio first.");
 	rtrn 0;
 }
 err_t cleanProject(IDispatch * project);
@@ -407,7 +408,7 @@ err_t launch(IDispatch * dte, cnst SJSONReader & reader) {
 	if_fail_fe(child(dte, L"Solution", solution));
 	if_fail_fe(propertyText(solution, L"FullName", actualSolution));
 	for(u2_t i = 0; i < requestedSolution.size(); ++i) if(requestedSolution[i] == '/') requestedSolution[i] = '\\';
-	if_true_vef(OS_INVALID_PARAMETER, _stricmp(requestedSolution.begin(), actualSolution.begin()) != 0, "%s", "Selected IDE has another solution open.");
+	if_true_vef(-1, _stricmp(requestedSolution.begin(), actualSolution.begin()) != 0, "%s", "Selected IDE has another solution open.");
 	if_fail_fe(child(solution, L"SolutionBuild", build));
 	if_fail_fe(child(build, L"SolutionConfigurations", configs));
 	_variant_t count;
@@ -421,7 +422,7 @@ err_t launch(IDispatch * dte, cnst SJSONReader & reader) {
 		if_fail_fe(append_strings(full, name, '|', platform));
 		if(full == configuration) selected = config;
 	}
-	if_null_vef(OS_NOT_FOUND, selected.get(), "%s", "Solution configuration not found.");
+	if_null_vef(-1, selected.get(), "%s", "Solution configuration not found.");
 	if_fail_fe(child(solution, L"Projects", projects));
 	if_fail_fe(get(projects, L"Count", count));
 	string projectName;
@@ -431,7 +432,7 @@ err_t launch(IDispatch * dte, cnst SJSONReader & reader) {
 		if_fail_fe(item(projects, i, project));
 		if_fail_fe(findProject(project, wanted, projectName, matches));
 	}
-	if_true_vef(OS_NOT_FOUND, matches != 1, "%s", "Project must match exactly one name or UniqueName.");
+	if_true_vef(-1, matches != 1, "%s", "Project must match exactly one name or UniqueName.");
 	_variant_t result, projectValue, startup;
 	if_fail_fe(wide(projectName, projectValue));
 	startup.vt = VT_ARRAY | VT_BSTR;
@@ -525,20 +526,20 @@ err_t automation(cnst SJSONReader & reader, vcst_t action, string & text) {
 			if_fail_fe(propertyText(solution, L"FullName", solutionPath));
 			if_fail_fe(propertyText(instance.DTE, L"FullName", executable));
 			HANDLE process = OpenProcess(SYNCHRONIZE, FALSE, instance.PID);
-			if_null_ve(OS_ERROR, process);
+			if_null_ve(-1, process);
 			cnst err_t closed = safeClose(instance.DTE);
 			instance.DTE.clear();
 			solution.clear();
 			cnst DWORD waited = succeeded(closed) ? WaitForSingleObject(process, 15000) : WAIT_FAILED;
 			CloseHandle(process);
 			if_fail_fe(closed);
-			if_true_vef(OS_BUSY, waited != WAIT_OBJECT_0, "%s", "IDE has not exited; no second instance was started.");
+			if_true_vef(-1, waited != WAIT_OBJECT_0, "%s", "IDE has not exited; no second instance was started.");
 			u2_t newPID = 0;
 			if_fail_fe(startIDE(executable, solutionPath, newPID));
 			rtrn append_strings(text, "IDE restarted; new instance ", str(newPID), ". Solution reopening; list/ping for readiness. No application was launched.");
 		}
 	}
-	rtrn OS_NOT_FOUND;
+	rtrn -1;
 }
 }
 #endif
@@ -547,7 +548,7 @@ llc::err_t lcpVSCall(cnst llc::SJSONReader & reader, llc::string & body, llc::er
 	llc::vcst_t action;
 	if_fail_fe(llc::jsonExpressionResolve("params.arguments.action", reader, 0, action));
 	if(action != "build" && action != "launch" && action != "run" && action != "list" && action != "ping" && action != "close" && action != "restart") {
-		if(operationStatus) *operationStatus = llc::OS_INVALID_PARAMETER;
+		if(operationStatus) *operationStatus = -1;
 		rtrn lcpTextBody(body, "Unknown vs action. Open help: vs.", true);
 	}
 	llc::string text;

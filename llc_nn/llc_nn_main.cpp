@@ -33,15 +33,15 @@ stct SSampleSlider {
 	::llc::s3_t		ValueStep	= 1;
 	::llc::s3_t		ValuePage	= 10;
 	bool			Vertical	= false;
-	::llc::astchar<64>	ValueText	= {};
+	::llc::astsc_t<64>	ValueText	= {};
 };
 
 
-stacxpr ::llc::u0_t SAMPLE_GUI_THEME_COUNT = 3;
-stacxpr ::llc::u0_t PALETTE_SHADE_COUNT = 16;
+stxp ::llc::u0_t SAMPLE_GUI_THEME_COUNT = 3;
+stxp ::llc::u0_t PALETTE_SHADE_COUNT = 16;
 
 sttc ::llc::SColorBGRA sampleGUIThemeColor(::llc::u0_t theme) nxpt {
-	stacxpr ::llc::SColorBGRA colors[SAMPLE_GUI_THEME_COUNT] =
+	stxp ::llc::SColorBGRA colors[SAMPLE_GUI_THEME_COUNT] =
 		{ {248, 208,  72}
 		, { 32, 176, 248}
 		, {232, 232, 232}
@@ -64,12 +64,12 @@ sttc ::llc::SColorBGRA sampleGUIDesaturate(::llc::SColorBGRA color) nxpt {
 }
 
 sttc ::llc::u0_t sampleGUIStateShade(::llc::u0_t state) nxpt {
-	stacxpr ::llc::u0_t shades[::llc::GUI_CONTROL_PALETTE_COUNT] = {8, 10, 5, 11, 4, 7, 2, 7, 1, 13};
+	stxp ::llc::u0_t shades[::llc::GUI_CONTROL_PALETTE_COUNT] = {8, 10, 5, 11, 4, 7, 2, 7, 1, 13};
 	rtrn shades[state % ::llc::GUI_CONTROL_PALETTE_COUNT];
 }
 
 sttc ::llc::u0_t sampleGUIStateBorderOffset(::llc::u0_t state) nxpt {
-	stacxpr ::llc::u0_t offsets[::llc::GUI_CONTROL_PALETTE_COUNT] = {5, 1, 7, 3, 0, 1, 7, 3, 5, 5};
+	stxp ::llc::u0_t offsets[::llc::GUI_CONTROL_PALETTE_COUNT] = {5, 1, 7, 3, 0, 1, 7, 3, 5, 5};
 	rtrn offsets[state % ::llc::GUI_CONTROL_PALETTE_COUNT];
 }
 
@@ -301,11 +301,11 @@ stct SNNSession {
  ::llc::u2_t DisplayLayout = 0; // Native, strip, square: presentation only, never connectivity.
  SSampleCheckBox AutoScale = {};
  ::llc::img8bgra TraceImage = {};
- ::llc::astchar<256> StatusText = {};
+ ::llc::astsc_t<256> StatusText = {};
  ::llc::n2s1_t LastSize = {};
  bool Running = false;
  ::llc::u3_t LastImagePass = 0;
- ::llc::astchar<160> ImageMessage = {};
+ ::llc::astsc_t<160> ImageMessage = {};
 };
 
 stct SApplication {
@@ -314,7 +314,7 @@ stct SApplication {
  ::llc::astatic<SNNSession, ::llc::NN_COUNT> Sessions = {};
  ::llc::astatic<::llc::SViewport, ::llc::NN_COUNT * NN_PANES + 1> Viewports = {};
  ::llc::astatic<::llc::img8bgra, ::llc::NN_COUNT * NN_PANES> Images = {};
- ::llc::astatic<::llc::astchar<256>, ::llc::NN_COUNT * NN_PANES> Details = {}, Captions = {};
+ ::llc::astatic<::llc::astsc_t<256>, ::llc::NN_COUNT * NN_PANES> Details = {}, Captions = {};
  ::llc::astatic<::llc::cid_t, ::llc::NN_COUNT> Choices = {};
  ::llc::cid_t Desktop = -1, Title = -1, Exit = -1, Restore = -1, Save = -1;
  ::llc::n2u1_t LastSize = {};
@@ -324,8 +324,8 @@ stct SApplication {
  ::llc::cid_t Logs = -1, LogHeader = -1, LogPrevious = -1, LogNext = -1, LogLive = -1;
  ::llc::astatic<::llc::cid_t, 32> LogRows = {};
  ::llc::astatic<::llc::cid_t, 5> LogErrorRows = {};
- ::llc::astchar<65537> LogSnapshot = {};
- ::llc::astchar<256> LogHeaderText = {};
+ ::llc::astsc_t<65537> LogSnapshot = {};
+ ::llc::astsc_t<256> LogHeaderText = {};
  ::llc::au2_t LogLines;
  ::llc::u2_t LogPage = 0;
  ::llc::u3_t LogRevision = ~::llc::u3_t(0);
@@ -334,7 +334,7 @@ stct SApplication {
  SApplication(::llc::SRuntimeValues & runtime) : Framework(runtime, {}) {}
 };
 
-stacxpr ::llc::u2_t NN_LOG_VIEW = ::llc::NN_COUNT * NN_PANES;
+stxp ::llc::u2_t NN_LOG_VIEW = ::llc::NN_COUNT * NN_PANES;
 #if defined(_DEBUG)
 sttc ::llc::err_t nnVerifyLog(SApplication & app);
 #endif
@@ -533,7 +533,7 @@ sttc ::llc::err_t nnShowNetwork(SApplication & app, ::llc::u2_t n, bool show) {
  auto & window = app.Framework.RootWindow;
  auto & gui = *app.Framework.GUI;
  window.Size = {1600, 960};
- if_null_ve(::llc::OS_NO_MEMORY, window.BackBuffer.create());
+ if_null_ve(-1, window.BackBuffer.create());
  if_fail_fe(window.BackBuffer->resize(window.Size.u2()));
  if_fail_fe(::llc::mainWindowCreate(window, app.Framework.RuntimeValues.PlatformDetail, window.Input));
  if_fail_fe(::sampleGUIResourcesCreate(gui));
@@ -758,7 +758,7 @@ sttc ::llc::err_t nnVerifyLog(SApplication & app) {
  const auto original = session.Network.Painter->Source.metrics();
  const auto samples = session.Network.Painter->Samples;
  // A uniquely named fixture is removed after use; never overwrite a user's source image.
- ::llc::astchar<128> fixture = {};
+ ::llc::astsc_t<128> fixture = {};
  if_fail_fe(::llc::sprintf_s(fixture.Storage, "NN_LOG_TEST_%llu.png", ::llc::timeCurrentInMs()));
  ::llc::astatic<::llc::u0_t, 24> invalid = {};
  if_fail_fe(::llc::fileFromMemory(fixture.Storage, ::llc::vcu0_t{invalid.begin(), invalid.size()}));
@@ -780,7 +780,7 @@ sttc ::llc::err_t nnVerifyLog(SApplication & app) {
  FILE * saved = fopen("NN_SESSION.log", "rb");
 #endif
  if_null_fe(saved);
- ::llc::astchar<8193> persisted = {};
+ ::llc::astsc_t<8193> persisted = {};
  const auto seekResult = fseek(saved, -8192, SEEK_END);
  if(seekResult) rewind(saved);
  const auto read = fread(persisted.Storage, 1, 8192, saved);

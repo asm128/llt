@@ -15,12 +15,12 @@ llc::err_t llsInputAvailable() {
 	if(type == FILE_TYPE_DISK) rtrn 1;
 	DWORD bytes = 0;
 	if(PeekNamedPipe(input, 0, 0, 0, &bytes, 0)) rtrn bytes ? 1 : 0;
-	rtrn GetLastError() == ERROR_BROKEN_PIPE ? 1 : llc::OS_ERROR;
+	rtrn GetLastError() == ERROR_BROKEN_PIPE ? 1 : -1;
 #elif defined(LLC_LINUX)
 	if(isatty(STDIN_FILENO)) rtrn 0;
 	pollfd input = {STDIN_FILENO, POLLIN, 0};
 	cnst int result = poll(&input, 1, 0);
-	rtrn result < 0 ? llc::OS_ERROR : result;
+	rtrn result < 0 ? -1 : result;
 #else
 	rtrn 0;
 #endif

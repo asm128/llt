@@ -26,8 +26,8 @@ sttc	::llc::err_t	llsWrite			(::llc::vcst_t message, FILE * stream = stdout) {
 	if_zero_vw(0, message.size());
 	sttc ::llc::mutex lock;
 	::llc::lock_guard guard(lock);
-	if_true_ve(::llc::OS_ERROR, message.size() != fwrite(message.begin(), 1, message.size(), stream));
-	if_true_ve(::llc::OS_ERROR, fflush(stream));
+	if_true_ve(-1, message.size() != fwrite(message.begin(), 1, message.size(), stream));
+	if_true_ve(-1, fflush(stream));
 	if(stream == stdout) { if_fail_fe(lcpMetricsRecord(COMMUNICATION_CHANNEL::Stdio, false, message)); }
 	rtrn message.size();
 }
@@ -56,12 +56,12 @@ sttc llc::err_t llsStatus(cnst llc::SJSONReader & reader, llc::err_t id, SApplic
 				"\"}],\"structuredContent\":{\"id\":", job.Id, ",\"state\":\"", job.State, "\",\"elapsedMs\":", llc::str(timer.LastTimeMicroseconds / 1000),
 				",\"status\":"));
 			if(completed) { if_fail_fe(llc::append_strings(body, llc::str(job.Result.Status))); }
-			else { if_fail_fe(body.append_string("null")); }
-			if_fail_fe(body.append_string(",\"exitCode\":"));
+			else { if_fail_fe(::llc::append_string(body, "null")); }
+			if_fail_fe(::llc::append_string(body, ",\"exitCode\":"));
 			if(completed && job.Result.ExitKnown) { if_fail_fe(llc::append_strings(body, llc::str(job.Result.ExitCode))); }
-			else { if_fail_fe(body.append_string("null")); }
+			else { if_fail_fe(::llc::append_string(body, "null")); }
 			if_fail_fe(llc::append_strings(body, ",\"pid\":", llc::str(job.PID), ",\"outputBytes\":", llc::str(job.Output.size())));
-			if_fail_fe(body.append_string("},\"isError\":false}"));
+			if_fail_fe(::llc::append_string(body, "},\"isError\":false}"));
 			break;
 		}
 	}
@@ -123,15 +123,15 @@ sttc	::llc::err_t	llsRequest			(::llc::SJSONReader & reader, ::llc::vcst_t reque
 	llc::vcst_t tool;
 	if(method == "tools/call") llc::jsonExpressionResolve("params.name", reader, 0, tool);
 	if(app && tool != "session") { llc::lock_guard guard(app->Lock); ++app->Requests; }
-	if("server/discover" == method)
+	if(method == "server/discover")
 		rtrn ::llsRespond(reader, id, "\"result\":{\"resultType\":\"complete\",\"supportedVersions\":[\"2026-07-28\"],\"capabilities\":{\"tools\":{}},\"_meta\":{\"io.modelcontextprotocol/serverInfo\":{\"name\":\"lls\",\"version\":\"0.1.0\"}},\"instructions\":\"Use help path vs for build, launch, list, ping, close and restart. Use forward slashes in paths.\",\"ttlMs\":3600000,\"cacheScope\":\"public\"}", peer);
-	if("initialize" == method)
+	if(method == "initialize")
 		rtrn ::llsRespond(reader, id, "\"result\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{\"tools\":{}},\"serverInfo\":{\"name\":\"lls\",\"version\":\"0.1.0\"},\"instructions\":\"Use vs list to select an IDE instance. Launch requires solution, project and configuration. Supply MSBuild for builds or devenv for a new IDE.\"}", peer);
-	if("ping" == method)
+	if(method == "ping")
 		rtrn ::llsRespond(reader, id, "\"result\":{\"resultType\":\"complete\"}", peer);
-	if("tools/list" == method)
+	if(method == "tools/list")
 		rtrn ::llsRespond(reader, id, lcpTools(), peer);
-	if("tools/call" == method) {
+	if(method == "tools/call") {
 		llc::vcst_t name;
 		if_fail_fe(llc::jsonExpressionResolve("params.name", reader, 0, name));
 		if(name == "session" && app) {
@@ -292,7 +292,7 @@ sttc	::llc::err_t	llsRequest			(::llc::SJSONReader & reader, ::llc::vcst_t reque
 		}
 		if(read == 4095) rtrn 0;
 	}
-	if_true_ve(::llc::OS_ERROR, ferror(stdin));
+	if_true_ve(-1, ferror(stdin));
 	app.InputClosed = true;
 	if(app.Request.size()) {
 		if_fail_fe(lcpMetricsRecord(COMMUNICATION_CHANNEL::Stdio, true, app.Request));

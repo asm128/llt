@@ -154,7 +154,7 @@ llc::err_t lcpShellCall(cnst llc::SJSONReader & reader, llc::string & body, llc:
 	}
 	if(elevated && shell == "wsl")
 		rtrn lcpTextBody(body, "WSL uses its configured Linux user; Windows elevation is not supported for this tool.", true);
-	llc::string application = shell == "cmd" ? "cmd.exe" : shell == "powershell" ? "powershell.exe" : "wsl.exe";
+	llc::string application = ::llc::vcst_t{shell == "cmd" ? "cmd.exe" : shell == "powershell" ? "powershell.exe" : "wsl.exe", (::llc::u2_t)-1};
 	llc::string arguments, input, command, result;
 	if(shell == "cmd") {
 		if_fail_fe(llc::append_strings(arguments, "/D /S /C \"", script, '"'));

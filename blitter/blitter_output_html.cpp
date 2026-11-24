@@ -1,3 +1,4 @@
+#include "llc_string_compose.h"
 //#include "llc_storage.h"
 //#include "llc_json.h"
 //#include "blitter.h"

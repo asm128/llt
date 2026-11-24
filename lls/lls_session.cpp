@@ -1,3 +1,4 @@
+#include "llc_string_compose.h"
 #include "lls_app.h"
 #include "../lcp/lcp_text.h"
 #include "../lcp/lcp_vs.h"
@@ -36,10 +37,10 @@ sttc llc::err_t llsCommandOutputSummary(llc::vcst_t output, llc::string & summar
 
 llc::err_t llsJobSummary(cnst SBuildJob & job, llc::string & summary) {
 	if_fail_fe(summary.clear());
-	if(job.State == "interrupted") rtrn summary.append_string("Interrupted.");
+	if(job.State == "interrupted") rtrn ::llc::append_string(summary, "Interrupted.");
 	if(job.State != "completed") rtrn summary.append(job.State);
 	cnst bool failed = job.Result.Status < 0 || (job.Result.ExitKnown && job.Result.ExitCode);
-	if(!failed) rtrn summary.append_string("Succeeded.");
+	if(!failed) rtrn ::llc::append_string(summary, "Succeeded.");
 	llc::string tool, action;
 	if_fail_fe(llsJobTool(job, tool, action));
 	if(tool == "vs" && action == "build") rtrn lcpVSBuildSummary(job.Output, job.Result.Status, job.Result.ExitCode, summary);
@@ -74,13 +75,13 @@ llc::err_t llsJobSummaryTest() {
 sttc llc::err_t llsJobSummaryJSON(cnst SBuildJob & job, llc::string & json) {
 	auto elapsed = job.Timer;
 	if(!job.Historical && job.State != "completed") elapsed.Frame();
-	if_fail_fe(json.append_string("{\"id\":"));
+	if_fail_fe(::llc::append_string(json, "{\"id\":"));
 	if_fail_fe(lcpJSONString(json, job.Id));
-	if_fail_fe(json.append_string(",\"state\":"));
+	if_fail_fe(::llc::append_string(json, ",\"state\":"));
 	if_fail_fe(lcpJSONString(json, job.State));
 	llc::string summary;
 	if_fail_fe(llsJobSummary(job, summary));
-	if_fail_fe(json.append_string(",\"summary\":"));
+	if_fail_fe(::llc::append_string(json, ",\"summary\":"));
 	if_fail_fe(lcpJSONString(json, summary));
 	rtrn llc::append_strings(json, ",\"pid\":", llc::str(job.PID), ",\"elapsedMs\":", llc::str(job.Historical ? job.SavedElapsedMs : elapsed.LastTimeMicroseconds / 1000),
 		",\"logStatus\":", llc::str(job.OutputLogStatus), ",\"status\":", llc::str(job.Result.Status), ",\"exitCode\":", llc::str(job.Result.ExitCode),
@@ -108,12 +109,12 @@ llc::err_t llsSession(cnst llc::SJSONReader & reader, SApplication & app, llc::s
 		",\"elapsedMs\":", llc::str(timer.LastTimeMicroseconds / 1000), ",\"changed\":", llc::b82vcs(changed)));
 	if_fail_fe(llc::append_strings(body, ",\"logError\":", llc::str(logError), ",\"historyError\":", llc::str(app.HistoryError)));
 	if(changed) {
-		if_fail_fe(body.append_string(",\"jobs\":["));
+		if_fail_fe(::llc::append_string(body, ",\"jobs\":["));
 		for(llc::u2_t i = 0; i < app.Jobs.size(); ++i) {
 			if(i) { if_fail_fe(body.push_back(',')); }
 			if_fail_fe(llsJobSummaryJSON(app.Jobs[i], body));
 		}
 		if_fail_fe(body.push_back(']'));
 	}
-	rtrn body.append_string("}}");
+	rtrn ::llc::append_string(body, "}}");
 }
