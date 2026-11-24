@@ -1,7 +1,9 @@
 #include "blitter_dashboard.h"
 #include "llc_bitmap_target.h"
 #include "llc_path.h"
+#include "llc_process_broker.h"
 #include "llc_string.h"
+#include "llc_string_compose.h"
 #include "llc_view_bit.h"
 #include "llc_app_impl.h"
 #ifdef LLC_WINDOWS
@@ -17,8 +19,17 @@ namespace {
 	static const SDashboardCommand DASHBOARD_COMMANDS[] = {
 		{"Config", ::blt::DASHBOARD_COMMAND_Config}, {"Record JSON", ::blt::DASHBOARD_COMMAND_Record}, {"Load", ::blt::DASHBOARD_COMMAND_Load},
 		{"Refresh", ::blt::DASHBOARD_COMMAND_Refresh}, {"Browse", ::blt::DASHBOARD_COMMAND_Browse}, {"Detail", ::blt::DASHBOARD_COMMAND_Detail},
-		{"Model", ::blt::DASHBOARD_COMMAND_Model}, {"Append", ::blt::DASHBOARD_COMMAND_Append}, {"Flush", ::blt::DASHBOARD_COMMAND_Flush}, {"Exit", ::blt::DASHBOARD_COMMAND_Exit},
+		{"Model", ::blt::DASHBOARD_COMMAND_Model}, {"Search", ::blt::DASHBOARD_COMMAND_Search}, {"Append", ::blt::DASHBOARD_COMMAND_Append},
+		{"Flush", ::blt::DASHBOARD_COMMAND_Flush}, {"Drive Search", ::blt::DASHBOARD_COMMAND_DriveSearch}, {"Exit", ::blt::DASHBOARD_COMMAND_Exit},
 	};
+	struct SDashboardInput { ::llc::string * Text; ::llc::vcst_t Label, Status; };
+	static SDashboardInput dashboardInput(::blt::SBlitterDashboard & app, ::blt::DASHBOARD_INPUT_MODE mode) {
+		switch(mode) {
+		default: case ::blt::DASHBOARD_INPUT_Config: return {&app.ConfigPath, "INPUT: CONFIGURATION PATH", "Configuration input selected. Edit the path and press Load."};
+		case ::blt::DASHBOARD_INPUT_Record: return {&app.RecordText, "INPUT: JSON RECORD", "Record input selected. Enter one JSON object and press Append."};
+		case ::blt::DASHBOARD_INPUT_Search: return {&app.SearchText, "INPUT: DATABASE SEARCH", "Search input selected. Enter terms and press Search."};
+		}
+	}
 	static ::llc::vcst_t hostLabel(::blt::DATABASE_HOST host) {
 		switch(host) { default: case ::blt::DATABASE_HOST_LOCAL: return "local"; case ::blt::DATABASE_HOST_REMOTE: return "remote"; case ::blt::DATABASE_HOST_DEFLATE: return "local+deflate"; case ::blt::DATABASE_HOST_REMOTE_DEFLATE: return "remote+deflate"; }
 	}
@@ -41,25 +52,26 @@ namespace {
 		::dashboardControlThemeSet(app, tuner.IdGUIControl, color); ::dashboardControlThemeSet(app, tuner.IdDecrease, color); ::dashboardControlThemeSet(app, tuner.IdIncrease, color);
 	}
 	static ::llc::err_t statusSet(::blt::SBlitterDashboard & app, ::llc::vcst_t text) { app.StatusText = text; return ::llc::controlTextSet(*app.Framework.GUI, app.IdStatus, app.StatusText); }
-	static ::llc::err_t configurationExamplePath(::llc::string & path) {
+	static ::llc::err_t moduleSiblingPath(::llc::vcst_t name, ::llc::string & path) {
 		if_fail_fe(path.clear());
 #ifdef LLC_WINDOWS
 		char modulePath[32768] = {}; const DWORD moduleLength = ::GetModuleFileNameA(nullptr, modulePath, (DWORD)::llc::size(modulePath)); if_zero_fef(moduleLength && moduleLength < ::llc::size(modulePath), "GetModuleFileName error:%u. Length:%u.", ::GetLastError(), moduleLength);
-		::llc::vcst_t moduleDirectory = {}; if_fail_fe(::llc::pathDirectory({modulePath, moduleLength}, moduleDirectory)); return ::llc::pathNameCompose(moduleDirectory, "blitter.json", path);
+		::llc::vcst_t moduleDirectory = {}; if_fail_fe(::llc::pathDirectory({modulePath, moduleLength}, moduleDirectory)); return ::llc::pathNameCompose(moduleDirectory, name, path);
 #else
-		path = "./blitter.json"; return 0;
+		return ::llc::pathNameCompose("./", name, path);
 #endif
 	}
+	static ::llc::err_t configurationExamplePath(::llc::string & path) { return ::moduleSiblingPath("blitter.json", path); }
 	static ::llc::err_t editorTextStore(::blt::SBlitterDashboard & app) {
-		::llc::string & target = app.InputMode == ::blt::DASHBOARD_INPUT_Config ? app.ConfigPath : app.RecordText;
+		::llc::string & target = *::dashboardInput(app, app.InputMode).Text;
 		if_fail_fe(target.clear()); return target.append({app.Editor.Text.begin(), app.Editor.Text.size()});
 	}
 	static ::llc::err_t inputModeSet(::blt::SBlitterDashboard & app, ::blt::DASHBOARD_INPUT_MODE mode) {
 		if_fail_fe(::editorTextStore(app)); app.InputMode = mode; ::llc::SGUI & gui = *app.Framework.GUI;
-		const ::llc::string & source = mode == ::blt::DASHBOARD_INPUT_Config ? app.ConfigPath : app.RecordText;
+		const SDashboardInput input = ::dashboardInput(app, mode); const ::llc::string & source = *input.Text;
 		if_fail_fe(app.Editor.SetText(gui, {source.begin(), source.size()}));
-		if_fail_fe(::llc::controlTextSet(gui, app.IdInputMode, mode == ::blt::DASHBOARD_INPUT_Config ? ::llc::vcst_t{"INPUT: CONFIGURATION PATH"} : ::llc::vcst_t{"INPUT: JSON RECORD"}));
-		return ::statusSet(app, mode == ::blt::DASHBOARD_INPUT_Config ? ::llc::vcst_t{"Configuration input selected. Edit the path and press Load."} : ::llc::vcst_t{"Record input selected. Enter one JSON object and press Append."});
+		if_fail_fe(::llc::controlTextSet(gui, app.IdInputMode, input.Label));
+		return ::statusSet(app, input.Status);
 	}
 	static ::llc::err_t configurationSelect(::blt::SBlitterDashboard & app) {
 #ifdef LLC_WINDOWS
@@ -72,6 +84,17 @@ namespace {
 #else
 		(void)app; return -1;
 #endif
+	}
+	static ::llc::err_t driveSearchLaunch(::blt::SBlitterDashboard & app) {
+		::llc::string executable = {}, indexCandidate = {}, indexPath = {}, command = {};
+		if_fail_fe(::moduleSiblingPath("llc_blitter_search.exe", executable));
+		if_fail_fe(::moduleSiblingPath("../blitdb/drive_search.index", indexCandidate));
+		if_fail_fe(::llc::pathNormalize(indexCandidate, indexPath));
+		if_fail_fe(::llc::append_strings(command, '"', executable, "\" --index=\"", indexPath, '"'));
+		::llc::as0_t environment = {}; if_fail_fe(::llc::environmentBlock(environment, app.Framework.RuntimeValues.EntryPointArgs.Environment));
+		::llc::SProcess process = {}; const ::llc::err_t result = ::llc::createChildProcess(process, {(::llc::u0_t*)environment.begin(), environment.size()}, executable, command);
+		if(::llc::failed(result)) { if_fail_e(::llc::closeProcess(process)); char status[512] = {}; ::llc::sprintf_s(status, "Drive Search launch failed (%i): %.*s", result, LLC_VIEW_ARGS(executable)); return ::statusSet(app, status); }
+		if_fail_fe(::llc::closeProcess(process)); char status[512] = {}; ::llc::sprintf_s(status, "Drive Search started. Persistent index: %.*s", LLC_VIEW_ARGS(indexPath)); return ::statusSet(app, status);
 	}
 	static ::llc::err_t outputRowsUpdate(::blt::SBlitterDashboard & app) {
 		::llc::SGUI & gui = *app.Framework.GUI; static const ::llc::vcst_t emptyText = "No result yet.";
@@ -155,12 +178,16 @@ namespace {
 		if(::llc::failed(result)) ::sprintf_s(status, sizeof(status), "Load failed (%i): %.*s", result, LLC_VIEW_ARGS(path));
 		else { app.SelectedDatabase = app.Blitter.Databases.size() ? 0 : -1; ::sprintf_s(status, sizeof(status), "Loaded %u database(s) from %.*s. Database root: %.*s", (unsigned)app.Blitter.Databases.size(), LLC_VIEW_ARGS(path), LLC_VIEW_ARGS(app.Blitter.Folder)); }
 		if_fail_fe(::statusSet(app, status)); if_fail_fe(::databaseRowsUpdate(app));
-		return ::outputSet(app, ::llc::failed(result) ? ::llc::vcst_t{"Configuration load failed. See status and process log for diagnostics."} : ::llc::vcst_t{"Configuration loaded. Select a database, then Browse, Detail, Model, or enter a JSON record and Append."});
+		return ::outputSet(app, ::llc::failed(result) ? ::llc::vcst_t{"Configuration load failed. See status and process log for diagnostics."} : ::llc::vcst_t{"Configuration loaded. Select a database, then Browse, Detail, Model, Search, or enter a JSON record and Append."});
 	}
 	static ::llc::err_t queryExecute(::blt::SBlitterDashboard & app, ::llc::vcst_t command, bool detail = false) {
 		if(app.SelectedDatabase < 0 || app.SelectedDatabase >= (::llc::s2_t)app.Blitter.Databases.size()) return ::statusSet(app, "Load a configuration and select a database first.");
-		::blt::SBlitterQuery query = {}; const ::blt::TNamedBlitterDB & selected = app.Blitter.Databases[(::llc::u2_t)app.SelectedDatabase];
+		::blt::SBlitterQuery query = {}; ::blt::TNamedBlitterDB & selected = app.Blitter.Databases[(::llc::u2_t)app.SelectedDatabase];
 		query.Database = selected.Key; query.Command = command; query.Range = {app.TunerOffset->ValueCurrent, app.TunerCount->ValueCurrent}; if(detail) query.Detail = (::llc::s3_t)app.TunerDetail->ValueCurrent;
+		if(command == ::llc::vcst_t{"search"}) {
+			if(app.InputMode != ::blt::DASHBOARD_INPUT_Search) { if_fail_fe(::inputModeSet(app, ::blt::DASHBOARD_INPUT_Search)); return ::statusSet(app, "Search input selected. Enter terms, then press Search again."); }
+			if_fail_fe(::editorTextStore(app)); ::llc::vcst_t search = app.SearchText; ::llc::trim(search); if(!search.size()) return ::statusSet(app, "Enter one or more search terms."); query.SearchText = search;
+		}
 		if(command == ::llc::vcst_t{"push_back"}) {
 			if(app.InputMode != ::blt::DASHBOARD_INPUT_Record) { if_fail_fe(::inputModeSet(app, ::blt::DASHBOARD_INPUT_Record)); return ::statusSet(app, "Record input selected. Review the JSON object, then press Append again."); }
 			if_fail_fe(::editorTextStore(app)); ::llc::vcst_t record = app.RecordText; ::llc::trim(record); if(!record.size()) return ::statusSet(app, "Enter one JSON object before appending."); query.Record = record;
@@ -170,7 +197,7 @@ namespace {
 		::llc::string output; const ::llc::s3_t result = ::blt::queryProcess(app.Blitter.LoadCache, app.Blitter.Databases, app.Blitter.ExpressionReader, query, app.Blitter.Folder, output);
 		if(::llc::failed(result)) { char status[256] = {}; ::sprintf_s(status, sizeof(status), "%.*s failed for %.*s (%lli).", LLC_VIEW_ARGS(command), LLC_VIEW_ARGS(query.Database), (long long)result); return ::statusSet(app, status); }
 		char status[512] = {};
-		if(command == ::llc::vcst_t{"push_back"}) { ::sprintf_s(status, sizeof(status), "Appended record %llu to %.*s. Flush to persist dirty blocks.", (unsigned long long)result, LLC_VIEW_ARGS(query.Database)); char text[512] = {}; ::sprintf_s(text, sizeof(text), "{\"database\":\"%.*s\",\"record\":%llu,\"dirty\":true}", LLC_VIEW_ARGS(query.Database), (unsigned long long)result); if_fail_fe(::outputSet(app, text)); }
+		if(command == ::llc::vcst_t{"push_back"}) { selected.Val.SearchReady = false; ::sprintf_s(status, sizeof(status), "Appended record %llu to %.*s. Flush to persist dirty blocks.", (unsigned long long)result, LLC_VIEW_ARGS(query.Database)); char text[512] = {}; ::sprintf_s(text, sizeof(text), "{\"database\":\"%.*s\",\"record\":%llu,\"dirty\":true}", LLC_VIEW_ARGS(query.Database), (unsigned long long)result); if_fail_fe(::outputSet(app, text)); }
 		else { ::sprintf_s(status, sizeof(status), "%.*s completed for %.*s: %u output byte(s).", LLC_VIEW_ARGS(command), LLC_VIEW_ARGS(query.Database), (unsigned)output.size()); if_fail_fe(::outputSet(app, output)); }
 		if_fail_fe(::statusSet(app, status)); return ::databaseRowsUpdate(app);
 	}
@@ -181,7 +208,7 @@ namespace {
 	static ::llc::err_t dashboardCommand(::blt::SBlitterDashboard & app, ::llc::cid_t id) {
 		for(::llc::u2_t i = 0; i < app.Commands.IdControls.size(); ++i) if(id == app.Commands.IdControls[i]) switch((::blt::DASHBOARD_COMMAND)app.Commands.Events[i]) {
 		default: return 0; case ::blt::DASHBOARD_COMMAND_Config: return ::inputModeSet(app, ::blt::DASHBOARD_INPUT_Config); case ::blt::DASHBOARD_COMMAND_Record: return ::inputModeSet(app, ::blt::DASHBOARD_INPUT_Record);
-		case ::blt::DASHBOARD_COMMAND_Load: return ::configurationLoad(app); case ::blt::DASHBOARD_COMMAND_Refresh: return ::databaseRowsUpdate(app); case ::blt::DASHBOARD_COMMAND_Browse: return ::queryExecute(app, "get"); case ::blt::DASHBOARD_COMMAND_Detail: return ::queryExecute(app, "get", true); case ::blt::DASHBOARD_COMMAND_Model: return ::queryExecute(app, "model"); case ::blt::DASHBOARD_COMMAND_Append: return ::queryExecute(app, "push_back"); case ::blt::DASHBOARD_COMMAND_Flush: return ::databasesFlush(app); case ::blt::DASHBOARD_COMMAND_Exit: return ::llc::APPLICATION_STATE_EXIT; }
+		case ::blt::DASHBOARD_COMMAND_Load: return ::configurationLoad(app); case ::blt::DASHBOARD_COMMAND_Refresh: return ::databaseRowsUpdate(app); case ::blt::DASHBOARD_COMMAND_Browse: return ::queryExecute(app, "get"); case ::blt::DASHBOARD_COMMAND_Detail: return ::queryExecute(app, "get", true); case ::blt::DASHBOARD_COMMAND_Model: return ::queryExecute(app, "model"); case ::blt::DASHBOARD_COMMAND_Search: return ::queryExecute(app, "search"); case ::blt::DASHBOARD_COMMAND_Append: return ::queryExecute(app, "push_back"); case ::blt::DASHBOARD_COMMAND_Flush: return ::databasesFlush(app); case ::blt::DASHBOARD_COMMAND_DriveSearch: return ::driveSearchLaunch(app); case ::blt::DASHBOARD_COMMAND_Exit: return ::llc::APPLICATION_STATE_EXIT; }
 		return 0;
 	}
 }
@@ -203,7 +230,7 @@ namespace {
 	::llc::pobj<::llc::SDialogViewport> outView = {}; if_fail_fe(app.ViewportOutput = ::llc::viewportCreate(app.DialogMain, outView)); controls.Placement[outView->IdGUIControl].Area.Size = {1540, 300}; controls.Placement[outView->IdGUIControl].Area.Offset = {0, 470}; controls.Placement[outView->IdGUIControl].Align = ::llc::ALIGN_CENTER_TOP; if_fail_fe(::llc::controlTextSet(gui, outView->IdTitle, "QUERY / MODEL RESULT"));
 	if_fail_fe(::llc::controlListInitialize(gui, app.OutputRows)); app.OutputRows.Orientation = ::llc::DIRECTION_DOWN; controls.Placement[app.OutputRows.IdControl].Area.Offset = {8, 8}; controls.Placement[app.OutputRows.IdControl].Area.Size.x = 1460; if_fail_fe(::llc::controlSetParent(gui, app.OutputRows.IdControl, outView->IdClient));
 	if_fail_fe(::configurationExamplePath(app.ConfigPath)); if_fail_fe(::llc::inputBoxCreate(app.Editor, gui)); app.Editor.MaxLength = 8192; controls.Placement[app.Editor.IdRoot].Align = ::llc::ALIGN_CENTER_BOTTOM; controls.Placement[app.Editor.IdRoot].Area.Offset = {}; if_fail_fe(app.Editor.SetText(gui, app.ConfigPath)); if_fail_fe(app.Editor.Edit(gui, true));
-	if_fail_fe(::statusSet(app, "Enter a Blitter configuration path and press Load. Database write operations are Append and Flush.")); if_fail_fe(::outputSet(app, "Supported operations: load configuration, select database, browse range, inspect detail, inspect model, append one JSON object, and flush dirty blocks.")); if_fail_fe(::databaseRowsUpdate(app)); return ::dashboardLayout(app);
+	if_fail_fe(::statusSet(app, "Enter a Blitter configuration path and press Load. Database write operations are Append and Flush.")); if_fail_fe(::outputSet(app, "Supported operations: load configuration, browse and search records, append and flush records, or open indexed Drive Search.")); if_fail_fe(::databaseRowsUpdate(app)); return ::dashboardLayout(app);
 }
 ::llc::err_t update(::blt::SBlitterDashboard & app, bool exitSignal) {
 	if_true_vi(::llc::APPLICATION_STATE_EXIT, exitSignal); { ::llc::lock_guard lock(app.LockRender); app.Framework.RootWindow.BackBuffer = app.Offscreen; } if_true_vi(::llc::APPLICATION_STATE_EXIT, ::llc::APPLICATION_STATE_EXIT == ::llc::updateFramework(app.Framework)); if(app.LayoutSize != app.Framework.RootWindow.Size) if_fail_fe(::dashboardLayout(app));
@@ -216,9 +243,10 @@ namespace {
 		if(app.InputMode == ::blt::DASHBOARD_INPUT_Config) {
 			if_fail_fe(::configurationLoad(app));
 		}
-		else {
+		else if(app.InputMode == ::blt::DASHBOARD_INPUT_Record) {
 			if_fail_fe(::queryExecute(app, "push_back"));
 		}
+		else if_fail_fe(::queryExecute(app, "search"));
 	}
 	::llc::err_t commandResult = 0; if_fail_fe(::llc::guiProcessControls(gui, processable, [&app, &commandResult](::llc::cid_t id) { for(::llc::u2_t i = 0; i < app.Commands.IdControls.size(); ++i) if(id == app.Commands.IdControls[i]) { commandResult = ::dashboardCommand(app, id); return 1; } for(::llc::u2_t i = 1; i < app.DatabaseRows.IdControls.size(); ++i) if(id == app.DatabaseRows.IdControls[i]) { commandResult = ::selectedDatabaseSet(app, i - 1); return 1; } return 0; }));
 	if(::llc::APPLICATION_STATE_EXIT == commandResult) return ::llc::APPLICATION_STATE_EXIT; if_fail_fe(commandResult); return app.DialogMain.Update();

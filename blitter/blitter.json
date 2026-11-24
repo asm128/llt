@@ -5,14 +5,19 @@
 			,	"cache"		: "../blitdb/cache"	
 			},
 			"database"		  : 
-			[	{ "public": true, "source" : "local"  , "name": "website"		, "bind" : ["website"		, "user.website"		, ]} // , "block": 2560
-			,	{ "public": true, "source" : "local"  , "name": "user"			, "bind" : ["referral"		, "user.referral"		, ], "block": 128, "file_blocks": 64, "deflate": true, "key": "MjAwOS0yMDE5IChjKSBUaGUgRHJhZ29u"} // 
-			,	{ "public": true, "source" : "local"  , "name": "publisher"		, "bind" : ["publisher"		, "website.publisher"	, ], "block": 128, "file_blocks": 64, "deflate": true, "key": "MjAwOS0yMDE5IChjKSBUaGUgRHJhZ29u"}
+			[	{ "public": true, "source" : "local"  , "name": "website"		, "bind" : ["website"		, "user.website"		, ], "search_format": "{domain}"} // , "block": 2560
+			,	{ "public": true, "source" : "local"  , "name": "user"			, "bind" : ["referral"		, "user.referral"		, ], "search_format": "{first} {last}", "block": 128, "file_blocks": 64, "deflate": true, "key": "MjAwOS0yMDE5IChjKSBUaGUgRHJhZ29u"} //
+			,	{ "public": true, "source" : "local"  , "name": "publisher"		, "bind" : ["publisher"		, "website.publisher"	, ], "search_format": "{name}", "block": 128, "file_blocks": 64, "deflate": true, "key": "MjAwOS0yMDE5IChjKSBUaGUgRHJhZ29u"}
 			,	{ "public": true, "source" : "local"  , "name": "company"		, "bind" : ["company"		, "owner"				, ], "block": 128, "file_blocks": 64, "deflate": true, "key": "MjAwOS0yMDE5IChjKSBUaGUgRHJhZ29u"
+				, "search_format": "{name}"
 				, "fields" : 
 					{ "name": ""
 					}
 			 	}
+			,	{ "public": true, "source" : "local"  , "name": "ads"			, "bind" : ["ads"				, ], "search_format": "{name}", "block": 128, "file_blocks": 64, "deflate": true, "key": "MjAwOS0yMDE5IChjKSBUaGUgRHJhZ29u"}
+			,	{ "public": true, "source" : "local"  , "name": "ad_category"	, "bind" : ["ad_category"		, ], "search_format": "{name}", "block": 128, "file_blocks": 64, "deflate": true, "key": "MjAwOS0yMDE5IChjKSBUaGUgRHJhZ29u"}
+			,	{ "public": true, "source" : "local"  , "name": "ad_subcategory"	, "bind" : ["ad_subcategory"	, ], "block": 128, "file_blocks": 64, "deflate": true, "key": "MjAwOS0yMDE5IChjKSBUaGUgRHJhZ29u"}
+			,	{ "public": true, "source" : "local"  , "name": "barrios"		, "bind" : ["barrio"			, ], "search_format": "{name}", "block": 128, "file_blocks": 64, "deflate": true, "key": "MjAwOS0yMDE5IChjKSBUaGUgRHJhZ29u"}
 			,	{ "public": true, "source" : "local"  , "name": "vehicle"		, "bind" : ["vehicle"			, ], "block": 128, "file_blocks": 64, "deflate": true, "key": "MjAwOS0yMDE5IChjKSBUaGUgRHJhZ29u"
 				, "fields" : 
 					{ "name"			: ""
