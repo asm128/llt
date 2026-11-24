@@ -1,8 +1,8 @@
 #include "lls_gui_build.h"
 #include "../lcp/lcp_text.h"
 
-llc::err_t llsControl(llc::SGUI & gui, llc::cid_t & id, llc::vcst_t text, cnst SGUIFamily & family, bool label) {
-	id = llc::controlCreate(gui);
+llc::err_t llsControl(llc::SGUI & gui, llc::cid_t & id, llc::vcst_t text, cnst SGUIFamily & family, bool label, llc::cid_t parent) {
+	id = parent == llc::CID_INVALID ? llc::controlCreate(gui) : llc::controlCreateChild(gui, parent);
 	if_fail_fe(id);
 	gui.Controls.Placement[id].Margin = family.Margin;
 	gui.Controls.Placement[id].Border = family.Border;
@@ -14,10 +14,10 @@ llc::err_t llsControl(llc::SGUI & gui, llc::cid_t & id, llc::vcst_t text, cnst S
 	rtrn llc::controlTextSet(gui, id, text);
 }
 
-llc::err_t llsControlPool(llc::SGUI & gui, llc::acid & ids, llc::u2_t count, cnst SGUIFamily & family, bool label) {
+llc::err_t llsControlPool(llc::SGUI & gui, llc::acid & ids, llc::u2_t count, cnst SGUIFamily & family, bool label, llc::cid_t parent) {
 	while(ids.size() < count) {
 		llc::cid_t id;
-		if_fail_fe(llsControl(gui, id, {}, family, label));
+		if_fail_fe(llsControl(gui, id, {}, family, label, parent));
 		if_true_block_log(error_printf, llc::failed(ids.push_back(id)), { if_fail_e(llc::controlDelete(gui, id)); rtrn -1; });
 	}
 	rtrn 0;
