@@ -215,6 +215,7 @@ static	::llc::err_t		table_description_load			(::blt::STableDescription & tableD
 		::blt::TNamedBlitterDB								& jsonDB					= databases[iDatabase];
 		jsonDB.Key										= jsonResult;
 		if_fail_fef(::table_description_load(jsonDB.Val.Description, configReader, iJSONTable, jsonDB.Key), "%s", "Unknown error");
+		::llc::jsonExpressionResolve(::llc::vcst_t{"search_format"}, configReader, iJSONTable, jsonDB.Val.SearchFormat);
 		{	// -- Load database block size
 			s2_t												indexBlockNode				= ::llc::jsonExpressionResolve(::llc::vcst_t{"block"}, configReader, iJSONTable, jsonResult);
 			if_true_wf(::llc::failed(indexBlockNode), "Failed to load config from json! Last contents found: %.*s.", LLC_VIEW_ARGS(jsonResult))
@@ -311,6 +312,9 @@ static	::llc::err_t		table_description_load			(::blt::STableDescription & tableD
 }
 
 static	::llc::err_t		queryLoad						(::blt::SBlitterQuery& query, const ::llc::view<const ::llc::keyval<::llc::vcst_t>> keyvals, ::llc::array_obj<::llc::vcst_t> & expansionKeyStorage) {
+	const ::llc::err_t indexSearch = ::llc::find(::llc::vcst_t{"q"}, keyvals);
+	if(0 <= indexSearch)
+		query.SearchText = keyvals[indexSearch].Val;
 	::llc::keyvalNumeric("offset", keyvals, query.Range.Offset);
 	if(0 > ::llc::keyvalNumeric("limit", keyvals, query.Range.Count))
 		::llc::keyvalNumeric("count", keyvals, query.Range.Count);
