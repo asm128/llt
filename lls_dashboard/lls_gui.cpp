@@ -8,8 +8,8 @@
 #include "llc_event_input.h"
 #include "llc_runtime_module.h"
 
-sttc llc::err_t llsControl(llc::SGUI & gui, llc::cid_t & id, llc::vcst_t text, bool label = false) {
-	rtrn llsControl(gui, id, text, SGUIFamily{}, label);
+sttc llc::err_t llsControl(llc::SGUI & gui, llc::cid_t & id, llc::vcst_t text, bool label = false, llc::cid_t parent = llc::CID_INVALID) {
+	rtrn llsControl(gui, id, text, SGUIFamily{}, label, parent);
 }
 
 sttc llc::err_t llsPlace(llc::SGUI & gui, llc::cid_t id, llc::s1_t x, llc::s1_t y, llc::s1_t w, llc::s1_t h) {
@@ -38,6 +38,52 @@ sttc llc::err_t llsDoubleClick(cnst llc::TQueueSystemEvent & events, bool & doub
 		if(!button) doubleClick = true;
 	}
 	rtrn 0;
+}
+
+sttc llc::err_t llsViewportCreate(SLLSGUI & ui, LLS_GUI_VIEWPORT index, llc::vcst_t title, cnst llc::rect2s1_t & area) {
+	auto & gui = *ui.Framework.GUI;
+	auto & viewport = ui.Viewports[index];
+	if_fail_fe(llc::guiCreateViewport(gui, viewport, ui.Host, ui.ViewportActions[index]));
+	auto & root = gui.Controls.Placement[viewport.IdControl];
+	root.Area = area;
+	root.Border = {3, 3, 3, 3};
+	root.Margin = {1, 1, 1, 1};
+	cnst llc::cid_t idTitle = viewport.IdControls[llc::VIEWPORT_CONTROL_TITLE];
+	cnst llc::cid_t idClient = viewport.IdControls[llc::VIEWPORT_CONTROL_TARGET];
+	gui.Controls.Text[idTitle].Text = title;
+	gui.Controls.Text[idTitle].FontSelected = 7;
+	gui.Controls.Placement[idTitle].Border = {2, 2, 2, 2};
+	gui.Controls.Placement[idClient].Area.Size = {
+		(llc::s1_t)(area.Size.x > 8 ? area.Size.x - 8 : 1),
+		(llc::s1_t)(area.Size.y > 32 ? area.Size.y - 32 : 1),
+	};
+	gui.Controls.Placement[idClient].Border = {1, 1, 1, 1};
+	viewport.UnfoldedSize = area.Size;
+	rtrn llc::controlMetricsInvalidate(gui, viewport.IdControl);
+}
+
+sttc llc::err_t llsViewportPlace(SLLSGUI & ui, LLS_GUI_VIEWPORT index, cnst llc::rect2s1_t & area) {
+	auto & gui = *ui.Framework.GUI;
+	auto & viewport = ui.Viewports[index];
+	gui.Controls.Placement[viewport.IdControl].Area = area;
+	gui.Controls.Placement[viewport.IdControls[llc::VIEWPORT_CONTROL_TARGET]].Area.Size = {
+		(llc::s1_t)(area.Size.x > 8 ? area.Size.x - 8 : 1),
+		(llc::s1_t)(area.Size.y > 32 ? area.Size.y - 32 : 1),
+	};
+	viewport.UnfoldedSize = area.Size;
+	rtrn llc::controlMetricsInvalidate(gui, viewport.IdControl);
+}
+
+sttc llc::err_t llsViewportArrange(SLLSGUI & ui) {
+	cnst auto size = ui.Framework.RootWindow.Size;
+	cnst llc::s1_t width = (llc::s1_t)llc::max(900U, (llc::u2_t)size.x);
+	cnst llc::s1_t height = (llc::s1_t)llc::max(620U, (llc::u2_t)size.y);
+	cnst llc::s1_t contentTop = 144;
+	cnst llc::s1_t contentHeight = (llc::s1_t)(height - contentTop - 42);
+	cnst llc::s1_t workspaceWidth = (llc::s1_t)llc::min(440U, llc::max(360U, (llc::u2_t)width / 3));
+	if_fail_fe(llsViewportPlace(ui, LLS_GUI_VIEWPORT_SESSION, {{18, 12}, {(llc::s1_t)(width - 36), 118}}));
+	if_fail_fe(llsViewportPlace(ui, LLS_GUI_VIEWPORT_WORKSPACE, {{18, contentTop}, {workspaceWidth, contentHeight}}));
+	rtrn llsViewportPlace(ui, LLS_GUI_VIEWPORT_INSPECTOR, {{(llc::s1_t)(workspaceWidth + 30), contentTop}, {(llc::s1_t)(width - workspaceWidth - 48), contentHeight}});
 }
 
 sttc llc::err_t llsDetailClear(SLLSGUI & ui) {
@@ -79,45 +125,92 @@ sttc llc::err_t llsExplore(SLLSGUI & ui, llc::vcst_t path) {
 sttc llc::err_t llsLayout(SLLSGUI & ui) {
 	auto & gui = *ui.Framework.GUI;
 	cnst auto size = ui.Framework.RootWindow.Size;
-	cnst llc::s1_t width = (llc::s1_t)llc::max(640U, (llc::u2_t)size.x);
-	cnst llc::s1_t height = (llc::s1_t)llc::max(400U, (llc::u2_t)size.y);
-	cnst llc::s1_t left = llc::min((llc::s1_t)320, (llc::s1_t)(width / 3));
-	cnst llc::s1_t bottom = height - 46 - (ui.ShowKeyboard ? 230 : 0);
-	cnst llc::s1_t top = ui.Tab == 4 ? 202 : 166;
-	if_fail_fe(llsPlace(gui, ui.Title, 18, 12, width - 556, 30));
-	if_fail_fe(llsPlace(gui, ui.StopService, width - 536, 12, 166, 30));
-	if_fail_fe(llsPlace(gui, ui.Exit, width - 176, 12, 158, 30));
-	if_fail_fe(llsPlace(gui, ui.Restart, width - 360, 12, 176, 30));
-	if_fail_fe(llsPlace(gui, ui.Benchmark, width - 162, 164, 144, 28));
-	if_fail_fe(llsPlace(gui, ui.Statistics, 18, 44, width - 36, 26));
-	cnst llc::s1_t tabWidth = (llc::s1_t)llc::min(164U, (llc::u2_t)(width - 36) / llc::max(1U, ui.Tabs.size()));
-	for(llc::u2_t i = 0; i < ui.Tabs.size(); ++i)
-		if_fail_fe(llsPlace(gui, ui.Tabs[i], (llc::s1_t)(18 + i * tabWidth), 78, tabWidth - 10, 30));
-	if_fail_fe(llsPlace(gui, ui.Input.IdRoot, 18, 120, width - 274, 30));
-	if_fail_fe(llsPlace(gui, ui.Input.IdText, 0, 0, width - 274, 30));
-	if_fail_fe(llsPlace(gui, ui.OpenPath, width - 246, 120, 106, 30));
+	cnst llc::s1_t width = (llc::s1_t)llc::max(900U, (llc::u2_t)size.x);
+	cnst llc::s1_t height = (llc::s1_t)llc::max(620U, (llc::u2_t)size.y);
+	cnst llc::cid_t sessionClient = ui.Viewports[LLS_GUI_VIEWPORT_SESSION].IdControls[llc::VIEWPORT_CONTROL_TARGET];
+	cnst llc::cid_t workspaceClient = ui.Viewports[LLS_GUI_VIEWPORT_WORKSPACE].IdControls[llc::VIEWPORT_CONTROL_TARGET];
+	cnst llc::cid_t inspectorClient = ui.Viewports[LLS_GUI_VIEWPORT_INSPECTOR].IdControls[llc::VIEWPORT_CONTROL_TARGET];
+	cnst llc::n2s1_t sessionSize = gui.Controls.Placement[sessionClient].Area.Size;
+	cnst llc::n2s1_t workspaceSize = gui.Controls.Placement[workspaceClient].Area.Size;
+	cnst llc::n2s1_t inspectorSize = gui.Controls.Placement[inspectorClient].Area.Size;
+	cnst llc::s1_t sessionButtons = 512;
+	if_fail_fe(llsPlace(gui, ui.Title, 10, 6, (llc::s1_t)llc::max(120, sessionSize.x - sessionButtons - 20), 28));
+	if_fail_fe(llsPlace(gui, ui.StopService, (llc::s1_t)(sessionSize.x - 522), 6, 154, 28));
+	if_fail_fe(llsPlace(gui, ui.Restart, (llc::s1_t)(sessionSize.x - 360), 6, 164, 28));
+	if_fail_fe(llsPlace(gui, ui.Exit, (llc::s1_t)(sessionSize.x - 188), 6, 178, 28));
+	if_fail_fe(llsPlace(gui, ui.Statistics, 10, 40, (llc::s1_t)(sessionSize.x - 20), 26));
+	cnst llc::s1_t tabColumns = 3;
+	cnst llc::s1_t tabWidth = (llc::s1_t)llc::max(90, (workspaceSize.x - 20) / tabColumns);
+	for(llc::u2_t i = 0; i < ui.Tabs.size(); ++i) {
+		cnst llc::s1_t column = (llc::s1_t)(i % tabColumns);
+		cnst llc::s1_t row = (llc::s1_t)(i / tabColumns);
+		if_fail_fe(llsPlace(gui, ui.Tabs[i], (llc::s1_t)(10 + column * tabWidth), (llc::s1_t)(8 + row * 30), (llc::s1_t)(tabWidth - 6), 28));
+	}
+	if_fail_fe(llsPlace(gui, ui.Input.IdRoot, 10, 104, (llc::s1_t)(workspaceSize.x - 20), 30));
+	if_fail_fe(llsPlace(gui, ui.Input.IdText, 0, 0, (llc::s1_t)(workspaceSize.x - 20), 30));
+	cnst llc::s1_t actionWidth = (llc::s1_t)((workspaceSize.x - 26) / 2);
+	if_fail_fe(llsPlace(gui, ui.OpenPath, 10, 138, actionWidth, 28));
 	gui.Controls.Text[ui.Input.IdText].Align = llc::ALIGN_CENTER_LEFT;
-	if_fail_fe(llsPlace(gui, ui.Keyboard, width - 132, 120, 114, 30));
+	if_fail_fe(llsPlace(gui, ui.Keyboard, (llc::s1_t)(16 + actionWidth), 138, actionWidth, 28));
 	if_fail_fe(llsPlace(gui, ui.Hint, 18, height - 34, width - 36, 26));
 	auto & keyboard = gui.Controls.Placement[ui.Input.VirtualKeyboard.IdRoot];
 	keyboard.Align = llc::ALIGN_TOP_LEFT;
-	keyboard.Area.Offset = {(llc::s1_t)(width - keyboard.Area.Size.x - 36), (llc::s1_t)(height - 120 - 264)};
+	keyboard.Area.Offset = {0, 34};
 	if_fail_fe(llc::controlMetricsInvalidate(gui, ui.Input.VirtualKeyboard.IdRoot));
 	gui.Controls.SetHidden(ui.Input.VirtualKeyboard.IdRoot, !ui.ShowKeyboard);
+	cnst llc::s1_t workspaceTop = ui.Tab == 4 ? 204 : 174;
+	cnst llc::s1_t workspaceBottom = (llc::s1_t)(workspaceSize.y - 36 - (ui.ShowKeyboard ? 230 : 0));
 	for(llc::u2_t i = 0; i < ui.Rows.size(); ++i) {
-		if_fail_fe(llsPlace(gui, ui.Rows[i], 18, (llc::s1_t)(top + 30 * i), left - 28, 28));
+		if_fail_fe(llsPlace(gui, ui.Rows[i], 10, (llc::s1_t)(workspaceTop + 30 * i), (llc::s1_t)(workspaceSize.x - 20), 28));
 	}
-	ui.VisibleLines = llc::min((llc::u2_t)ui.Lines.size(), (llc::u2_t)llc::max(1, (bottom - top - 36) / 19));
-	ui.VisibleRows = llc::min(ui.Rows.size(), (llc::u2_t)llc::max(1, (bottom - top - 30) / 30));
-	ui.Columns = llc::max(1U, (llc::u2_t)(width - left - 44) / gui.Fonts[gui.SelectedFont]->CharSize.x);
+	ui.VisibleRows = llc::min(ui.Rows.size(), (llc::u2_t)llc::max(1, (workspaceBottom - workspaceTop) / 30));
+	ui.VisibleLines = llc::min((llc::u2_t)ui.Lines.size(), (llc::u2_t)llc::max(1, (inspectorSize.y - 50) / 19));
+	ui.Columns = llc::max(1U, (llc::u2_t)(inspectorSize.x - 24) / gui.Fonts[gui.SelectedFont]->CharSize.x);
 	for(llc::u2_t i = 0; i < ui.Lines.size(); ++i)
-		if_fail_fe(llsPlace(gui, ui.Lines[i], left, (llc::s1_t)(top + 19 * i), width - left - 18, 19));
-	if_fail_fe(llsPlace(gui, ui.ListPrev, 18, bottom - 30, 90, 26));
-	if_fail_fe(llsPlace(gui, ui.ListNext, 114, bottom - 30, 90, 26));
-	if_fail_fe(llsPlace(gui, ui.PagePrev, left, bottom - 30, 110, 26));
-	if_fail_fe(llsPlace(gui, ui.PageNext, left + 116, bottom - 30, 110, 26));
+		if_fail_fe(llsPlace(gui, ui.Lines[i], 10, (llc::s1_t)(8 + 19 * i), (llc::s1_t)(inspectorSize.x - 20), 19));
+	if_fail_fe(llsPlace(gui, ui.Benchmark, (llc::s1_t)(inspectorSize.x - 154), 8, 144, 28));
+	if_fail_fe(llsPlace(gui, ui.ListPrev, 10, (llc::s1_t)(workspaceSize.y - 32), 90, 26));
+	if_fail_fe(llsPlace(gui, ui.ListNext, 106, (llc::s1_t)(workspaceSize.y - 32), 90, 26));
+	if_fail_fe(llsPlace(gui, ui.PagePrev, 10, (llc::s1_t)(inspectorSize.y - 32), 110, 26));
+	if_fail_fe(llsPlace(gui, ui.PageNext, 126, (llc::s1_t)(inspectorSize.y - 32), 110, 26));
 	ui.LastSize = size;
 	rtrn llsLines(ui);
+}
+
+sttc llc::err_t llsViewportsUpdate(SLLSGUI & ui, bool doubleClick) {
+	auto & gui = *ui.Framework.GUI;
+	auto & input = *ui.Framework.RootWindow.Input;
+	llc::u2_t hovered = ui.Viewports.size();
+	bool resized = false;
+	cnst llc::n2s1_t minimums[LLS_GUI_VIEWPORT_COUNT] = {{620, 90}, {300, 300}, {360, 300}};
+	for(llc::u0_t i = 0; i < ui.Viewports.size(); ++i) {
+		auto & viewport = ui.Viewports[i];
+		cnst llc::cid_t title = viewport.IdControls[llc::VIEWPORT_CONTROL_TITLE];
+		cnst llc::cid_t close = viewport.IdControls[llc::VIEWPORT_CONTROL_CLOSE];
+		cnst llc::cid_t resize = viewport.IdControls[llc::VIEWPORT_CONTROL_RESIZE_BOTTOM_RIGHT];
+		if(llc::viewportIsPressed(gui, viewport)) if_fail_fe(llc::viewportActivate(gui, ui.Host, ui.Viewports, i));
+		if(gui.Controls.IsAction(close)) gui.Controls.SetHidden(viewport.IdControl, true);
+		if(gui.Controls.IsPressed(title) && (input.MouseCurrent.Deltas.x || input.MouseCurrent.Deltas.y)) {
+			gui.Controls.Placement[viewport.IdControl].Area.Offset += {(llc::s1_t)input.MouseCurrent.Deltas.x, (llc::s1_t)input.MouseCurrent.Deltas.y};
+			if_fail_fe(llc::controlMetricsInvalidate(gui, viewport.IdControl));
+		}
+		if(!viewport.Folded && gui.Controls.IsPressed(resize) && (input.MouseCurrent.Deltas.x || input.MouseCurrent.Deltas.y)) {
+			auto & root = gui.Controls.Placement[viewport.IdControl];
+			auto & client = gui.Controls.Placement[viewport.IdControls[llc::VIEWPORT_CONTROL_TARGET]];
+			cnst llc::n2s1_t previous = root.Area.Size;
+			root.Area.Size.x = llc::max(minimums[i].x, (llc::s1_t)(root.Area.Size.x + input.MouseCurrent.Deltas.x));
+			root.Area.Size.y = llc::max(minimums[i].y, (llc::s1_t)(root.Area.Size.y + input.MouseCurrent.Deltas.y));
+			client.Area.Size.x += root.Area.Size.x - previous.x;
+			client.Area.Size.y += root.Area.Size.y - previous.y;
+			viewport.UnfoldedSize = root.Area.Size;
+			resized = true;
+			if_fail_fe(llc::controlMetricsInvalidate(gui, viewport.IdControl));
+		}
+		if(gui.Controls.IsHovered(title)) hovered = i;
+	}
+	if(doubleClick && hovered < ui.Viewports.size()) if_fail_fe(llc::viewportFold(gui, ui.Viewports[hovered]));
+	if(resized) { if_fail_fe(llsLayout(ui)); ui.Dirty = true; }
+	rtrn 0;
 }
 
 sttc llc::err_t llsSessionView(SApplication & app) {
@@ -308,25 +401,38 @@ llc::err_t llsGUISetup(SApplication & app) {
 		linkPalette = palette;
 		linkPalette[llc::UI_CONTROL_AREA_TEXT_FACE] = {240, 200, 112, 255};
 	}
-	if_fail_fe(llsControl(gui, ui.Title, app.Title, true));
-	if_fail_fe(llsControl(gui, ui.Statistics, "", true));
+	ui.Host = llc::controlCreate(gui);
+	if_fail_fe(ui.Host);
+	gui.Controls.Draw[ui.Host].NoBorder = true;
+	gui.Controls.Draw[ui.Host].NoClient = true;
+	gui.Controls.Placement[ui.Host].Area.Size = window.Size.s1();
+	gui.Controls.Constraints[ui.Host].AttachSizeToControl = {ui.Host, ui.Host};
+	if_fail_fe(llsViewportCreate(ui, LLS_GUI_VIEWPORT_SESSION, "SESSION / SERVICE", {{18, 12}, {1144, 118}}));
+	if_fail_fe(llsViewportCreate(ui, LLS_GUI_VIEWPORT_WORKSPACE, "LLS WORKSPACE", {{18, 144}, {390, 594}}));
+	if_fail_fe(llsViewportCreate(ui, LLS_GUI_VIEWPORT_INSPECTOR, "INSPECTOR", {{420, 144}, {742, 594}}));
+	if_fail_fe(llsViewportArrange(ui));
+	cnst llc::cid_t sessionClient = ui.Viewports[LLS_GUI_VIEWPORT_SESSION].IdControls[llc::VIEWPORT_CONTROL_TARGET];
+	cnst llc::cid_t workspaceClient = ui.Viewports[LLS_GUI_VIEWPORT_WORKSPACE].IdControls[llc::VIEWPORT_CONTROL_TARGET];
+	cnst llc::cid_t inspectorClient = ui.Viewports[LLS_GUI_VIEWPORT_INSPECTOR].IdControls[llc::VIEWPORT_CONTROL_TARGET];
+	if_fail_fe(llsControl(gui, ui.Title, app.Title, true, sessionClient));
+	if_fail_fe(llsControl(gui, ui.Statistics, "", true, sessionClient));
 	if_fail_fe(llsControl(gui, ui.Hint, "Type to filter. Select a result to inspect. Enter opens the first match. Mouse wheel scrolls details.", true));
-	if_fail_fe(llsControlPool(gui, ui.Tabs, ui.TabText.size(), ui.Family));
+	if_fail_fe(llsControlPool(gui, ui.Tabs, ui.TabText.size(), ui.Family, false, workspaceClient));
 	for(llc::u2_t i = 0; i < ui.Tabs.size(); ++i) { if_fail_fe(llc::controlTextSet(gui, ui.Tabs[i], ui.TabText[i])); }
-	if_fail_fe(llsControl(gui, ui.Exit, "Exit dashboard"));
-	if_fail_fe(llsControl(gui, ui.Restart, "Restart dashboard"));
-	if_fail_fe(llsControl(gui, ui.StopService, "Stop service"));
-	if_fail_fe(llsControl(gui, ui.Benchmark, "Benchmark"));
-	if_fail_fe(llsControl(gui, ui.Keyboard, "Keyboard"));
-	if_fail_fe(llsControl(gui, ui.OpenPath, "Open path"));
-	if_fail_fe(llsControl(gui, ui.ListPrev, "< List"));
-	if_fail_fe(llsControl(gui, ui.ListNext, "List >"));
-	if_fail_fe(llsControl(gui, ui.PagePrev, "< Page"));
-	if_fail_fe(llsControl(gui, ui.PageNext, "Page >"));
+	if_fail_fe(llsControl(gui, ui.Exit, "Exit dashboard", false, sessionClient));
+	if_fail_fe(llsControl(gui, ui.Restart, "Restart dashboard", false, sessionClient));
+	if_fail_fe(llsControl(gui, ui.StopService, "Stop service", false, sessionClient));
+	if_fail_fe(llsControl(gui, ui.Benchmark, "Benchmark", false, inspectorClient));
+	if_fail_fe(llsControl(gui, ui.Keyboard, "Keyboard", false, workspaceClient));
+	if_fail_fe(llsControl(gui, ui.OpenPath, "Open path", false, workspaceClient));
+	if_fail_fe(llsControl(gui, ui.ListPrev, "< List", false, workspaceClient));
+	if_fail_fe(llsControl(gui, ui.ListNext, "List >", false, workspaceClient));
+	if_fail_fe(llsControl(gui, ui.PagePrev, "< Page", false, inspectorClient));
+	if_fail_fe(llsControl(gui, ui.PageNext, "Page >", false, inspectorClient));
 	if_fail_fe(ui.RowText.resize(16));
-	if_fail_fe(llsControlPool(gui, ui.Rows, 16, ui.Family));
-	if_fail_fe(llsControlPool(gui, ui.Lines, 40, {{}, {}}, true));
-	if_fail_fe(llc::inputBoxCreate(ui.Input, gui));
+	if_fail_fe(llsControlPool(gui, ui.Rows, 16, ui.Family, false, workspaceClient));
+	if_fail_fe(llsControlPool(gui, ui.Lines, 40, {{}, {}}, true, inspectorClient));
+	if_fail_fe(llc::inputBoxCreate(ui.Input, gui, workspaceClient));
 	ui.Input.MaxLength = 4096;
 	ui.Input.Edit(gui, true);
 	for(auto & control : gui.Controls.Draw) {
@@ -336,6 +442,7 @@ llc::err_t llsGUISetup(SApplication & app) {
 	if_fail_fe(helpPaths(ui.Paths, true));
 	if_fail_fe(llsLayout(ui));
 	if_fail_fe(llsSessionView(app));
+	if_fail_fe(llc::viewportActivate(gui, ui.Host, ui.Viewports, LLS_GUI_VIEWPORT_WORKSPACE));
 	rtrn llc::guiUpdateMetrics(gui, window.Size, true);
 }
 
@@ -350,6 +457,7 @@ llc::err_t llsGUIUpdate(SApplication & app) {
 	}
 	bool doubleClick = false;
 	if_fail_fe(llsDoubleClick(window.EventQueue, doubleClick));
+	if_fail_fe(llsViewportsUpdate(ui, doubleClick));
 #ifdef LLC_WINDOWS
 	{
 		llc::string title;
@@ -492,8 +600,10 @@ llc::err_t llsGUIUpdate(SApplication & app) {
 		: llc::vcst_t{"Type to filter. Click paths in details to browse. Open path uses the text box. Mouse wheel scrolls."}));
 	ui.Refresh += ui.Framework.FrameInfo.Seconds.LastFrame;
 	if(ui.Dirty || ui.Refresh >= .2) { if_fail_fe(llsSessionView(app)); ui.Refresh = 0; }
-	if_fail_fe(llsControlPool(gui, ui.Breadcrumbs, ui.Explorer.Crumbs.size(), ui.Family));
-	llc::s1_t crumbX = 18;
+	cnst llc::cid_t workspaceClient = ui.Viewports[LLS_GUI_VIEWPORT_WORKSPACE].IdControls[llc::VIEWPORT_CONTROL_TARGET];
+	if_fail_fe(llsControlPool(gui, ui.Breadcrumbs, ui.Explorer.Crumbs.size(), ui.Family, false, workspaceClient));
+	cnst llc::s1_t workspaceWidth = gui.Controls.Placement[workspaceClient].Area.Size.x;
+	llc::s1_t crumbX = 10;
 	for(llc::u2_t i = 0; i < ui.Breadcrumbs.size(); ++i) {
 		cnst bool exists = ui.Tab == 4 && i < ui.Explorer.Crumbs.size();
 		gui.Controls.SetHidden(ui.Breadcrumbs[i], !exists);
@@ -502,9 +612,9 @@ llc::err_t llsGUIUpdate(SApplication & app) {
 		while(name.size() > 3 && name[name.size() - 1] == '/') name = {name.begin(), name.size() - 1};
 		if(i) { if_fail_fe(llc::pathFilename(name, name)); }
 		cnst llc::s1_t width = (llc::s1_t)llc::min(220U, 20U + name.size() * 8);
-		gui.Controls.SetHidden(ui.Breadcrumbs[i], crumbX + width > window.Size.x - 18);
+		gui.Controls.SetHidden(ui.Breadcrumbs[i], crumbX + width > workspaceWidth - 10);
 		if_fail_fe(llc::controlTextSet(gui, ui.Breadcrumbs[i], name));
-		if_fail_fe(llsPlace(gui, ui.Breadcrumbs[i], crumbX, 164, width, 26));
+		if_fail_fe(llsPlace(gui, ui.Breadcrumbs[i], crumbX, 174, width, 26));
 		crumbX += width + 6;
 	}
 	for(llc::u2_t i = 0; i < ui.Rows.size(); ++i) {

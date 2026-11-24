@@ -1,4 +1,5 @@
 #include "llc_framework.h"
+#include "llc_gui_composite.h"
 #include "llc_gui_inputbox.h"
 #include "lls_gui_build.h"
 #include "lls_explorer.h"
@@ -7,10 +8,19 @@
 #ifndef LLS_GUI_H
 #define LLS_GUI_H
 
+enum LLS_GUI_VIEWPORT : llc::u0_t {
+	LLS_GUI_VIEWPORT_SESSION,
+	LLS_GUI_VIEWPORT_WORKSPACE,
+	LLS_GUI_VIEWPORT_INSPECTOR,
+	LLS_GUI_VIEWPORT_COUNT,
+};
+
 stct SLLSGUI {
 	llc::SFramework		Framework;
 	SLLSGUISurface Surface;
 	llc::cid_t Host = -1, Exit = -1, Restart = -1, StopService = -1, Benchmark = -1;
+	llc::astatic<llc::SViewport, LLS_GUI_VIEWPORT_COUNT> Viewports = {};
+	llc::astatic<llc::astcid<llc::GUI_VIEWPORT_ACTION_COUNT>, LLS_GUI_VIEWPORT_COUNT> ViewportActions = {};
 	llc::u3_t SessionId = 0, RenderUs = 0, RenderCount = 0, RenderTotalUs = 0, RenderPeakUs = 0, BenchmarkUs = 0, BenchmarkTotalUs = 0;
 	llc::u2_t BenchmarkLeft = 0;
 	llc::SInputBox		Input;
