@@ -1,4 +1,4 @@
-#include "llc_connection.h"
+#include "llc_connection_ip.h"
 #include "llc_string.h"
 #include "llc_mutex.h"
 
@@ -7,8 +7,9 @@
 
 // The CGI/BRT handshake and LLC payload queues, restricted to local plain datagrams.
 stct SRelayPeer {
-	llc::SUDPConnection Connection;
-	llc::apobj<llc::SUDPMessage> Sent, Send, Received;
+	llc::SConnection Connection;
+	llc::SSocketConnection Socket;
+	llc::apobj<llc::SMessage> Sent, Send, Received;
 	llc::au0_t Buffer;
 	llc::au3_t Seen;
 	llc::aobj<llc::string> Outgoing, Files;
@@ -18,7 +19,7 @@ stct SRelayPeer {
 	bool Closed = false, Pong = false;
 };
 stct SRelayServer {
-	llc::auto_socket_close Listener;
+	llc::SSocketConnection Listener;
 	llc::apobj<SRelayPeer> Peers;
 };
 stxp llc::u1_t relayPort(bool debug) { rtrn debug ? 41998 : 41999; }
