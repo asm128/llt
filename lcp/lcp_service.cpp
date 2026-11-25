@@ -45,6 +45,12 @@ err_t locate(cnst lls::SControlNames & names, HWND & window, DWORD & pid) {
 	if(instance.Handle) rtrn -1; // Starting, older binary, or another desktop/session.
 	rtrn GetLastError() == ERROR_FILE_NOT_FOUND ? 0 : -1;
 }
+err_t processExecutable(HANDLE process, string & path) {
+	char actual[32768] = {};
+	DWORD size = sizeof(actual);
+	if_zero_ve(-1, QueryFullProcessImageNameA(process, 0, actual, &size));
+	rtrn path.append({actual, (u2_t)size});
+}
 err_t executable(vcst_t executablePath, string & text, string & path, string & directory, string & command) {
 	if_fail_fe(path.append(executablePath));
 	for(u2_t i = 0; i < path.size(); ++i) if(path[i] == '/') path[i] = '\\';
@@ -107,6 +113,18 @@ err_t control(vcst_t action, vcst_t configuration, vcst_t executablePath, string
 	if(action == "launch" && window)
 		rtrn append_strings(text, "LLS already running; pid ", str((u2_t)pid), ". No second instance launched.");
 	if(action == "shutdown" && !window) rtrn ::llc::append_string(text, "LLS is already stopped.");
+	string activeExecutable;
+	if(action == "restart" && !executablePath.size()) {
+		if(!window) {
+			if_fail_fe(::llc::append_string(text, "LLS is not running; select lls.exe or lrt.exe to start it."));
+			rtrn -1;
+		}
+		SHandle process;
+		process.Handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+		if_null_ve(-1, process.Handle);
+		if_fail_fe(processExecutable(process.Handle, activeExecutable));
+		executablePath = activeExecutable;
+	}
 	string path, directory, command;
 	if(action == "launch" || action == "restart") { if_fail_fe(executable(executablePath, text, path, directory, command)); }
 	if(window) {
@@ -114,10 +132,9 @@ err_t control(vcst_t action, vcst_t configuration, vcst_t executablePath, string
 		process.Handle = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
 		if_null_ve(-1, process.Handle);
 		if(action == "restart") {
-			char actual[32768] = {};
-			DWORD size = sizeof(actual);
-			if_zero_ve(-1, QueryFullProcessImageNameA(process.Handle, 0, actual, &size));
-			if_true_ve(-1, _stricmp(actual, path.begin()) != 0);
+			string actual;
+			if_fail_fe(processExecutable(process.Handle, actual));
+			if_true_ve(-1, _stricmp(actual.begin(), path.begin()) != 0);
 		}
 		DWORD current = 0;
 		if_zero_ve(-1, GetWindowThreadProcessId(window, &current));

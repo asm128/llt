@@ -141,7 +141,7 @@ llc::err_t llsCommandQueue(SApplication & app, llc::vcst_t command) {
 }
 
 llc::err_t llsServiceQueue(SApplication & app, llc::vcst_t action, llc::vcst_t executable) {
-	if_true_fe(action != "launch" && action != "shutdown");
+	if_true_fe(action != "launch" && action != "shutdown" && action != "restart");
 	if_true_fe(action == "launch" && !executable.size());
 	llc::lock_guard guard(app.Lock);
 	if_true_fe(app.ServiceCommandPending || app.ServiceCommandBusy);
@@ -150,7 +150,8 @@ llc::err_t llsServiceQueue(SApplication & app, llc::vcst_t action, llc::vcst_t e
 	if_fail_fe(app.ServiceExecutable.clear());
 	if_fail_fe(app.ServiceExecutable.append(executable));
 	if_fail_fe(app.ServiceResponse.clear());
-	if_fail_fe(::llc::append_string(app.ServiceResponse, action == "shutdown" ? "Stopping LLS..." : "Starting LLS..."));
+	cnst llc::vcst_t response = action == "shutdown" ? llc::vcst_t{"Stopping LLS..."} : action == "restart" ? llc::vcst_t{"Restarting LLS..."} : llc::vcst_t{"Starting LLS..."};
+	if_fail_fe(::llc::append_string(app.ServiceResponse, response));
 	app.ServiceCommandPending = true;
 	++app.Revision;
 	rtrn 0;
@@ -286,7 +287,7 @@ llc::err_t draw(SApplication & app) {
 	if(serviceAction.size()) {
 		llc::string result;
 		cnst llc::err_t called = lcpServiceControl(serviceAction, app.Service, serviceExecutable, result);
-		if(serviceAction == "shutdown" && llc::succeeded(called)) { if_fail_e(relayClose(app.Peer)); }
+		if((serviceAction == "shutdown" || serviceAction == "restart") && llc::succeeded(called)) { if_fail_e(relayClose(app.Peer)); }
 		{
 			llc::lock_guard guard(app.Lock);
 			if_fail_fe(app.ServiceResponse.clear());

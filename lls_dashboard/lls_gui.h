@@ -44,6 +44,7 @@ GDEFINE_ENUM_VALUE(SERVICE_VIEWPORT, IdentityValue  , 5);
 GDEFINE_ENUM_VALUE(SERVICE_VIEWPORT, Response       , 6);
 GDEFINE_ENUM_VALUE(SERVICE_VIEWPORT, ResponseValue  , 7);
 GDEFINE_ENUM_VALUE(SERVICE_VIEWPORT, Stop           , 8);
+GDEFINE_ENUM_VALUE(SERVICE_VIEWPORT, Restart        , 9);
 
 GDEFINE_ENUM_TYPE(EXPLORER_VIEWPORT, llc::u0_t);
 GDEFINE_ENUM_VALUE(EXPLORER_VIEWPORT, Path    ,  0);
@@ -120,7 +121,7 @@ stct SLLSGUI {
 	llc::aobj<SExplorer> ExplorerState;
 	llc::aobj<llc::aobj<llc::string>> ExplorerText;
 	llc::au2_t ExplorerOffset;
-	llc::cid_t Exit = -1, Restart = -1, StopService = -1, Benchmark = -1;
+	llc::cid_t Exit = -1, Restart = -1, StopService = -1, RestartService = -1, Benchmark = -1;
 	llc::astatic<llc::SViewport, LLS_GUI_VIEWPORT_COUNT> Viewports = {};
 	llc::astatic<llc::astcid<llc::GUI_VIEWPORT_ACTION_COUNT>, LLS_GUI_VIEWPORT_COUNT> ViewportActions = {};
 	llc::u3_t SessionId = 0, RenderUs = 0, RenderCount = 0, RenderTotalUs = 0, RenderPeakUs = 0, BenchmarkUs = 0, BenchmarkTotalUs = 0;
