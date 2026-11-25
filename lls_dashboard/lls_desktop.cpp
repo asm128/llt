@@ -123,7 +123,7 @@ llc::err_t llsDesktopAttach(SApplication & app) {
 	Desktop.Icon.hIcon = LoadIconA(0, IDI_APPLICATION);
 	lstrcpynA(Desktop.Icon.szTip, WindowTitle, sizeof(Desktop.Icon.szTip));
 	Desktop.Added = Shell_NotifyIconA(NIM_ADD, &Desktop.Icon) != FALSE;
-	if_zero_ve(-1, Desktop.Added);
+	if(!Desktop.Added) warning_printf("Dashboard notification icon unavailable; continuing without the shell integration.");
 	Desktop.Shutdown = RegisterWindowMessageA("LT4.Dashboard.Quit.v1");
 	if_zero_ve(-1, Desktop.Shutdown);
 	rtrn 0;

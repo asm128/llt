@@ -1,6 +1,13 @@
 #include "lls_gui_build.h"
 #include "../lcp/lcp_text.h"
 
+llc::err_t llsControlPalette(llc::SGUI & gui, llc::cid_t id) {
+	auto & draw = gui.Controls.Draw[id];
+	draw.UseNewPalettes = true;
+	for(llc::u2_t i = 0; i < llc::GUI_CONTROL_PALETTE_COUNT; ++i) draw.Palettes[i] = (llc::s1_t)i;
+	rtrn 0;
+}
+
 llc::err_t llsControl(llc::SGUI & gui, llc::cid_t & id, llc::vcst_t text, cnst SGUIFamily & family, bool label, llc::cid_t parent) {
 	id = parent == llc::CID_INVALID ? llc::controlCreate(gui) : llc::controlCreateChild(gui, parent);
 	if_fail_fe(id);
@@ -8,9 +15,8 @@ llc::err_t llsControl(llc::SGUI & gui, llc::cid_t & id, llc::vcst_t text, cnst S
 	gui.Controls.Placement[id].Border = family.Border;
 	gui.Controls.Text[id].Align = llc::ALIGN_CENTER_LEFT;
 	auto & draw = gui.Controls.Draw[id];
-	draw.UseNewPalettes = true;
 	draw.NoBorder = draw.NoClient = label;
-	for(llc::u2_t i = 0; i < llc::GUI_CONTROL_PALETTE_COUNT; ++i) draw.Palettes[i] = (llc::s1_t)i;
+	if_fail_fe(llsControlPalette(gui, id));
 	rtrn llc::controlTextSet(gui, id, text);
 }
 
