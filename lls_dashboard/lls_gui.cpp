@@ -7,6 +7,22 @@
 #include "llc_chrono.h"
 #include "llc_event_input.h"
 #include "llc_runtime_module.h"
+#include "llc_gui_control_list.h"
+
+tplt<tpnm TEnum>
+stin llc::cid_t llsChild(cnst llc::SGUI & gui, llc::cid_t root, TEnum index) {
+	rtrn gui.Controls.Children[root][(llc::u2_t)index];
+}
+
+tplt<tpnm TEnum>
+sttc llc::err_t llsEnumCreate(llc::SGUI & gui, llc::cid_t root, cnst llc::n2u1_t & size, llc::ALIGN controlAlign, llc::ALIGN textAlign) {
+	llc::acid created;
+	if_fail_fe(llc::guiCreateControlList<TEnum>(gui, root, size, {}, controlAlign, textAlign, created));
+	if_true_fef(created.size() != llc::get_value_count<TEnum>(), "Created:%u. Reflected:%u.", created.size(), llc::get_value_count<TEnum>());
+	if_true_fef(gui.Controls.Children[root].size() != llc::get_value_count<TEnum>(), "Root:%i. Children:%u. Reflected:%u.", root, gui.Controls.Children[root].size(), llc::get_value_count<TEnum>());
+	for(cnst llc::cid_t id : created) if_fail_fe(llsControlPalette(gui, id));
+	rtrn 0;
+}
 
 sttc llc::err_t llsControl(llc::SGUI & gui, llc::cid_t & id, llc::vcst_t text, bool label = false, llc::cid_t parent = llc::CID_INVALID) {
 	rtrn llsControl(gui, id, text, SGUIFamily{}, label, parent);
@@ -15,6 +31,184 @@ sttc llc::err_t llsControl(llc::SGUI & gui, llc::cid_t & id, llc::vcst_t text, b
 sttc llc::err_t llsPlace(llc::SGUI & gui, llc::cid_t id, llc::s1_t x, llc::s1_t y, llc::s1_t w, llc::s1_t h) {
 	gui.Controls.Placement[id].Area = {{x, y}, {w, h}};
 	rtrn llc::controlMetricsInvalidate(gui, id);
+}
+
+sttc llc::err_t llsToolbarCreate(SLLSGUI & ui) {
+	auto & gui = *ui.Framework.GUI;
+	if_fail_fe(ui.Toolbar = llc::controlCreateChild(gui, ui.Host));
+	if_fail_fe(llsControlPalette(gui, ui.Toolbar));
+	gui.Controls.Draw[ui.Toolbar].NoBorder = true;
+	gui.Controls.Draw[ui.Toolbar].NoClient = true;
+	if_fail_fe(llsEnumCreate<LLS_TOOLBAR>(gui, ui.Toolbar, {46, 46}, llc::ALIGN_TOP_LEFT, llc::ALIGN_CENTER));
+	for(llc::u2_t i = 0; i < llc::get_value_count<LLS_TOOLBAR>(); ++i) {
+		cnst llc::cid_t id = gui.Controls.Children[ui.Toolbar][i];
+		gui.Controls.Placement[id].Area = {{(llc::s1_t)(46 * i), 0}, {46, 46}};
+		gui.Controls.Placement[id].Border = {2, 2, 2, 2};
+		gui.Controls.Placement[id].Margin = {1, 1, 1, 1};
+		gui.Controls.Text[id].FontSelected = 10;
+		if_fail_fe(llc::controlTextSet(gui, id, llc::get_value_descv((LLS_TOOLBAR)i)));
+	}
+	rtrn 0;
+}
+
+tplt<tpnm TContent>
+sttc llc::err_t llsRootCreate(SLLSGUI & ui, llc::cid_t & root, llc::vcst_t title, cnst llc::rect2s1_t & area) {
+	auto & gui = *ui.Framework.GUI;
+	if_fail_fe(root = llc::controlCreateChild(gui, ui.Host));
+	if_fail_fe(llsControlPalette(gui, root));
+	gui.Controls.Placement[root].Area = area;
+	gui.Controls.Placement[root].Border = {3, 3, 3, 3};
+	gui.Controls.Placement[root].Margin = {1, 1, 1, 1};
+	if_fail_fe(llsEnumCreate<LLS_VIEWPORT>(gui, root, {1, 1}, llc::ALIGN_TOP_LEFT, llc::ALIGN_CENTER));
+	cnst llc::cid_t titleId = llsChild(gui, root, LLS_VIEWPORT_Title);
+	cnst llc::cid_t closeId = llsChild(gui, root, LLS_VIEWPORT_Close);
+	cnst llc::cid_t targetId = llsChild(gui, root, LLS_VIEWPORT_Target);
+	cnst llc::cid_t resizeId = llsChild(gui, root, LLS_VIEWPORT_Resize);
+	if_fail_fe(llc::controlTextSet(gui, titleId, title));
+	if_fail_fe(llc::controlTextSet(gui, closeId, "X"));
+	if_fail_fe(llc::controlTextSet(gui, targetId, {}));
+	if_fail_fe(llc::controlTextSet(gui, resizeId, "+"));
+	gui.Controls.Text[titleId].FontSelected = 7;
+	gui.Controls.Text[closeId].FontSelected = 7;
+	gui.Controls.Text[resizeId].FontSelected = 7;
+	gui.Controls.Text[titleId].Align = llc::ALIGN_CENTER;
+	if_fail_fe(llsEnumCreate<TContent>(gui, targetId, {1, 1}, llc::ALIGN_TOP_LEFT, llc::ALIGN_CENTER_LEFT));
+	for(llc::cid_t id : gui.Controls.Children[targetId]) gui.Controls.Text[id].FontSelected = 7;
+	rtrn 0;
+}
+
+sttc llc::err_t llsRootChromeLayout(llc::SGUI & gui, llc::cid_t root) {
+	cnst llc::n2s1_t size = gui.Controls.Placement[root].Area.Size;
+	if_fail_fe(llsPlace(gui, llsChild(gui, root, LLS_VIEWPORT_Title ),  4,  4, llc::max((llc::s1_t)1, (llc::s1_t)(size.x - 40)), 28));
+	if_fail_fe(llsPlace(gui, llsChild(gui, root, LLS_VIEWPORT_Close ), (llc::s1_t)(size.x - 32),  4, 28, 28));
+	if_fail_fe(llsPlace(gui, llsChild(gui, root, LLS_VIEWPORT_Target),  4, 36, llc::max((llc::s1_t)1, (llc::s1_t)(size.x -  8)), llc::max((llc::s1_t)1, (llc::s1_t)(size.y - 40))));
+	rtrn llsPlace(gui, llsChild(gui, root, LLS_VIEWPORT_Resize), (llc::s1_t)(size.x - 20), (llc::s1_t)(size.y - 20), 16, 16);
+}
+
+sttc llc::err_t llsProcessLayout(llc::SGUI & gui, llc::cid_t root) {
+	if_fail_fe(llsRootChromeLayout(gui, root));
+	cnst llc::cid_t target = llsChild(gui, root, LLS_VIEWPORT_Target);
+	cnst llc::s1_t width = llc::max((llc::s1_t)1, (llc::s1_t)(gui.Controls.Placement[target].Area.Size.x - 12));
+	for(llc::u2_t i = 0; i < llc::get_value_count<PROCESS_VIEWPORT>(); ++i)
+		if_fail_fe(llsPlace(gui, gui.Controls.Children[target][i], 6, (llc::s1_t)(6 + 27 * i), width, 25));
+	rtrn 0;
+}
+
+sttc llc::err_t llsServiceLayout(llc::SGUI & gui, llc::cid_t root) {
+	if_fail_fe(llsRootChromeLayout(gui, root));
+	cnst llc::cid_t target = llsChild(gui, root, LLS_VIEWPORT_Target);
+	cnst llc::s1_t width = llc::max((llc::s1_t)1, (llc::s1_t)(gui.Controls.Placement[target].Area.Size.x - 12));
+	cnst llc::s1_t labelWidth = llc::min((llc::s1_t)132, (llc::s1_t)(width / 3));
+	for(llc::u2_t pair = 0; pair < 4; ++pair) {
+		cnst llc::s1_t y = (llc::s1_t)(6 + 34 * pair);
+		if_fail_fe(llsPlace(gui, gui.Controls.Children[target][pair * 2 + 0], 6, y, labelWidth, 30));
+		if_fail_fe(llsPlace(gui, gui.Controls.Children[target][pair * 2 + 1], (llc::s1_t)(12 + labelWidth), y, llc::max((llc::s1_t)1, (llc::s1_t)(width - labelWidth - 6)), 30));
+	}
+	rtrn llsPlace(gui, llsChild(gui, target, SERVICE_VIEWPORT_Stop), 6, 148, width, 34);
+}
+
+stxp llc::u2_t LLS_EXPLORER_ROWS = (llc::u2_t)EXPLORER_VIEWPORT_Previous - (llc::u2_t)EXPLORER_VIEWPORT_Row00;
+
+sttc llc::cid_t llsExplorerRow(cnst llc::SGUI & gui, llc::cid_t root, llc::u2_t row) {
+	cnst llc::cid_t target = llsChild(gui, root, LLS_VIEWPORT_Target);
+	rtrn gui.Controls.Children[target][(llc::u2_t)EXPLORER_VIEWPORT_Row00 + row];
+}
+
+sttc llc::err_t llsExplorerLayout(llc::SGUI & gui, llc::cid_t root) {
+	if_fail_fe(llsRootChromeLayout(gui, root));
+	cnst llc::cid_t target = llsChild(gui, root, LLS_VIEWPORT_Target);
+	cnst llc::n2s1_t size = gui.Controls.Placement[target].Area.Size;
+	cnst llc::s1_t width = llc::max((llc::s1_t)1, (llc::s1_t)(size.x - 12));
+	if_fail_fe(llsPlace(gui, llsChild(gui, target, EXPLORER_VIEWPORT_Path), 6, 6, width, 28));
+	for(llc::u2_t i = 0; i < LLS_EXPLORER_ROWS; ++i)
+		if_fail_fe(llsPlace(gui, llsExplorerRow(gui, root, i), 6, (llc::s1_t)(40 + 27 * i), width, 25));
+	cnst llc::s1_t navigationY = (llc::s1_t)(46 + 27 * LLS_EXPLORER_ROWS);
+	if_fail_fe(llsPlace(gui, llsChild(gui, target, EXPLORER_VIEWPORT_Previous), 6, navigationY, 92, 28));
+	if_fail_fe(llsPlace(gui, llsChild(gui, target, EXPLORER_VIEWPORT_Next), 104, navigationY, 92, 28));
+	rtrn llsPlace(gui, llsChild(gui, target, EXPLORER_VIEWPORT_Summary), 6, (llc::s1_t)(navigationY + 34), width, 28);
+}
+
+stxp llc::u2_t LLS_HELP_TOPICS = (llc::u2_t)HELP_VIEWPORT_TopicPrevious - (llc::u2_t)HELP_VIEWPORT_Topic00;
+stxp llc::u2_t LLS_HELP_LINES = (llc::u2_t)HELP_VIEWPORT_PagePrevious - (llc::u2_t)HELP_VIEWPORT_Line00;
+
+sttc llc::cid_t llsHelpTopic(cnst llc::SGUI & gui, llc::cid_t root, llc::u2_t row) {
+	cnst llc::cid_t target = llsChild(gui, root, LLS_VIEWPORT_Target);
+	rtrn gui.Controls.Children[target][(llc::u2_t)HELP_VIEWPORT_Topic00 + row];
+}
+
+sttc llc::cid_t llsHelpLine(cnst llc::SGUI & gui, llc::cid_t root, llc::u2_t row) {
+	cnst llc::cid_t target = llsChild(gui, root, LLS_VIEWPORT_Target);
+	rtrn gui.Controls.Children[target][(llc::u2_t)HELP_VIEWPORT_Line00 + row];
+}
+
+sttc llc::err_t llsHelpLayout(llc::SGUI & gui, llc::cid_t root) {
+	if_fail_fe(llsRootChromeLayout(gui, root));
+	cnst llc::cid_t target = llsChild(gui, root, LLS_VIEWPORT_Target);
+	cnst llc::n2s1_t size = gui.Controls.Placement[target].Area.Size;
+	cnst llc::s1_t topicWidth = llc::min((llc::s1_t)280, (llc::s1_t)(size.x / 3));
+	cnst llc::s1_t contentX = (llc::s1_t)(topicWidth + 18);
+	cnst llc::s1_t contentWidth = llc::max((llc::s1_t)1, (llc::s1_t)(size.x - contentX - 6));
+	for(llc::u2_t i = 0; i < LLS_HELP_TOPICS; ++i)
+		if_fail_fe(llsPlace(gui, llsHelpTopic(gui, root, i), 6, (llc::s1_t)(6 + 30 * i), topicWidth, 28));
+	cnst llc::s1_t topicNavigationY = (llc::s1_t)(12 + 30 * LLS_HELP_TOPICS);
+	if_fail_fe(llsPlace(gui, llsChild(gui, target, HELP_VIEWPORT_TopicPrevious), 6, topicNavigationY, 92, 28));
+	if_fail_fe(llsPlace(gui, llsChild(gui, target, HELP_VIEWPORT_TopicNext), 104, topicNavigationY, 92, 28));
+	for(llc::u2_t i = 0; i < LLS_HELP_LINES; ++i)
+		if_fail_fe(llsPlace(gui, llsHelpLine(gui, root, i), contentX, (llc::s1_t)(6 + 24 * i), contentWidth, 22));
+	cnst llc::s1_t pageNavigationY = (llc::s1_t)(12 + 24 * LLS_HELP_LINES);
+	if_fail_fe(llsPlace(gui, llsChild(gui, target, HELP_VIEWPORT_PagePrevious), contentX, pageNavigationY, 92, 28));
+	rtrn llsPlace(gui, llsChild(gui, target, HELP_VIEWPORT_PageNext), (llc::s1_t)(contentX + 98), pageNavigationY, 92, 28);
+}
+
+sttc llc::err_t llsRootArrange(SLLSGUI & ui) {
+	auto & gui = *ui.Framework.GUI;
+	cnst llc::s1_t width = (llc::s1_t)llc::max(900U, (llc::u2_t)ui.Framework.RootWindow.Size.x);
+	cnst llc::s1_t height = (llc::s1_t)llc::max(620U, (llc::u2_t)ui.Framework.RootWindow.Size.y);
+	gui.Controls.Placement[ui.Toolbar].Area = {{18, 12}, {(llc::s1_t)(46 * llc::get_value_count<LLS_TOOLBAR>()), 46}};
+	cnst llc::s1_t contentTop = 202;
+	cnst llc::s1_t contentHeight = llc::max((llc::s1_t)280, (llc::s1_t)(height - contentTop - 42));
+	cnst llc::s1_t available = (llc::s1_t)(width - 48);
+	cnst llc::s1_t processWidth = (llc::s1_t)(available * 3 / 5);
+	gui.Controls.Placement[ui.Processes].Area = {{18, contentTop}, {processWidth, contentHeight}};
+	gui.Controls.Placement[ui.Services].Area = {{(llc::s1_t)(30 + processWidth), contentTop}, {(llc::s1_t)(available - processWidth), contentHeight}};
+	if_fail_fe(llc::controlMetricsInvalidate(gui, ui.Toolbar));
+	if_fail_fe(llc::controlMetricsInvalidate(gui, ui.Processes));
+	if_fail_fe(llc::controlMetricsInvalidate(gui, ui.Services));
+	if_fail_fe(llsProcessLayout(gui, ui.Processes));
+	rtrn llsServiceLayout(gui, ui.Services);
+}
+
+sttc llc::err_t llsRootActivate(SLLSGUI & ui, llc::cid_t root) {
+	auto & gui = *ui.Framework.GUI;
+	gui.Controls.SetHidden(root, false);
+	if_fail_fe(llc::controlSetParent(gui, root, llc::CID_INVALID));
+	rtrn llc::controlSetParent(gui, root, ui.Host);
+}
+
+using TLLSRootLayout = llc::err_t (*)(llc::SGUI &, llc::cid_t);
+
+sttc llc::err_t llsRootUpdate(SLLSGUI & ui, llc::cid_t root, cnst llc::n2s1_t & minimum, TLLSRootLayout layout) {
+	auto & gui = *ui.Framework.GUI;
+	if(gui.Controls.IsHidden(root)) rtrn 0;
+	auto & input = *ui.Framework.RootWindow.Input;
+	cnst llc::cid_t title = llsChild(gui, root, LLS_VIEWPORT_Title);
+	cnst llc::cid_t close = llsChild(gui, root, LLS_VIEWPORT_Close);
+	cnst llc::cid_t target = llsChild(gui, root, LLS_VIEWPORT_Target);
+	cnst llc::cid_t resize = llsChild(gui, root, LLS_VIEWPORT_Resize);
+	if(gui.Controls.IsPressed(root) || gui.Controls.IsPressed(title) || gui.Controls.IsPressed(target)) if_fail_fe(llsRootActivate(ui, root));
+	if(gui.Controls.IsAction(close)) { gui.Controls.SetHidden(root, true); rtrn 0; }
+	if(gui.Controls.IsPressed(title) && (input.MouseCurrent.Deltas.x || input.MouseCurrent.Deltas.y)) {
+		gui.Controls.Placement[root].Area.Offset += {(llc::s1_t)input.MouseCurrent.Deltas.x, (llc::s1_t)input.MouseCurrent.Deltas.y};
+		if_fail_fe(llc::controlMetricsInvalidate(gui, root));
+	}
+	if(gui.Controls.IsPressed(resize) && (input.MouseCurrent.Deltas.x || input.MouseCurrent.Deltas.y)) {
+		auto & size = gui.Controls.Placement[root].Area.Size;
+		size.x = llc::max(minimum.x, (llc::s1_t)(size.x + input.MouseCurrent.Deltas.x));
+		size.y = llc::max(minimum.y, (llc::s1_t)(size.y + input.MouseCurrent.Deltas.y));
+		if_fail_fe(layout(gui, root));
+		if_fail_fe(llc::controlMetricsInvalidate(gui, root));
+	}
+	rtrn 0;
 }
 
 sttc llc::err_t llsTextRelease(SLLSGUI & ui, cnst llc::acid & controls) {
@@ -78,10 +272,10 @@ sttc llc::err_t llsViewportArrange(SLLSGUI & ui) {
 	cnst auto size = ui.Framework.RootWindow.Size;
 	cnst llc::s1_t width = (llc::s1_t)llc::max(900U, (llc::u2_t)size.x);
 	cnst llc::s1_t height = (llc::s1_t)llc::max(620U, (llc::u2_t)size.y);
-	cnst llc::s1_t contentTop = 144;
+	cnst llc::s1_t contentTop = 202;
 	cnst llc::s1_t contentHeight = (llc::s1_t)(height - contentTop - 42);
 	cnst llc::s1_t workspaceWidth = (llc::s1_t)llc::min(440U, llc::max(360U, (llc::u2_t)width / 3));
-	if_fail_fe(llsViewportPlace(ui, LLS_GUI_VIEWPORT_SESSION, {{18, 12}, {(llc::s1_t)(width - 36), 118}}));
+	if_fail_fe(llsViewportPlace(ui, LLS_GUI_VIEWPORT_SESSION, {{18, 70}, {(llc::s1_t)(width - 36), 118}}));
 	if_fail_fe(llsViewportPlace(ui, LLS_GUI_VIEWPORT_WORKSPACE, {{18, contentTop}, {workspaceWidth, contentHeight}}));
 	rtrn llsViewportPlace(ui, LLS_GUI_VIEWPORT_INSPECTOR, {{(llc::s1_t)(workspaceWidth + 30), contentTop}, {(llc::s1_t)(width - workspaceWidth - 48), contentHeight}});
 }
@@ -92,21 +286,26 @@ sttc llc::err_t llsDetailClear(SLLSGUI & ui) {
 	rtrn ui.Detail.clear();
 }
 
-sttc llc::err_t llsLines(SLLSGUI & ui) {
-	if_fail_fe(ui.DetailLines.clear());
-	llc::vcst_t remaining = ui.Detail;
+sttc llc::err_t llsTextLines(llc::vcst_t text, llc::u2_t columns, llc::aobj<llc::vcst_t> & lines) {
+	if_fail_fe(lines.clear());
+	llc::vcst_t remaining = text;
 	while(remaining.size()) {
 		llc::u2_t count = 0;
-		while(count < remaining.size() && remaining[count] != '\n' && count < ui.Columns) ++count;
+		while(count < remaining.size() && remaining[count] != '\n' && count < columns) ++count;
 		llc::u2_t consumed = count;
 		if(count < remaining.size() && remaining[count] == '\n') ++consumed;
-		else if(count == ui.Columns) {
+		else if(count == columns) {
 			for(llc::u2_t word = count; word > count / 2; --word)
 				if(remaining[word - 1] == ' ') { count = word - 1; consumed = word; break; }
 		}
-		if_fail_fe(ui.DetailLines.push_back({remaining.begin(), count}));
+		if_fail_fe(lines.push_back({remaining.begin(), count}));
 		if_fail_fe(remaining.slice(remaining, consumed));
 	}
+	rtrn lines.size();
+}
+
+sttc llc::err_t llsLines(SLLSGUI & ui) {
+	if_fail_fe(llsTextLines(ui.Detail, ui.Columns, ui.DetailLines));
 	ui.LineOffset = llc::min(ui.LineOffset, ui.DetailLines.size() ? ui.DetailLines.size() - 1 : 0U);
 	rtrn llsPathLinks(ui.Detail, ui.DetailPaths);
 }
@@ -124,6 +323,7 @@ sttc llc::err_t llsExplore(SLLSGUI & ui, llc::vcst_t path) {
 
 sttc llc::err_t llsLayout(SLLSGUI & ui) {
 	auto & gui = *ui.Framework.GUI;
+	if_fail_fe(llsRootArrange(ui));
 	cnst auto size = ui.Framework.RootWindow.Size;
 	cnst llc::s1_t width = (llc::s1_t)llc::max(900U, (llc::u2_t)size.x);
 	cnst llc::s1_t height = (llc::s1_t)llc::max(620U, (llc::u2_t)size.y);
@@ -211,6 +411,300 @@ sttc llc::err_t llsViewportsUpdate(SLLSGUI & ui, bool doubleClick) {
 	if(doubleClick && hovered < ui.Viewports.size()) if_fail_fe(llc::viewportFold(gui, ui.Viewports[hovered]));
 	if(resized) { if_fail_fe(llsLayout(ui)); ui.Dirty = true; }
 	rtrn 0;
+}
+
+sttc llc::err_t llsExplorerCreate(SLLSGUI & ui, llc::vcst_t path) {
+	auto & gui = *ui.Framework.GUI;
+	cnst llc::u2_t cascade = ui.Explorers.size();
+	llc::cid_t root = llc::CID_INVALID;
+	if_fail_fe(llsRootCreate<EXPLORER_VIEWPORT>(ui, root, "EXPLORER", {{(llc::s1_t)(72 + 28 * (cascade % 8)), (llc::s1_t)(86 + 24 * (cascade % 6))}, {590, 650}}));
+	cnst llc::u2_t properties = (llc::u2_t)root + 1;
+	if(root >= (llc::cid_t)ui.ExplorerState.size()) {
+		if_fail_fe(ui.ExplorerState.resize(properties));
+		if_fail_fe(ui.ExplorerText.resize(properties));
+		if_fail_fe(ui.ExplorerOffset.resize(properties));
+	}
+	if_fail_fe(ui.ExplorerText[root].resize(LLS_EXPLORER_ROWS));
+	ui.ExplorerOffset[root] = 0;
+	if_fail_fe(llsExplorerOpen(ui.ExplorerState[root], path));
+	if_fail_fe(ui.Explorers.push_back(root));
+	cnst llc::cid_t target = llsChild(gui, root, LLS_VIEWPORT_Target);
+	cnst llc::cid_t pathId = llsChild(gui, target, EXPLORER_VIEWPORT_Path);
+	cnst llc::cid_t summaryId = llsChild(gui, target, EXPLORER_VIEWPORT_Summary);
+	gui.Controls.Draw[pathId].NoBorder = gui.Controls.Draw[pathId].NoClient = true;
+	gui.Controls.Draw[summaryId].NoBorder = gui.Controls.Draw[summaryId].NoClient = true;
+	gui.Controls.Text[pathId].Align = llc::ALIGN_CENTER_LEFT;
+	gui.Controls.Text[summaryId].Align = llc::ALIGN_TOP_LEFT;
+	if_fail_fe(llc::controlTextSet(gui, llsChild(gui, target, EXPLORER_VIEWPORT_Previous), "< Page"));
+	if_fail_fe(llc::controlTextSet(gui, llsChild(gui, target, EXPLORER_VIEWPORT_Next), "Page >"));
+	if_fail_fe(llc::controlTextSet(gui, summaryId, "Click: expand. Double-click: new Explorer / launch."));
+	if_fail_fe(llsExplorerLayout(gui, root));
+	if_fail_fe(llc::controlMetricsInvalidate(gui, root));
+	rtrn llsRootActivate(ui, root);
+}
+
+sttc llc::err_t llsExplorerUpdate(SApplication & app, bool doubleClick) {
+	auto & ui = *app.UI;
+	auto & gui = *ui.Framework.GUI;
+	cnst llc::u2_t count = ui.Explorers.size();
+	for(llc::u2_t iRoot = 0; iRoot < count; ++iRoot) {
+		cnst llc::cid_t root = ui.Explorers[iRoot];
+		if_fail_fe(llsRootUpdate(ui, root, {420, 600}, llsExplorerLayout));
+		if(gui.Controls.IsHidden(root)) continue;
+		cnst llc::cid_t target = llsChild(gui, root, LLS_VIEWPORT_Target);
+		SExplorer & explorer = ui.ExplorerState[root];
+		llc::u2_t & offset = ui.ExplorerOffset[root];
+		if(gui.Controls.IsAction(llsChild(gui, target, EXPLORER_VIEWPORT_Previous)))
+			offset = offset > LLS_EXPLORER_ROWS ? offset - LLS_EXPLORER_ROWS : 0;
+		if(gui.Controls.IsAction(llsChild(gui, target, EXPLORER_VIEWPORT_Next)) && offset + LLS_EXPLORER_ROWS < explorer.Rows.size())
+			offset += LLS_EXPLORER_ROWS;
+		for(llc::u2_t row = 0; row < LLS_EXPLORER_ROWS; ++row) {
+			cnst llc::cid_t rowId = llsExplorerRow(gui, root, row);
+			cnst bool activated = gui.Controls.IsAction(rowId) || (doubleClick && gui.Controls.IsHovered(rowId));
+			if(!activated || offset + row >= explorer.Rows.size()) continue;
+			if_fail_fe(llsRootActivate(ui, root));
+			if_fail_fe(llsExplorerSelect(explorer, offset + row));
+			if(offset >= explorer.Rows.size()) offset = 0;
+			if(doubleClick && gui.Controls.IsHovered(rowId) && explorer.SelectedPath.size()) {
+				llc::string selectedPath = explorer.SelectedPath;
+				if(explorer.SelectedFolder) { if_fail_fe(llsExplorerCreate(ui, selectedPath)); }
+				else {
+					cnst llc::err_t queued = llsServiceQueue(app, "launch", selectedPath);
+					if(llc::failed(queued)) {
+						llc::lock_guard guard(app.Lock);
+						if_fail_fe(app.ServiceResponse.clear());
+						if_fail_fe(::llc::append_string(app.ServiceResponse, "A service control operation is already running."));
+						++app.Revision;
+					}
+				}
+			}
+			break;
+		}
+	}
+	rtrn 0;
+}
+
+sttc llc::err_t llsHelpSelect(SLLSGUI & ui, llc::u2_t topic) {
+	if_true_fe(topic >= ui.Paths.size());
+	ui.HelpSelected = topic;
+	ui.HelpLineOffset = 0;
+	auto & gui = *ui.Framework.GUI;
+	cnst llc::cid_t target = llsChild(gui, ui.Help, LLS_VIEWPORT_Target);
+	cnst llc::s1_t width = gui.Controls.Placement[target].Area.Size.x;
+	cnst llc::s1_t topicWidth = llc::min((llc::s1_t)280, (llc::s1_t)(width / 3));
+	cnst llc::s1_t contentWidth = llc::max((llc::s1_t)1, (llc::s1_t)(width - topicWidth - 24));
+	cnst llc::u1_t font = gui.Controls.Text[llsHelpLine(gui, ui.Help, 0)].FontSelected;
+	cnst llc::u2_t characterCount = (llc::u2_t)contentWidth / gui.Fonts[font]->CharSize.x;
+	ui.HelpColumns = characterCount > 1 ? characterCount - 1 : 1;
+	rtrn llsTextLines(help(ui.Paths[topic], true), ui.HelpColumns, ui.HelpLines);
+}
+
+sttc llc::err_t llsHelpCreate(SLLSGUI & ui) {
+	auto & gui = *ui.Framework.GUI;
+	if(ui.Help != llc::CID_INVALID) rtrn llsRootActivate(ui, ui.Help);
+	if_fail_fe(llsRootCreate<HELP_VIEWPORT>(ui, ui.Help, "HELP", {{138, 92}, {920, 650}}));
+	cnst llc::cid_t target = llsChild(gui, ui.Help, LLS_VIEWPORT_Target);
+	for(llc::u2_t line = 0; line < LLS_HELP_LINES; ++line) {
+		cnst llc::cid_t id = llsHelpLine(gui, ui.Help, line);
+		gui.Controls.Draw[id].NoBorder = gui.Controls.Draw[id].NoClient = true;
+		gui.Controls.Text[id].Align = llc::ALIGN_CENTER_LEFT;
+	}
+	if_fail_fe(llc::controlTextSet(gui, llsChild(gui, target, HELP_VIEWPORT_TopicPrevious), "< Topics"));
+	if_fail_fe(llc::controlTextSet(gui, llsChild(gui, target, HELP_VIEWPORT_TopicNext), "Topics >"));
+	if_fail_fe(llc::controlTextSet(gui, llsChild(gui, target, HELP_VIEWPORT_PagePrevious), "< Page"));
+	if_fail_fe(llc::controlTextSet(gui, llsChild(gui, target, HELP_VIEWPORT_PageNext), "Page >"));
+	if_fail_fe(llsHelpLayout(gui, ui.Help));
+	if(ui.Paths.size()) { if_fail_fe(llsHelpSelect(ui, 0)); }
+	if_fail_fe(llc::controlMetricsInvalidate(gui, ui.Help));
+	rtrn llsRootActivate(ui, ui.Help);
+}
+
+sttc llc::err_t llsHelpUpdate(SLLSGUI & ui) {
+	if(ui.Help == llc::CID_INVALID) rtrn 0;
+	if_fail_fe(llsRootUpdate(ui, ui.Help, {660, 600}, llsHelpLayout));
+	auto & gui = *ui.Framework.GUI;
+	if(gui.Controls.IsHidden(ui.Help)) rtrn 0;
+	cnst llc::cid_t target = llsChild(gui, ui.Help, LLS_VIEWPORT_Target);
+	cnst llc::s1_t width = gui.Controls.Placement[target].Area.Size.x;
+	cnst llc::s1_t topicWidth = llc::min((llc::s1_t)280, (llc::s1_t)(width / 3));
+	cnst llc::s1_t contentWidth = llc::max((llc::s1_t)1, (llc::s1_t)(width - topicWidth - 24));
+	cnst llc::u1_t font = gui.Controls.Text[llsHelpLine(gui, ui.Help, 0)].FontSelected;
+	cnst llc::u2_t characterCount = (llc::u2_t)contentWidth / gui.Fonts[font]->CharSize.x;
+	cnst llc::u2_t columns = characterCount > 1 ? characterCount - 1 : 1;
+	if(columns != ui.HelpColumns) { if_fail_fe(llsHelpSelect(ui, ui.HelpSelected)); }
+	if(gui.Controls.IsAction(llsChild(gui, target, HELP_VIEWPORT_TopicPrevious)))
+		ui.HelpTopicOffset = ui.HelpTopicOffset > LLS_HELP_TOPICS ? ui.HelpTopicOffset - LLS_HELP_TOPICS : 0;
+	if(gui.Controls.IsAction(llsChild(gui, target, HELP_VIEWPORT_TopicNext)) && ui.HelpTopicOffset + LLS_HELP_TOPICS < ui.Paths.size())
+		ui.HelpTopicOffset += LLS_HELP_TOPICS;
+	for(llc::u2_t row = 0; row < LLS_HELP_TOPICS; ++row) {
+		cnst llc::u2_t topic = ui.HelpTopicOffset + row;
+		cnst llc::cid_t id = llsHelpTopic(gui, ui.Help, row);
+		if(topic >= ui.Paths.size() || !gui.Controls.IsAction(id)) continue;
+		if_fail_fe(llsRootActivate(ui, ui.Help));
+		if_fail_fe(llsHelpSelect(ui, topic));
+		break;
+	}
+	if(gui.Controls.IsAction(llsChild(gui, target, HELP_VIEWPORT_PagePrevious)))
+		ui.HelpLineOffset = ui.HelpLineOffset > LLS_HELP_LINES ? ui.HelpLineOffset - LLS_HELP_LINES : 0;
+	if(gui.Controls.IsAction(llsChild(gui, target, HELP_VIEWPORT_PageNext)) && ui.HelpLineOffset + LLS_HELP_LINES < ui.HelpLines.size())
+		ui.HelpLineOffset += LLS_HELP_LINES;
+	rtrn 0;
+}
+
+sttc llc::err_t llsToolbarUpdate(SApplication & app) {
+	auto & ui = *app.UI;
+	auto & gui = *ui.Framework.GUI;
+	cnst auto & buttons = gui.Controls.Children[ui.Toolbar];
+	for(llc::u2_t i = 0; i < llc::get_value_count<LLS_TOOLBAR>(); ++i) {
+		if(!gui.Controls.IsAction(buttons[i])) continue;
+		switch((LLS_TOOLBAR)i) {
+		case LLS_TOOLBAR_Explorer:
+			{
+				llc::vcst_t path;
+				if_fail_fe(llc::jsonExpressionResolve("explorer.root", ui.Layout.Reader, 0, path));
+				if_fail_fe(llsExplorerCreate(ui, path));
+			}
+			break;
+		case LLS_TOOLBAR_Help:
+			if_fail_fe(llsHelpCreate(ui));
+			break;
+		case LLS_TOOLBAR_Processes: if_fail_fe(llsRootActivate(ui, ui.Processes)); break;
+		case LLS_TOOLBAR_Services : if_fail_fe(llsRootActivate(ui, ui.Services )); break;
+		default: if_true_fe(true);
+		}
+	}
+	bool explorerVisible = false;
+	for(cnst llc::cid_t root : ui.Explorers) explorerVisible |= !gui.Controls.IsHidden(root);
+	gui.Controls.SetSelected(buttons[LLS_TOOLBAR_Explorer ], explorerVisible);
+	gui.Controls.SetSelected(buttons[LLS_TOOLBAR_Help     ], ui.Help != llc::CID_INVALID && !gui.Controls.IsHidden(ui.Help));
+	gui.Controls.SetSelected(buttons[LLS_TOOLBAR_Processes], !gui.Controls.IsHidden(ui.Processes));
+	gui.Controls.SetSelected(buttons[LLS_TOOLBAR_Services ], !gui.Controls.IsHidden(ui.Services));
+	rtrn 0;
+}
+
+sttc llc::err_t llsExplorerTextAttach(SLLSGUI & ui) {
+	auto & gui = *ui.Framework.GUI;
+	for(cnst llc::cid_t root : ui.Explorers) {
+		if(gui.Controls.IsHidden(root)) continue;
+		cnst llc::cid_t target = llsChild(gui, root, LLS_VIEWPORT_Target);
+		SExplorer & explorer = ui.ExplorerState[root];
+		llc::u2_t & offset = ui.ExplorerOffset[root];
+		if(offset >= explorer.Rows.size()) offset = 0;
+		if_fail_fe(llc::controlTextSet(gui, llsChild(gui, target, EXPLORER_VIEWPORT_Path), explorer.SelectedPath));
+		for(llc::u2_t row = 0; row < LLS_EXPLORER_ROWS; ++row) {
+			cnst llc::cid_t rowId = llsExplorerRow(gui, root, row);
+			cnst llc::u2_t entry = offset + row;
+			cnst bool visible = entry < explorer.Rows.size();
+			gui.Controls.SetHidden(rowId, !visible);
+			gui.Controls.SetSelected(rowId, visible && explorer.Selected == entry);
+			if_fail_fe(ui.ExplorerText[root][row].clear());
+			if(!visible) continue;
+			if_fail_fe(llsExplorerLabel(explorer, entry, ui.ExplorerText[root][row]));
+			if_fail_fe(llc::controlTextSet(gui, rowId, ui.ExplorerText[root][row]));
+		}
+		gui.Controls.SetDisabled(llsChild(gui, target, EXPLORER_VIEWPORT_Previous), offset == 0);
+		gui.Controls.SetDisabled(llsChild(gui, target, EXPLORER_VIEWPORT_Next), offset + LLS_EXPLORER_ROWS >= explorer.Rows.size());
+	}
+	rtrn 0;
+}
+
+sttc llc::err_t llsExplorerTextDetach(SLLSGUI & ui) {
+	auto & gui = *ui.Framework.GUI;
+	for(cnst llc::cid_t root : ui.Explorers) {
+		cnst llc::cid_t target = llsChild(gui, root, LLS_VIEWPORT_Target);
+		if_fail_fe(llc::controlTextSet(gui, llsChild(gui, target, EXPLORER_VIEWPORT_Path), {}));
+		for(llc::u2_t row = 0; row < LLS_EXPLORER_ROWS; ++row)
+			if_fail_fe(llc::controlTextSet(gui, llsExplorerRow(gui, root, row), {}));
+	}
+	rtrn 0;
+}
+
+sttc llc::err_t llsHelpTextAttach(SLLSGUI & ui) {
+	if(ui.Help == llc::CID_INVALID || ui.Framework.GUI->Controls.IsHidden(ui.Help)) rtrn 0;
+	auto & gui = *ui.Framework.GUI;
+	cnst llc::cid_t target = llsChild(gui, ui.Help, LLS_VIEWPORT_Target);
+	if(ui.HelpTopicOffset >= ui.Paths.size()) ui.HelpTopicOffset = 0;
+	if(ui.HelpLineOffset >= ui.HelpLines.size()) ui.HelpLineOffset = 0;
+	for(llc::u2_t row = 0; row < LLS_HELP_TOPICS; ++row) {
+		cnst llc::cid_t id = llsHelpTopic(gui, ui.Help, row);
+		cnst llc::u2_t topic = ui.HelpTopicOffset + row;
+		cnst bool visible = topic < ui.Paths.size();
+		gui.Controls.SetHidden(id, !visible);
+		gui.Controls.SetSelected(id, visible && topic == ui.HelpSelected);
+		if(visible) { if_fail_fe(llc::controlTextSet(gui, id, ui.Paths[topic].size() ? ui.Paths[topic] : llc::vcst_t{"Help / index"})); }
+	}
+	for(llc::u2_t row = 0; row < LLS_HELP_LINES; ++row) {
+		cnst llc::cid_t id = llsHelpLine(gui, ui.Help, row);
+		cnst llc::u2_t line = ui.HelpLineOffset + row;
+		cnst bool visible = line < ui.HelpLines.size();
+		gui.Controls.SetHidden(id, !visible);
+		if(visible) { if_fail_fe(llc::controlTextSet(gui, id, ui.HelpLines[line])); }
+	}
+	gui.Controls.SetDisabled(llsChild(gui, target, HELP_VIEWPORT_TopicPrevious), ui.HelpTopicOffset == 0);
+	gui.Controls.SetDisabled(llsChild(gui, target, HELP_VIEWPORT_TopicNext), ui.HelpTopicOffset + LLS_HELP_TOPICS >= ui.Paths.size());
+	gui.Controls.SetDisabled(llsChild(gui, target, HELP_VIEWPORT_PagePrevious), ui.HelpLineOffset == 0);
+	gui.Controls.SetDisabled(llsChild(gui, target, HELP_VIEWPORT_PageNext), ui.HelpLineOffset + LLS_HELP_LINES >= ui.HelpLines.size());
+	rtrn 0;
+}
+
+sttc llc::err_t llsHelpTextDetach(SLLSGUI & ui) {
+	if(ui.Help == llc::CID_INVALID) rtrn 0;
+	auto & gui = *ui.Framework.GUI;
+	for(llc::u2_t row = 0; row < LLS_HELP_TOPICS; ++row)
+		if_fail_fe(llc::controlTextSet(gui, llsHelpTopic(gui, ui.Help, row), {}));
+	for(llc::u2_t row = 0; row < LLS_HELP_LINES; ++row)
+		if_fail_fe(llc::controlTextSet(gui, llsHelpLine(gui, ui.Help, row), {}));
+	rtrn 0;
+}
+
+sttc llc::err_t llsFeatureTextAttach(SApplication & app) {
+	auto & ui = *app.UI;
+	auto & gui = *ui.Framework.GUI;
+	cnst llc::cid_t processTarget = llsChild(gui, ui.Processes, LLS_VIEWPORT_Target);
+	llc::u2_t row = 0;
+	for(cnst SDashboardJob & job : app.Jobs) {
+		cnst bool active = !job.Historical && job.ProcessStarted && !job.ProcessFinished && !job.Detached && job.State != "completed";
+		if(!active) continue;
+		if(row >= llc::get_value_count<PROCESS_VIEWPORT>()) break;
+		cnst llc::cid_t id = gui.Controls.Children[processTarget][row++];
+		gui.Controls.SetHidden(id, false);
+		llc::vcst_t text = job.Id;
+		if(!text.size()) text = job.Summary;
+		if_fail_fe(llc::controlTextSet(gui, id, text));
+	}
+	if(!row) {
+		cnst llc::cid_t id = gui.Controls.Children[processTarget][row++];
+		gui.Controls.SetHidden(id, false);
+		if_fail_fe(llc::controlTextSet(gui, id, "No active broker processes"));
+	}
+	for(; row < llc::get_value_count<PROCESS_VIEWPORT>(); ++row) {
+		cnst llc::cid_t id = gui.Controls.Children[processTarget][row];
+		gui.Controls.SetHidden(id, true);
+		if_fail_fe(llc::controlTextSet(gui, id, {}));
+	}
+	cnst llc::cid_t serviceTarget = llsChild(gui, ui.Services, LLS_VIEWPORT_Target);
+	llc::vcst_t identity = app.ServiceIdentity, response = app.ServiceResponse;
+	if(!identity.size()) identity = "Not reported";
+	if(!response.size()) response = "No pending service operation";
+	if_fail_fe(llc::controlTextSet(gui, llsChild(gui, serviceTarget, SERVICE_VIEWPORT_ServiceValue   ), app.Service));
+	if_fail_fe(llc::controlTextSet(gui, llsChild(gui, serviceTarget, SERVICE_VIEWPORT_ConnectionValue), app.Connection));
+	if_fail_fe(llc::controlTextSet(gui, llsChild(gui, serviceTarget, SERVICE_VIEWPORT_IdentityValue  ), identity));
+	if_fail_fe(llc::controlTextSet(gui, llsChild(gui, serviceTarget, SERVICE_VIEWPORT_ResponseValue  ), response));
+	if_fail_fe(llsExplorerTextAttach(ui));
+	rtrn llsHelpTextAttach(ui);
+}
+
+sttc llc::err_t llsFeatureTextDetach(SLLSGUI & ui) {
+	auto & gui = *ui.Framework.GUI;
+	if_fail_fe(llsHelpTextDetach(ui));
+	if_fail_fe(llsExplorerTextDetach(ui));
+	cnst llc::cid_t processTarget = llsChild(gui, ui.Processes, LLS_VIEWPORT_Target);
+	for(llc::cid_t id : gui.Controls.Children[processTarget]) if_fail_fe(llc::controlTextSet(gui, id, {}));
+	cnst llc::cid_t serviceTarget = llsChild(gui, ui.Services, LLS_VIEWPORT_Target);
+	if_fail_fe(llc::controlTextSet(gui, llsChild(gui, serviceTarget, SERVICE_VIEWPORT_ServiceValue   ), {}));
+	if_fail_fe(llc::controlTextSet(gui, llsChild(gui, serviceTarget, SERVICE_VIEWPORT_ConnectionValue), {}));
+	if_fail_fe(llc::controlTextSet(gui, llsChild(gui, serviceTarget, SERVICE_VIEWPORT_IdentityValue  ), {}));
+	rtrn llc::controlTextSet(gui, llsChild(gui, serviceTarget, SERVICE_VIEWPORT_ResponseValue), {});
 }
 
 sttc llc::err_t llsSessionView(SApplication & app) {
@@ -407,10 +901,13 @@ llc::err_t llsGUISetup(SApplication & app) {
 	gui.Controls.Draw[ui.Host].NoClient = true;
 	gui.Controls.Placement[ui.Host].Area.Size = window.Size.s1();
 	gui.Controls.Constraints[ui.Host].AttachSizeToControl = {ui.Host, ui.Host};
+	if_fail_fe(llsToolbarCreate(ui));
 	if_fail_fe(llsViewportCreate(ui, LLS_GUI_VIEWPORT_SESSION, "SESSION / SERVICE", {{18, 12}, {1144, 118}}));
 	if_fail_fe(llsViewportCreate(ui, LLS_GUI_VIEWPORT_WORKSPACE, "LLS WORKSPACE", {{18, 144}, {390, 594}}));
 	if_fail_fe(llsViewportCreate(ui, LLS_GUI_VIEWPORT_INSPECTOR, "INSPECTOR", {{420, 144}, {742, 594}}));
 	if_fail_fe(llsViewportArrange(ui));
+	if_fail_fe(llsRootCreate<PROCESS_VIEWPORT>(ui, ui.Processes, "PROCESSES", {{18, 202}, {680, 536}}));
+	if_fail_fe(llsRootCreate<SERVICE_VIEWPORT>(ui, ui.Services, "SERVICES", {{710, 202}, {452, 536}}));
 	cnst llc::cid_t sessionClient = ui.Viewports[LLS_GUI_VIEWPORT_SESSION].IdControls[llc::VIEWPORT_CONTROL_TARGET];
 	cnst llc::cid_t workspaceClient = ui.Viewports[LLS_GUI_VIEWPORT_WORKSPACE].IdControls[llc::VIEWPORT_CONTROL_TARGET];
 	cnst llc::cid_t inspectorClient = ui.Viewports[LLS_GUI_VIEWPORT_INSPECTOR].IdControls[llc::VIEWPORT_CONTROL_TARGET];
@@ -442,7 +939,10 @@ llc::err_t llsGUISetup(SApplication & app) {
 	if_fail_fe(helpPaths(ui.Paths, true));
 	if_fail_fe(llsLayout(ui));
 	if_fail_fe(llsSessionView(app));
-	if_fail_fe(llc::viewportActivate(gui, ui.Host, ui.Viewports, LLS_GUI_VIEWPORT_WORKSPACE));
+	gui.Controls.SetHidden(ui.Viewports[LLS_GUI_VIEWPORT_WORKSPACE].IdControl, true);
+	gui.Controls.SetHidden(ui.Viewports[LLS_GUI_VIEWPORT_INSPECTOR].IdControl, true);
+	gui.Controls.SetHidden(ui.Hint, true);
+	if_fail_fe(llsRootActivate(ui, ui.Processes));
 	rtrn llc::guiUpdateMetrics(gui, window.Size, true);
 }
 
@@ -458,6 +958,11 @@ llc::err_t llsGUIUpdate(SApplication & app) {
 	bool doubleClick = false;
 	if_fail_fe(llsDoubleClick(window.EventQueue, doubleClick));
 	if_fail_fe(llsViewportsUpdate(ui, doubleClick));
+	if_fail_fe(llsToolbarUpdate(app));
+	if_fail_fe(llsRootUpdate(ui, ui.Processes, {320, 240}, llsProcessLayout));
+	if_fail_fe(llsRootUpdate(ui, ui.Services, {320, 240}, llsServiceLayout));
+	if_fail_fe(llsExplorerUpdate(app, doubleClick));
+	if_fail_fe(llsHelpUpdate(ui));
 #ifdef LLC_WINDOWS
 	{
 		llc::string title;
@@ -476,8 +981,10 @@ llc::err_t llsGUIUpdate(SApplication & app) {
 		llc::lock_guard guard(app.Lock);
 		serviceControlBusy = app.ServiceCommandPending || app.ServiceCommandBusy;
 	}
+	cnst llc::cid_t serviceStop = llsChild(gui, llsChild(gui, ui.Services, LLS_VIEWPORT_Target), SERVICE_VIEWPORT_Stop);
 	gui.Controls.SetDisabled(ui.StopService, serviceControlBusy);
-	if(gui.Controls.IsAction(ui.StopService)) {
+	gui.Controls.SetDisabled(serviceStop, serviceControlBusy);
+	if(gui.Controls.IsAction(ui.StopService) || gui.Controls.IsAction(serviceStop)) {
 		cnst llc::err_t queued = llsServiceQueue(app, "shutdown");
 		if(llc::failed(queued)) {
 			llc::lock_guard guard(app.Lock);
@@ -633,21 +1140,26 @@ llc::err_t llsGUIUpdate(SApplication & app) {
 			if_fail_fe(llc::controlTextSet(gui, ui.Lines[i], line));
 		}
 	}
-	if_fail_fe(llc::guiUpdateMetrics(gui, window.Size, false));
-	if(!window.NoDraw) {
-		if_fail_fe(window.BackBuffer->resize(window.Size.u2()));
-		if_fail_fe(window.BackBuffer->Color.View.fill(llc::bgra{25, 20, 17, 255}));
-		cnst auto start = llc::timeCurrentInUs();
-		if_fail_fe(llc::guiDraw(gui, window.BackBuffer->Color.View));
-		ui.RenderUs = llc::timeCurrentInUs() - start;
-		++ui.RenderCount;
-		ui.RenderTotalUs += ui.RenderUs;
-		ui.RenderPeakUs = llc::max(ui.RenderPeakUs, ui.RenderUs);
-		if(ui.BenchmarkLeft) {
-			if(ui.BenchmarkLeft == 100) ui.BenchmarkTotalUs = 0;
-			ui.BenchmarkTotalUs += ui.RenderUs;
-			if(!--ui.BenchmarkLeft) { ui.BenchmarkUs = ui.BenchmarkTotalUs / 100; ui.Dirty = true; }
+	{
+		llc::lock_guard guard(app.Lock);
+		if_fail_fe(llsFeatureTextAttach(app));
+		if_fail_fe(llc::guiUpdateMetrics(gui, window.Size, false));
+		if(!window.NoDraw) {
+			if_fail_fe(window.BackBuffer->resize(window.Size.u2()));
+			if_fail_fe(window.BackBuffer->Color.View.fill(llc::bgra{25, 20, 17, 255}));
+			cnst auto start = llc::timeCurrentInUs();
+			if_fail_fe(llc::guiDraw(gui, window.BackBuffer->Color.View));
+			ui.RenderUs = llc::timeCurrentInUs() - start;
+			++ui.RenderCount;
+			ui.RenderTotalUs += ui.RenderUs;
+			ui.RenderPeakUs = llc::max(ui.RenderPeakUs, ui.RenderUs);
+			if(ui.BenchmarkLeft) {
+				if(ui.BenchmarkLeft == 100) ui.BenchmarkTotalUs = 0;
+				ui.BenchmarkTotalUs += ui.RenderUs;
+				if(!--ui.BenchmarkLeft) { ui.BenchmarkUs = ui.BenchmarkTotalUs / 100; ui.Dirty = true; }
+			}
 		}
+		if_fail_fe(llsFeatureTextDetach(ui));
 	}
 	llc::sleep(window.NoDraw ? 50 : 8);
 	rtrn 0;
