@@ -8,6 +8,12 @@
 #include "llc_event_input.h"
 #include "llc_runtime_module.h"
 #include "llc_gui_control_list.h"
+#include "llc_args.h"
+#include "llc_path.h"
+#include <thread>
+#if defined(__linux__)
+#include <sys/stat.h>
+#endif
 
 tplt<tpnm TEnum>
 stin llc::cid_t llsChild(cnst llc::SGUI & gui, llc::cid_t root, TEnum index) {
@@ -107,6 +113,139 @@ sttc llc::err_t llsServiceLayout(llc::SGUI & gui, llc::cid_t root) {
 	cnst llc::s1_t buttonWidth = llc::max((llc::s1_t)1, (llc::s1_t)((width - 6) / 2));
 	if_fail_fe(llsPlace(gui, llsChild(gui, target, SERVICE_VIEWPORT_Stop), 6, 148, buttonWidth, 34));
 	rtrn llsPlace(gui, llsChild(gui, target, SERVICE_VIEWPORT_Restart), (llc::s1_t)(12 + buttonWidth), 148, llc::max((llc::s1_t)1, (llc::s1_t)(width - buttonWidth - 6)), 34);
+}
+
+sttc llc::err_t llsConsoleLayout(llc::SGUI & gui, llc::cid_t root) {
+	if_fail_fe(llsRootChromeLayout(gui, root));
+	cnst llc::cid_t target = llsChild(gui, root, LLS_VIEWPORT_Target);
+	cnst llc::n2s1_t size = gui.Controls.Placement[target].Area.Size;
+	cnst llc::s1_t width = llc::max((llc::s1_t)1, (llc::s1_t)(size.x - 12));
+	for(llc::u2_t row = 0; row < llc::get_value_count<CONSOLE_VIEWPORT>(); ++row)
+		if_fail_fe(llsPlace(gui, gui.Controls.Children[target][row], 6, (llc::s1_t)(6 + 25 * row), width, 23));
+	cnst llc::cid_t inputRoot = gui.Controls.Children[target][llc::get_value_count<CONSOLE_VIEWPORT>()];
+	cnst llc::cid_t inputText = gui.Controls.Children[inputRoot][0];
+	if_fail_fe(llsPlace(gui, inputRoot, 6, llc::max((llc::s1_t)108, (llc::s1_t)(size.y - 32)), width, 26));
+	rtrn llsPlace(gui, inputText, 0, 0, llc::max((llc::s1_t)1, (llc::s1_t)(width - 6)), 22);
+}
+
+sttc llc::err_t llsConsoleRowsRefresh(SLLSGUI & ui) {
+	auto & gui = *ui.Framework.GUI;
+	cnst llc::cid_t target = llsChild(gui, ui.Console, LLS_VIEWPORT_Target);
+	cnst llc::u2_t count = llc::get_value_count<CONSOLE_VIEWPORT>();
+	cnst llc::u2_t first = ui.ConsoleLines.size() > count ? ui.ConsoleLines.size() - count : 0;
+	for(llc::u2_t row = 0; row < count; ++row) {
+		cnst llc::cid_t id = gui.Controls.Children[target][row];
+		cnst bool visible = first + row < ui.ConsoleLines.size();
+		gui.Controls.SetHidden(id, !visible);
+		if(!visible) continue;
+		llc::vcst_t text = ui.ConsoleLines[first + row];
+		cnst llc::u2_t columns = llc::guiViewportTextColumns(gui, id);
+		if_fail_fe(text.slice(text, 0, llc::min(text.size(), columns)));
+		if_fail_fe(llc::controlTextSet(gui, id, text));
+	}
+	rtrn 0;
+}
+
+sttc llc::err_t llsConsoleWrite(SLLSGUI & ui, llc::vcst_t message) {
+	llc::string & line = ui.ConsoleLines[ui.ConsoleLines.push_back({})];
+	if_fail_fe(llc::append_strings(line, message));
+	if(ui.ConsoleLines.size() > 512) if_fail_fe(ui.ConsoleLines.remove(0));
+	rtrn llsConsoleRowsRefresh(ui);
+}
+
+sttc llc::err_t llsConsoleOutputAppend(SLLSGUI & ui, llc::vcu0_t output) {
+	llc::vcst_t remaining = {(cnst char*)output.begin(), llc::min(output.size(), (llc::u2_t)(64 * 1024))};
+	while(remaining.size()) {
+		llc::vcst_t line = {}, next = {};
+		cnst llc::err_t found = llc::split('\n', remaining, line, next);
+		if(line.size() && line[line.size() - 1] == '\r') if_fail_fe(line.slice(line, 0, line.size() - 1));
+		if_fail_fe(llsConsoleWrite(ui, line));
+		remaining = found < 0 ? llc::vcst_t{} : next;
+	}
+	rtrn 0;
+}
+
+sttc llc::err_t llsConsoleBrokerRun(SLLSGUI & ui, llc::vcst_t command) {
+	if(ui.PendingConsole) rtrn llsConsoleWrite(ui, "Previous command is still running.");
+	ui.PendingConsole = std::make_shared<SConsoleWork>();
+	llc::SProcessBrokerJob & job = ui.PendingConsole->Job;
+#if defined(_WIN32)
+	char systemDirectory[MAX_PATH] = {};
+	cnst UINT directoryLength = ::GetSystemDirectoryA(systemDirectory, llc::size(systemDirectory));
+	if_zero_fef(directoryLength && directoryLength < llc::size(systemDirectory), "GetSystemDirectoryA size:%u.", directoryLength);
+	if_fail_fe(llc::pathNameCompose(llc::vcst_t{systemDirectory, directoryLength}, "cmd.exe", job.CommandLineApp));
+	job.CommandLine = "cmd.exe /Q /D";
+#else
+	job.CommandLineApp = "/bin/sh";
+	job.CommandLine = "sh -s";
+#endif
+	llc::aobj<llc::vcst_t> environmentViews = {};
+	if_fail_fe(llc::viewsFromEnvp(environmentViews, environ));
+	llc::as0_t environment = {};
+	if_fail_fe(llc::environmentBlock(environment, environmentViews));
+	if_fail_fe(job.Request.append(llc::vcu0_t{(cnst llc::u0_t*)environment.begin(), environment.size()}));
+#if defined(_WIN32)
+	llc::string directoryCommand = {};
+	if_fail_fef(llc::append_strings(directoryCommand, "cd /D \"", ui.ConsoleFolder, "\"\r\n"), "Console folder:%.*s.", LLC_VIEW_ARGS(ui.ConsoleFolder));
+	if_fail_fef(job.Request.append(llc::vcu0_t{(cnst llc::u0_t*)directoryCommand.begin(), directoryCommand.size()}), "Console folder:%.*s.", LLC_VIEW_ARGS(ui.ConsoleFolder));
+#else
+	llc::string directoryCommand = {};
+	if_fail_fef(llc::append_strings(directoryCommand, "cd \"", ui.ConsoleFolder, "\"\n"), "Console folder:%.*s.", LLC_VIEW_ARGS(ui.ConsoleFolder));
+	if_fail_fef(job.Request.append(llc::vcu0_t{(cnst llc::u0_t*)directoryCommand.begin(), directoryCommand.size()}), "Console folder:%.*s.", LLC_VIEW_ARGS(ui.ConsoleFolder));
+#endif
+	if_fail_fe(job.Request.append(llc::vcu0_t{(cnst llc::u0_t*)command.begin(), command.size()}));
+#if defined(_WIN32)
+	stxp char tail[] = "\r\nexit\r\n";
+#else
+	stxp char tail[] = "\nexit\n";
+#endif
+	if_fail_fe(job.Request.append(llc::vcu0_t{(cnst llc::u0_t*)tail, llc::size(tail) - 1}));
+	std::shared_ptr<SConsoleWork> work = ui.PendingConsole;
+	std::thread([work] {
+		cnst llc::err_t result = llc::processBrokerRun(work->Job);
+		work->Status.store(llc::failed(result) ? -1 : 1, std::memory_order_release);
+	}).detach();
+	llc::string prompt = {};
+	if_fail_fe(llc::append_strings(prompt, ui.ConsoleFolder, "> ", command));
+	if_fail_fe(llsConsoleWrite(ui, prompt));
+	rtrn llsConsoleWrite(ui, "Command running...");
+}
+
+sttc llc::err_t llsConsolePoll(SLLSGUI & ui) {
+	if(!ui.PendingConsole || !ui.PendingConsole->Status.load(std::memory_order_acquire)) rtrn 0;
+	std::shared_ptr<SConsoleWork> completed = ui.PendingConsole;
+	ui.PendingConsole.reset();
+	if_fail_fe(llsConsoleOutputAppend(ui, completed->Job.Response));
+	if_fail_fe(llsConsoleOutputAppend(ui, completed->Job.ErrorOutput));
+	if(completed->Status.load(std::memory_order_relaxed) < 0) if_fail_fe(llsConsoleWrite(ui, "Process launch failed."));
+	rtrn 0;
+}
+
+sttc llc::err_t llsConsoleCommand(SLLSGUI & ui) {
+	auto & gui = *ui.Framework.GUI;
+	llc::string command = ui.ConsoleInput.Text;
+	if(command == "clear") { if_fail_fe(ui.ConsoleLines.clear()); }
+	else if(command == "pwd") { if_fail_fe(llsConsoleWrite(ui, ui.ConsoleFolder)); }
+	else if(command == "help") { if_fail_fe(llsConsoleWrite(ui, "Commands: cd PATH, help, pwd, clear. Other commands run through the LLC process broker.")); }
+	else if(command.size() > 3 && llc::vcst_t{command.begin(), 3} == "cd ") {
+		llc::string path = {};
+		cnst llc::err_t pathResult = llc::pathAbsolute({command.begin() + 3, command.size() - 3}, path);
+		bool directory = false;
+#if defined(_WIN32)
+		if(!llc::failed(pathResult)) {
+			cnst DWORD attributes = ::GetFileAttributesA(path.begin());
+			directory = attributes != INVALID_FILE_ATTRIBUTES && 0 != (attributes & FILE_ATTRIBUTE_DIRECTORY);
+		}
+#elif defined(__linux__)
+		if(!llc::failed(pathResult)) { struct stat info = {}; directory = 0 == ::stat(path.begin(), &info) && S_ISDIR(info.st_mode); }
+#endif
+		if(llc::failed(pathResult)) { if_fail_fe(llsConsoleWrite(ui, "Invalid directory path.")); }
+		else if(!directory) { if_fail_fe(llsConsoleWrite(ui, "Directory does not exist.")); }
+		else { ui.ConsoleFolder = path; if_fail_fe(llsConsoleWrite(ui, ui.ConsoleFolder)); }
+	}
+	else if_fail_fe(llsConsoleBrokerRun(ui, command));
+	if_fail_fe(ui.ConsoleInput.SetText(gui, {}));
+	rtrn llsConsoleRowsRefresh(ui);
 }
 
 stxp llc::u2_t LLS_EXPLORER_ROWS = (llc::u2_t)EXPLORER_VIEWPORT_Previous - (llc::u2_t)EXPLORER_VIEWPORT_Row00;
@@ -573,6 +712,7 @@ sttc llc::err_t llsToolbarUpdate(SApplication & app) {
 			break;
 		case LLS_TOOLBAR_Processes: if_fail_fe(llsRootActivate(ui, ui.Processes)); break;
 		case LLS_TOOLBAR_Services : if_fail_fe(llsRootActivate(ui, ui.Services )); break;
+		case LLS_TOOLBAR_Console  : ui.ConsoleFocused = true; if_fail_fe(llsRootActivate(ui, ui.Console)); if_fail_fe(llsConsoleRowsRefresh(ui)); break;
 		default: if_true_fe(true);
 		}
 	}
@@ -582,6 +722,7 @@ sttc llc::err_t llsToolbarUpdate(SApplication & app) {
 	gui.Controls.SetSelected(buttons[LLS_TOOLBAR_Help     ], ui.Help != llc::CID_INVALID && !gui.Controls.IsHidden(ui.Help));
 	gui.Controls.SetSelected(buttons[LLS_TOOLBAR_Processes], !gui.Controls.IsHidden(ui.Processes));
 	gui.Controls.SetSelected(buttons[LLS_TOOLBAR_Services ], !gui.Controls.IsHidden(ui.Services));
+	gui.Controls.SetSelected(buttons[LLS_TOOLBAR_Console  ], !gui.Controls.IsHidden(ui.Console));
 	rtrn 0;
 }
 
@@ -911,6 +1052,17 @@ llc::err_t llsGUISetup(SApplication & app) {
 	if_fail_fe(llsViewportArrange(ui));
 	if_fail_fe(llsRootCreate<PROCESS_VIEWPORT>(ui, ui.Processes, "PROCESSES", {{18, 202}, {680, 536}}));
 	if_fail_fe(llsRootCreate<SERVICE_VIEWPORT>(ui, ui.Services, "SERVICES", {{710, 202}, {452, 536}}));
+	if_fail_fe(llsRootCreate<CONSOLE_VIEWPORT>(ui, ui.Console, "CONSOLE", {{86, 164}, {920, 244}}));
+	cnst llc::cid_t consoleTarget = llsChild(gui, ui.Console, LLS_VIEWPORT_Target);
+	if_fail_fe(llc::inputBoxCreate(ui.ConsoleInput, gui, consoleTarget));
+	ui.ConsoleInput.MaxLength = 4096;
+	ui.ConsoleInput.Edit(gui, true);
+	gui.Controls.SetHidden(ui.ConsoleInput.VirtualKeyboard.IdRoot, true);
+	gui.Controls.Text[ui.ConsoleInput.IdText].Align = llc::ALIGN_CENTER_LEFT;
+	gui.Controls.Text[ui.ConsoleInput.IdText].FontSelected = 7;
+	if_fail_fe(llc::pathAbsolute(".", ui.ConsoleFolder));
+	if_fail_fe(llsConsoleLayout(gui, ui.Console));
+	if_fail_fe(llsConsoleWrite(ui, "Console ready. Commands: cd PATH, help, pwd, clear."));
 	cnst llc::cid_t serviceTarget = llsChild(gui, ui.Services, LLS_VIEWPORT_Target);
 	if_fail_fe(llc::controlTextSet(gui, llsChild(gui, serviceTarget, SERVICE_VIEWPORT_Stop), "Stop service"));
 	if_fail_fe(llc::controlTextSet(gui, llsChild(gui, serviceTarget, SERVICE_VIEWPORT_Restart), "Restart service"));
@@ -948,6 +1100,7 @@ llc::err_t llsGUISetup(SApplication & app) {
 	if_fail_fe(llsSessionView(app));
 	gui.Controls.SetHidden(ui.Viewports[LLS_GUI_VIEWPORT_WORKSPACE].IdControl, true);
 	gui.Controls.SetHidden(ui.Viewports[LLS_GUI_VIEWPORT_INSPECTOR].IdControl, true);
+	gui.Controls.SetHidden(ui.Console, true);
 	gui.Controls.SetHidden(ui.Hint, true);
 	if_fail_fe(llsRootActivate(ui, ui.Processes));
 	rtrn llc::guiUpdateMetrics(gui, window.Size, true);
@@ -968,6 +1121,9 @@ llc::err_t llsGUIUpdate(SApplication & app) {
 	if_fail_fe(llsToolbarUpdate(app));
 	if_fail_fe(llsRootUpdate(ui, ui.Processes, {320, 240}, llsProcessLayout));
 	if_fail_fe(llsRootUpdate(ui, ui.Services, {320, 240}, llsServiceLayout));
+	if_fail_fe(llsRootUpdate(ui, ui.Console, {520, 190}, llsConsoleLayout));
+	if(gui.Controls.IsHidden(ui.Console)) ui.ConsoleFocused = false;
+	if_fail_fe(llsConsolePoll(ui));
 	if_fail_fe(llsExplorerUpdate(app, doubleClick));
 	if_fail_fe(llsHelpUpdate(ui));
 #ifdef LLC_WINDOWS
@@ -1037,16 +1193,25 @@ llc::err_t llsGUIUpdate(SApplication & app) {
 		}
 	if_fail_fe(ui.Processable.clear());
 	if_fail_fe(llc::guiGetProcessableControls(gui, ui.Processable));
-	cnst llc::err_t input = ui.Input.Update(gui, ui.Input.VirtualKeyboard, window.EventQueue, ui.Processable);
+	if(gui.Controls.IsAction(ui.Input.IdText)) ui.ConsoleFocused = false;
+	if(gui.Controls.IsAction(ui.ConsoleInput.IdText)) ui.ConsoleFocused = true;
+	cnst llc::err_t input = ui.ConsoleFocused
+		? ui.ConsoleInput.Update(gui, ui.ConsoleInput.VirtualKeyboard, window.EventQueue, ui.Processable)
+		: ui.Input.Update(gui, ui.Input.VirtualKeyboard, window.EventQueue, ui.Processable);
 	if_fail_fe(input);
-	if(!ui.Input.Editing) { ui.Input.Edit(gui, true); ui.ShowKeyboard = false; ui.LastSize = {}; }
+	if(ui.ConsoleFocused) {
+		if(!ui.ConsoleInput.Editing) ui.ConsoleInput.Edit(gui, true);
+		if(input == INT_MAX && ui.ConsoleInput.Text.size()) if_fail_fe(llsConsoleCommand(ui));
+	}
+	else if(!ui.Input.Editing) { ui.Input.Edit(gui, true); ui.ShowKeyboard = false; ui.LastSize = {}; }
+	cnst llc::err_t mainInput = ui.ConsoleFocused ? 0 : input;
 	if(ui.Query != ui.Input.Text) {
 		ui.Query = ui.Input.Text;
 		ui.Selected = (llc::u2_t)-1;
 		ui.ListOffset = ui.LineOffset = 0;
 		ui.Dirty = true;
 	}
-	if(ui.Tab == 8 && (gui.Controls.IsAction(ui.OpenPath) || input == INT_MAX) && ui.Input.Text.size()) {
+	if(ui.Tab == 8 && (gui.Controls.IsAction(ui.OpenPath) || mainInput == INT_MAX) && ui.Input.Text.size()) {
 		cnst llc::err_t queued = llsCommandQueue(app, ui.Input.Text);
 		if(llc::failed(queued)) {
 			llc::lock_guard guard(app.Lock);
@@ -1056,11 +1221,11 @@ llc::err_t llsGUIUpdate(SApplication & app) {
 		}
 		ui.Dirty = true;
 	}
-	else if((gui.Controls.IsAction(ui.OpenPath) || (ui.Tab == 4 && input == INT_MAX)) && ui.Input.Text.size()) {
+	else if((gui.Controls.IsAction(ui.OpenPath) || (ui.Tab == 4 && mainInput == INT_MAX)) && ui.Input.Text.size()) {
 		llc::string path = ui.Input.Text;
 		if_fail_fe(llsExplore(ui, path));
 	}
-	else if(input == INT_MAX && ui.Matches.size()) {
+	else if(mainInput == INT_MAX && ui.Matches.size()) {
 		ui.Selected = ui.Matches[0];
 		ui.LineOffset = 0;
 		ui.Dirty = true;

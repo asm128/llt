@@ -1,9 +1,12 @@
 #include "llc_framework.h"
 #include "llc_gui_composite.h"
 #include "llc_gui_inputbox.h"
+#include "llc_process_broker.h"
 #include "lls_gui_build.h"
 #include "lls_explorer.h"
 #include "lls_gui_surface.h"
+#include <atomic>
+#include <memory>
 
 #ifndef LLS_GUI_H
 #define LLS_GUI_H
@@ -13,6 +16,7 @@ GDEFINE_ENUM_VALUED(LLS_TOOLBAR, Explorer , 0, "D");
 GDEFINE_ENUM_VALUED(LLS_TOOLBAR, Help     , 1, "?");
 GDEFINE_ENUM_VALUED(LLS_TOOLBAR, Processes, 2, "P");
 GDEFINE_ENUM_VALUED(LLS_TOOLBAR, Services , 3, "S");
+GDEFINE_ENUM_VALUED(LLS_TOOLBAR, Console  , 4, ">");
 
 GDEFINE_ENUM_TYPE(LLS_VIEWPORT, llc::u0_t);
 GDEFINE_ENUM_VALUE(LLS_VIEWPORT, Title , 0);
@@ -45,6 +49,12 @@ GDEFINE_ENUM_VALUE(SERVICE_VIEWPORT, Response       , 6);
 GDEFINE_ENUM_VALUE(SERVICE_VIEWPORT, ResponseValue  , 7);
 GDEFINE_ENUM_VALUE(SERVICE_VIEWPORT, Stop           , 8);
 GDEFINE_ENUM_VALUE(SERVICE_VIEWPORT, Restart        , 9);
+
+GDEFINE_ENUM_TYPE(CONSOLE_VIEWPORT, llc::u0_t);
+GDEFINE_ENUM_VALUE(CONSOLE_VIEWPORT, Row00, 0);
+GDEFINE_ENUM_VALUE(CONSOLE_VIEWPORT, Row01, 1);
+GDEFINE_ENUM_VALUE(CONSOLE_VIEWPORT, Row02, 2);
+GDEFINE_ENUM_VALUE(CONSOLE_VIEWPORT, Row03, 3);
 
 GDEFINE_ENUM_TYPE(EXPLORER_VIEWPORT, llc::u0_t);
 GDEFINE_ENUM_VALUE(EXPLORER_VIEWPORT, Path    ,  0);
@@ -113,10 +123,15 @@ enum LLS_GUI_VIEWPORT : llc::u0_t {
 	LLS_GUI_VIEWPORT_COUNT,
 };
 
+stct SConsoleWork {
+	llc::SProcessBrokerJob Job = {};
+	std::atomic<int> Status = 0;
+};
+
 stct SLLSGUI {
 	llc::SFramework		Framework;
 	SLLSGUISurface Surface;
-	llc::cid_t Host = -1, Toolbar = -1, Processes = -1, Services = -1, Help = -1;
+	llc::cid_t Host = -1, Toolbar = -1, Processes = -1, Services = -1, Console = -1, Help = -1;
 	llc::acid Explorers;
 	llc::aobj<SExplorer> ExplorerState;
 	llc::aobj<llc::aobj<llc::string>> ExplorerText;
@@ -126,8 +141,10 @@ stct SLLSGUI {
 	llc::astatic<llc::astcid<llc::GUI_VIEWPORT_ACTION_COUNT>, LLS_GUI_VIEWPORT_COUNT> ViewportActions = {};
 	llc::u3_t SessionId = 0, RenderUs = 0, RenderCount = 0, RenderTotalUs = 0, RenderPeakUs = 0, BenchmarkUs = 0, BenchmarkTotalUs = 0;
 	llc::u2_t BenchmarkLeft = 0;
-	llc::SInputBox		Input;
+	llc::SInputBox		Input, ConsoleInput;
 	llc::acid			Rows, Lines, Processable, Tabs, Breadcrumbs;
+	llc::aobj<llc::string> ConsoleLines;
+	std::shared_ptr<SConsoleWork> PendingConsole = {};
 	llc::aobj<llc::string> RowText, TabText, CommandTemplateText, CommandTemplateJSON;
 	llc::aobj<llc::vcst_t> Paths, DetailLines, DetailPaths;
 	llc::aobj<llc::vcst_t> HelpLines;
@@ -136,7 +153,7 @@ stct SLLSGUI {
 	SExplorer Explorer;
 	llc::SJSONFile Layout;
 	llc::au2_t			Matches;
-	llc::string			Query, Detail, Stats, Notice;
+	llc::string			Query, Detail, Stats, Notice, ConsoleFolder;
 	llc::cid_t			Title = -1, Statistics = -1, Hint = -1, Keyboard = -1;
 	llc::cid_t			ListPrev = -1, ListNext = -1, PagePrev = -1, PageNext = -1, OpenPath = -1;
 	llc::u2_t			Tab = 0, ListOffset = 0, LineOffset = 0, Selected = (llc::u2_t)-1;
@@ -144,7 +161,7 @@ stct SLLSGUI {
 	llc::u2_t			Revision = (llc::u2_t)-1, VisibleLines = 0, VisibleRows = 0, Columns = 0;
 	llc::n2u1_t			LastSize = {};
 	double				Refresh = 0;
-	bool				ShowKeyboard = false, Dirty = true;
+	bool				ShowKeyboard = false, ConsoleFocused = false, Dirty = true;
 
 	explicit SLLSGUI(llc::SRuntimeValues & runtime) : Framework(runtime, {}) {}
 };
