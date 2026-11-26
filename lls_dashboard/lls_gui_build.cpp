@@ -14,8 +14,8 @@ llc::err_t llsControl(llc::SGUI & gui, llc::cid_t & id, llc::vcst_t text, cnst S
 	gui.Controls.Placement[id].Margin = family.Margin;
 	gui.Controls.Placement[id].Border = family.Border;
 	gui.Controls.Text[id].Align = llc::ALIGN_CENTER_LEFT;
-	auto & draw = gui.Controls.Draw[id];
-	draw.NoBorder = draw.NoClient = label;
+	gui.Controls.States[id].Mask = llc::bit_set(gui.Controls.States[id].Mask, llc::GUI_CONTROL_FLAG_DrawBorder, false == label);
+	gui.Controls.States[id].Mask = llc::bit_set(gui.Controls.States[id].Mask, llc::GUI_CONTROL_FLAG_DrawClient, false == label);
 	if_fail_fe(llsControlPalette(gui, id));
 	rtrn llc::controlTextSet(gui, id, text);
 }

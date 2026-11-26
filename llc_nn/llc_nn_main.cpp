@@ -555,7 +555,8 @@ sttc ::llc::err_t nnShowNetwork(SApplication & app, ::llc::u2_t n, bool show) {
  gui.SelectedFont = 7; gui.ColorModeDefault = ::llc::GUI_COLOR_MODE_Flat;
 
  app.Desktop = ::llc::controlCreate(gui); if_fail_fe(app.Desktop);
- gui.Controls.Draw[app.Desktop].NoBorder = true; gui.Controls.Draw[app.Desktop].NoClient = true;
+ gui.Controls.States[app.Desktop].Mask = ::llc::bit_set(gui.Controls.States[app.Desktop].Mask, ::llc::GUI_CONTROL_FLAG_DrawBorder, false);
+ gui.Controls.States[app.Desktop].Mask = ::llc::bit_set(gui.Controls.States[app.Desktop].Mask, ::llc::GUI_CONTROL_FLAG_DrawClient, false);
  gui.Controls.Constraints[app.Desktop].AttachSizeToControl = {app.Desktop, app.Desktop};
  ::sampleGUIControlThemeApply(gui, app.Desktop, 0);
  if_fail_fe(nnControl(app, app.Desktop, app.Title, "NEURAL LAB / NETWORK WORKSPACE"));
@@ -641,12 +642,12 @@ sttc ::llc::err_t nnShowNetwork(SApplication & app, ::llc::u2_t n, bool show) {
  for(auto & row : app.LogErrorRows) {
   if_fail_fe(nnControl(app, logParent, row, ""));
   ::sampleGUIControlThemeApply(gui, row, 1);
-  gui.Controls.Draw[row].NoBorder = true;
+  gui.Controls.States[row].Mask = ::llc::bit_set(gui.Controls.States[row].Mask, ::llc::GUI_CONTROL_FLAG_DrawBorder, false);
   gui.Controls.Placement[row].Margin = {};
  }
  for(auto & row : app.LogRows) {
   if_fail_fe(nnControl(app, logParent, row, ""));
-  gui.Controls.Draw[row].NoBorder = true;
+  gui.Controls.States[row].Mask = ::llc::bit_set(gui.Controls.States[row].Mask, ::llc::GUI_CONTROL_FLAG_DrawBorder, false);
   gui.Controls.Placement[row].Margin = {};
  }
  if_fail_fe(nnControl(app, logParent, app.LogPrevious, "< Earlier"));

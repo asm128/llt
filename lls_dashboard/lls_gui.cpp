@@ -37,8 +37,8 @@ sttc llc::err_t llsToolbarCreate(SLLSGUI & ui) {
 	auto & gui = *ui.Framework.GUI;
 	if_fail_fe(ui.Toolbar = llc::controlCreateChild(gui, ui.Host));
 	if_fail_fe(llsControlPalette(gui, ui.Toolbar));
-	gui.Controls.Draw[ui.Toolbar].NoBorder = true;
-	gui.Controls.Draw[ui.Toolbar].NoClient = true;
+	gui.Controls.States[ui.Toolbar].Mask = llc::bit_set(gui.Controls.States[ui.Toolbar].Mask, llc::GUI_CONTROL_FLAG_DrawBorder, false);
+	gui.Controls.States[ui.Toolbar].Mask = llc::bit_set(gui.Controls.States[ui.Toolbar].Mask, llc::GUI_CONTROL_FLAG_DrawClient, false);
 	if_fail_fe(llsEnumCreate<LLS_TOOLBAR>(gui, ui.Toolbar, {46, 46}, llc::ALIGN_TOP_LEFT, llc::ALIGN_CENTER));
 	for(llc::u2_t i = 0; i < llc::get_value_count<LLS_TOOLBAR>(); ++i) {
 		cnst llc::cid_t id = gui.Controls.Children[ui.Toolbar][i];
@@ -434,8 +434,10 @@ sttc llc::err_t llsExplorerCreate(SLLSGUI & ui, llc::vcst_t path) {
 	cnst llc::cid_t target = llsChild(gui, root, LLS_VIEWPORT_Target);
 	cnst llc::cid_t pathId = llsChild(gui, target, EXPLORER_VIEWPORT_Path);
 	cnst llc::cid_t summaryId = llsChild(gui, target, EXPLORER_VIEWPORT_Summary);
-	gui.Controls.Draw[pathId].NoBorder = gui.Controls.Draw[pathId].NoClient = true;
-	gui.Controls.Draw[summaryId].NoBorder = gui.Controls.Draw[summaryId].NoClient = true;
+	gui.Controls.States[pathId].Mask = llc::bit_set(gui.Controls.States[pathId].Mask, llc::GUI_CONTROL_FLAG_DrawBorder, false);
+	gui.Controls.States[pathId].Mask = llc::bit_set(gui.Controls.States[pathId].Mask, llc::GUI_CONTROL_FLAG_DrawClient, false);
+	gui.Controls.States[summaryId].Mask = llc::bit_set(gui.Controls.States[summaryId].Mask, llc::GUI_CONTROL_FLAG_DrawBorder, false);
+	gui.Controls.States[summaryId].Mask = llc::bit_set(gui.Controls.States[summaryId].Mask, llc::GUI_CONTROL_FLAG_DrawClient, false);
 	gui.Controls.Text[pathId].Align = llc::ALIGN_CENTER_LEFT;
 	gui.Controls.Text[summaryId].Align = llc::ALIGN_TOP_LEFT;
 	if_fail_fe(llc::controlTextSet(gui, llsChild(gui, target, EXPLORER_VIEWPORT_Previous), "< Page"));
@@ -509,7 +511,8 @@ sttc llc::err_t llsHelpCreate(SLLSGUI & ui) {
 	cnst llc::cid_t target = llsChild(gui, ui.Help, LLS_VIEWPORT_Target);
 	for(llc::u2_t line = 0; line < LLS_HELP_LINES; ++line) {
 		cnst llc::cid_t id = llsHelpLine(gui, ui.Help, line);
-		gui.Controls.Draw[id].NoBorder = gui.Controls.Draw[id].NoClient = true;
+		gui.Controls.States[id].Mask = llc::bit_set(gui.Controls.States[id].Mask, llc::GUI_CONTROL_FLAG_DrawBorder, false);
+		gui.Controls.States[id].Mask = llc::bit_set(gui.Controls.States[id].Mask, llc::GUI_CONTROL_FLAG_DrawClient, false);
 		gui.Controls.Text[id].Align = llc::ALIGN_CENTER_LEFT;
 	}
 	if_fail_fe(llc::controlTextSet(gui, llsChild(gui, target, HELP_VIEWPORT_TopicPrevious), "< Topics"));
@@ -900,8 +903,8 @@ llc::err_t llsGUISetup(SApplication & app) {
 	}
 	ui.Host = llc::controlCreate(gui);
 	if_fail_fe(ui.Host);
-	gui.Controls.Draw[ui.Host].NoBorder = true;
-	gui.Controls.Draw[ui.Host].NoClient = true;
+	gui.Controls.States[ui.Host].Mask = llc::bit_set(gui.Controls.States[ui.Host].Mask, llc::GUI_CONTROL_FLAG_DrawBorder, false);
+	gui.Controls.States[ui.Host].Mask = llc::bit_set(gui.Controls.States[ui.Host].Mask, llc::GUI_CONTROL_FLAG_DrawClient, false);
 	gui.Controls.Placement[ui.Host].Area.Size = window.Size.s1();
 	gui.Controls.Constraints[ui.Host].AttachSizeToControl = {ui.Host, ui.Host};
 	if_fail_fe(llsToolbarCreate(ui));
