@@ -104,7 +104,9 @@ sttc llc::err_t llsServiceLayout(llc::SGUI & gui, llc::cid_t root) {
 		if_fail_fe(llsPlace(gui, gui.Controls.Children[target][pair * 2 + 0], 6, y, labelWidth, 30));
 		if_fail_fe(llsPlace(gui, gui.Controls.Children[target][pair * 2 + 1], (llc::s1_t)(12 + labelWidth), y, llc::max((llc::s1_t)1, (llc::s1_t)(width - labelWidth - 6)), 30));
 	}
-	rtrn llsPlace(gui, llsChild(gui, target, SERVICE_VIEWPORT_Stop), 6, 148, width, 34);
+	cnst llc::s1_t buttonWidth = llc::max((llc::s1_t)1, (llc::s1_t)((width - 6) / 2));
+	if_fail_fe(llsPlace(gui, llsChild(gui, target, SERVICE_VIEWPORT_Stop), 6, 148, buttonWidth, 34));
+	rtrn llsPlace(gui, llsChild(gui, target, SERVICE_VIEWPORT_Restart), (llc::s1_t)(12 + buttonWidth), 148, llc::max((llc::s1_t)1, (llc::s1_t)(width - buttonWidth - 6)), 34);
 }
 
 stxp llc::u2_t LLS_EXPLORER_ROWS = (llc::u2_t)EXPLORER_VIEWPORT_Previous - (llc::u2_t)EXPLORER_VIEWPORT_Row00;
@@ -333,11 +335,12 @@ sttc llc::err_t llsLayout(SLLSGUI & ui) {
 	cnst llc::n2s1_t sessionSize = gui.Controls.Placement[sessionClient].Area.Size;
 	cnst llc::n2s1_t workspaceSize = gui.Controls.Placement[workspaceClient].Area.Size;
 	cnst llc::n2s1_t inspectorSize = gui.Controls.Placement[inspectorClient].Area.Size;
-	cnst llc::s1_t sessionButtons = 512;
+	cnst llc::s1_t sessionButtons = 608;
 	if_fail_fe(llsPlace(gui, ui.Title, 10, 6, (llc::s1_t)llc::max(120, sessionSize.x - sessionButtons - 20), 28));
-	if_fail_fe(llsPlace(gui, ui.StopService, (llc::s1_t)(sessionSize.x - 522), 6, 154, 28));
-	if_fail_fe(llsPlace(gui, ui.Restart, (llc::s1_t)(sessionSize.x - 360), 6, 164, 28));
-	if_fail_fe(llsPlace(gui, ui.Exit, (llc::s1_t)(sessionSize.x - 188), 6, 178, 28));
+	if_fail_fe(llsPlace(gui, ui.StopService, (llc::s1_t)(sessionSize.x - 598), 6, 130, 28));
+	if_fail_fe(llsPlace(gui, ui.RestartService, (llc::s1_t)(sessionSize.x - 460), 6, 144, 28));
+	if_fail_fe(llsPlace(gui, ui.Restart, (llc::s1_t)(sessionSize.x - 308), 6, 150, 28));
+	if_fail_fe(llsPlace(gui, ui.Exit, (llc::s1_t)(sessionSize.x - 150), 6, 140, 28));
 	if_fail_fe(llsPlace(gui, ui.Statistics, 10, 40, (llc::s1_t)(sessionSize.x - 20), 26));
 	cnst llc::s1_t tabColumns = 3;
 	cnst llc::s1_t tabWidth = (llc::s1_t)llc::max(90, (workspaceSize.x - 20) / tabColumns);
@@ -554,7 +557,7 @@ sttc llc::err_t llsHelpUpdate(SLLSGUI & ui) {
 sttc llc::err_t llsToolbarUpdate(SApplication & app) {
 	auto & ui = *app.UI;
 	auto & gui = *ui.Framework.GUI;
-	cnst auto & buttons = gui.Controls.Children[ui.Toolbar];
+	llc::acid buttons = gui.Controls.Children[ui.Toolbar];
 	for(llc::u2_t i = 0; i < llc::get_value_count<LLS_TOOLBAR>(); ++i) {
 		if(!gui.Controls.IsAction(buttons[i])) continue;
 		switch((LLS_TOOLBAR)i) {
@@ -908,6 +911,9 @@ llc::err_t llsGUISetup(SApplication & app) {
 	if_fail_fe(llsViewportArrange(ui));
 	if_fail_fe(llsRootCreate<PROCESS_VIEWPORT>(ui, ui.Processes, "PROCESSES", {{18, 202}, {680, 536}}));
 	if_fail_fe(llsRootCreate<SERVICE_VIEWPORT>(ui, ui.Services, "SERVICES", {{710, 202}, {452, 536}}));
+	cnst llc::cid_t serviceTarget = llsChild(gui, ui.Services, LLS_VIEWPORT_Target);
+	if_fail_fe(llc::controlTextSet(gui, llsChild(gui, serviceTarget, SERVICE_VIEWPORT_Stop), "Stop service"));
+	if_fail_fe(llc::controlTextSet(gui, llsChild(gui, serviceTarget, SERVICE_VIEWPORT_Restart), "Restart service"));
 	cnst llc::cid_t sessionClient = ui.Viewports[LLS_GUI_VIEWPORT_SESSION].IdControls[llc::VIEWPORT_CONTROL_TARGET];
 	cnst llc::cid_t workspaceClient = ui.Viewports[LLS_GUI_VIEWPORT_WORKSPACE].IdControls[llc::VIEWPORT_CONTROL_TARGET];
 	cnst llc::cid_t inspectorClient = ui.Viewports[LLS_GUI_VIEWPORT_INSPECTOR].IdControls[llc::VIEWPORT_CONTROL_TARGET];
@@ -919,6 +925,7 @@ llc::err_t llsGUISetup(SApplication & app) {
 	if_fail_fe(llsControl(gui, ui.Exit, "Exit dashboard", false, sessionClient));
 	if_fail_fe(llsControl(gui, ui.Restart, "Restart dashboard", false, sessionClient));
 	if_fail_fe(llsControl(gui, ui.StopService, "Stop service", false, sessionClient));
+	if_fail_fe(llsControl(gui, ui.RestartService, "Restart service", false, sessionClient));
 	if_fail_fe(llsControl(gui, ui.Benchmark, "Benchmark", false, inspectorClient));
 	if_fail_fe(llsControl(gui, ui.Keyboard, "Keyboard", false, workspaceClient));
 	if_fail_fe(llsControl(gui, ui.OpenPath, "Open path", false, workspaceClient));
@@ -982,10 +989,15 @@ llc::err_t llsGUIUpdate(SApplication & app) {
 		serviceControlBusy = app.ServiceCommandPending || app.ServiceCommandBusy;
 	}
 	cnst llc::cid_t serviceStop = llsChild(gui, llsChild(gui, ui.Services, LLS_VIEWPORT_Target), SERVICE_VIEWPORT_Stop);
+	cnst llc::cid_t serviceRestart = llsChild(gui, llsChild(gui, ui.Services, LLS_VIEWPORT_Target), SERVICE_VIEWPORT_Restart);
 	gui.Controls.SetDisabled(ui.StopService, serviceControlBusy);
+	gui.Controls.SetDisabled(ui.RestartService, serviceControlBusy);
 	gui.Controls.SetDisabled(serviceStop, serviceControlBusy);
-	if(gui.Controls.IsAction(ui.StopService) || gui.Controls.IsAction(serviceStop)) {
-		cnst llc::err_t queued = llsServiceQueue(app, "shutdown");
+	gui.Controls.SetDisabled(serviceRestart, serviceControlBusy);
+	cnst bool stopService = gui.Controls.IsAction(ui.StopService) || gui.Controls.IsAction(serviceStop);
+	cnst bool restartService = gui.Controls.IsAction(ui.RestartService) || gui.Controls.IsAction(serviceRestart);
+	if(stopService || restartService) {
+		cnst llc::err_t queued = llsServiceQueue(app, restartService ? llc::vcst_t{"restart"} : llc::vcst_t{"shutdown"});
 		if(llc::failed(queued)) {
 			llc::lock_guard guard(app.Lock);
 			if_fail_fe(app.ServiceResponse.clear());
