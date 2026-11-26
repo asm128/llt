@@ -89,4 +89,14 @@
     <BuildDependency Project="../llc/llc/llc.vcxproj" />
     <BuildDependency Project="../llc/llc_engine/llc_engine.vcxproj" />
   </Project>
+  <Project Path="llc_client/llc_client.vcxproj" Id="d695d0f3-337e-42bd-b592-07a557b49b81">
+    <BuildDependency Project="../llc/llc/llc.vcxproj" />
+    <BuildDependency Project="../llc/llc_engine/llc_engine.vcxproj" />
+    <BuildDependency Project="../llc/lrt/lrt.vcxproj" />
+  </Project>
+  <Project Path="llc_server/llc_server.vcxproj" Id="3844748b-087b-47f8-9e97-9c1ef6e3bc36">
+    <BuildDependency Project="../llc/llc/llc.vcxproj" />
+    <BuildDependency Project="../llc/llc_engine/llc_engine.vcxproj" />
+    <BuildDependency Project="../llc/lrt/lrt.vcxproj" />
+  </Project>
 </Solution>
