@@ -18,6 +18,12 @@ GDEFINE_ENUM_VALUED(LLS_TOOLBAR, Processes, 2, "P");
 GDEFINE_ENUM_VALUED(LLS_TOOLBAR, Services , 3, "S");
 GDEFINE_ENUM_VALUED(LLS_TOOLBAR, Console  , 4, ">");
 
+GDEFINE_ENUM_TYPE(LLS_SESSION_ACTION, llc::u0_t);
+GDEFINE_ENUM_VALUED(LLS_SESSION_ACTION, StopService     , 0, "\xFE");
+GDEFINE_ENUM_VALUED(LLS_SESSION_ACTION, RestartService  , 1, "\x1D");
+GDEFINE_ENUM_VALUED(LLS_SESSION_ACTION, RestartDashboard, 2, "\x12");
+GDEFINE_ENUM_VALUED(LLS_SESSION_ACTION, ExitDashboard   , 3, "X");
+
 GDEFINE_ENUM_TYPE(LLS_VIEWPORT, llc::u0_t);
 GDEFINE_ENUM_VALUE(LLS_VIEWPORT, Title , 0);
 GDEFINE_ENUM_VALUE(LLS_VIEWPORT, Close , 1);
@@ -131,7 +137,7 @@ stct SConsoleWork {
 stct SLLSGUI {
 	llc::SFramework		Framework;
 	SLLSGUISurface Surface;
-	llc::cid_t Host = -1, Toolbar = -1, Processes = -1, Services = -1, Console = -1, Help = -1;
+	llc::cid_t Host = -1, Toolbar = -1, SessionToolbar = -1, Processes = -1, Services = -1, Console = -1, Help = -1;
 	llc::acid Explorers;
 	llc::aobj<SExplorer> ExplorerState;
 	llc::aobj<llc::aobj<llc::string>> ExplorerText;

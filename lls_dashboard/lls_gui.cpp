@@ -39,21 +39,33 @@ sttc llc::err_t llsPlace(llc::SGUI & gui, llc::cid_t id, llc::s1_t x, llc::s1_t 
 	rtrn llc::controlMetricsInvalidate(gui, id);
 }
 
-sttc llc::err_t llsToolbarCreate(SLLSGUI & ui) {
+tplt<tpnm TEnum>
+sttc llc::err_t llsToolbarListCreate(SLLSGUI & ui, llc::cid_t & root, cnst llc::n2u1_t & buttonSize, llc::u0_t font) {
 	auto & gui = *ui.Framework.GUI;
-	if_fail_fe(ui.Toolbar = llc::controlCreateChild(gui, ui.Host));
-	if_fail_fe(llsControlPalette(gui, ui.Toolbar));
-	gui.Controls.Draw[ui.Toolbar].NoBorder = true;
-	gui.Controls.Draw[ui.Toolbar].NoClient = true;
-	if_fail_fe(llsEnumCreate<LLS_TOOLBAR>(gui, ui.Toolbar, {46, 46}, llc::ALIGN_TOP_LEFT, llc::ALIGN_CENTER));
-	for(llc::u2_t i = 0; i < llc::get_value_count<LLS_TOOLBAR>(); ++i) {
-		cnst llc::cid_t id = gui.Controls.Children[ui.Toolbar][i];
-		gui.Controls.Placement[id].Area = {{(llc::s1_t)(46 * i), 0}, {46, 46}};
+	if_fail_fe(root = llc::controlCreateChild(gui, ui.Host));
+	if_fail_fe(llsControlPalette(gui, root));
+	gui.Controls.Draw[root].NoBorder = true;
+	gui.Controls.Draw[root].NoClient = true;
+	if_fail_fe(llsEnumCreate<TEnum>(gui, root, buttonSize, llc::ALIGN_TOP_LEFT, llc::ALIGN_CENTER));
+	for(llc::u2_t i = 0; i < llc::get_value_count<TEnum>(); ++i) {
+		cnst llc::cid_t id = gui.Controls.Children[root][i];
+		gui.Controls.Placement[id].Area = {{(llc::s1_t)(buttonSize.x * i), 0}, buttonSize.s1()};
 		gui.Controls.Placement[id].Border = {2, 2, 2, 2};
 		gui.Controls.Placement[id].Margin = {1, 1, 1, 1};
-		gui.Controls.Text[id].FontSelected = 10;
-		if_fail_fe(llc::controlTextSet(gui, id, llc::get_value_descv((LLS_TOOLBAR)i)));
+		gui.Controls.Text[id].FontSelected = font;
+		if_fail_fe(llc::controlTextSet(gui, id, llc::get_value_descv((TEnum)i)));
 	}
+	rtrn 0;
+}
+
+sttc llc::err_t llsToolbarsCreate(SLLSGUI & ui) {
+	if_fail_fe(llsToolbarListCreate<LLS_TOOLBAR>(ui, ui.Toolbar, {46, 46}, 10));
+	if_fail_fe(llsToolbarListCreate<LLS_SESSION_ACTION>(ui, ui.SessionToolbar, {46, 46}, 10));
+	auto & gui = *ui.Framework.GUI;
+	ui.StopService    = llsChild(gui, ui.SessionToolbar, LLS_SESSION_ACTION_StopService);
+	ui.RestartService = llsChild(gui, ui.SessionToolbar, LLS_SESSION_ACTION_RestartService);
+	ui.Restart        = llsChild(gui, ui.SessionToolbar, LLS_SESSION_ACTION_RestartDashboard);
+	ui.Exit           = llsChild(gui, ui.SessionToolbar, LLS_SESSION_ACTION_ExitDashboard);
 	rtrn 0;
 }
 
@@ -305,7 +317,10 @@ sttc llc::err_t llsRootArrange(SLLSGUI & ui) {
 	auto & gui = *ui.Framework.GUI;
 	cnst llc::s1_t width = (llc::s1_t)llc::max(900U, (llc::u2_t)ui.Framework.RootWindow.Size.x);
 	cnst llc::s1_t height = (llc::s1_t)llc::max(620U, (llc::u2_t)ui.Framework.RootWindow.Size.y);
-	gui.Controls.Placement[ui.Toolbar].Area = {{18, 12}, {(llc::s1_t)(46 * llc::get_value_count<LLS_TOOLBAR>()), 46}};
+	cnst llc::s1_t toolbarWidth = (llc::s1_t)(46 * llc::get_value_count<LLS_TOOLBAR>());
+	cnst llc::s1_t sessionToolbarWidth = (llc::s1_t)(46 * llc::get_value_count<LLS_SESSION_ACTION>());
+	gui.Controls.Placement[ui.Toolbar].Area = {{18, 12}, {toolbarWidth, 46}};
+	gui.Controls.Placement[ui.SessionToolbar].Area = {{(llc::s1_t)(width - sessionToolbarWidth - 18), 12}, {sessionToolbarWidth, 46}};
 	cnst llc::s1_t contentTop = 202;
 	cnst llc::s1_t contentHeight = llc::max((llc::s1_t)280, (llc::s1_t)(height - contentTop - 42));
 	cnst llc::s1_t available = (llc::s1_t)(width - 48);
@@ -313,6 +328,7 @@ sttc llc::err_t llsRootArrange(SLLSGUI & ui) {
 	gui.Controls.Placement[ui.Processes].Area = {{18, contentTop}, {processWidth, contentHeight}};
 	gui.Controls.Placement[ui.Services].Area = {{(llc::s1_t)(30 + processWidth), contentTop}, {(llc::s1_t)(available - processWidth), contentHeight}};
 	if_fail_fe(llc::controlMetricsInvalidate(gui, ui.Toolbar));
+	if_fail_fe(llc::controlMetricsInvalidate(gui, ui.SessionToolbar));
 	if_fail_fe(llc::controlMetricsInvalidate(gui, ui.Processes));
 	if_fail_fe(llc::controlMetricsInvalidate(gui, ui.Services));
 	if_fail_fe(llsProcessLayout(gui, ui.Processes));
@@ -474,12 +490,7 @@ sttc llc::err_t llsLayout(SLLSGUI & ui) {
 	cnst llc::n2s1_t sessionSize = gui.Controls.Placement[sessionClient].Area.Size;
 	cnst llc::n2s1_t workspaceSize = gui.Controls.Placement[workspaceClient].Area.Size;
 	cnst llc::n2s1_t inspectorSize = gui.Controls.Placement[inspectorClient].Area.Size;
-	cnst llc::s1_t sessionButtons = 608;
-	if_fail_fe(llsPlace(gui, ui.Title, 10, 6, (llc::s1_t)llc::max(120, sessionSize.x - sessionButtons - 20), 28));
-	if_fail_fe(llsPlace(gui, ui.StopService, (llc::s1_t)(sessionSize.x - 598), 6, 130, 28));
-	if_fail_fe(llsPlace(gui, ui.RestartService, (llc::s1_t)(sessionSize.x - 460), 6, 144, 28));
-	if_fail_fe(llsPlace(gui, ui.Restart, (llc::s1_t)(sessionSize.x - 308), 6, 150, 28));
-	if_fail_fe(llsPlace(gui, ui.Exit, (llc::s1_t)(sessionSize.x - 150), 6, 140, 28));
+	if_fail_fe(llsPlace(gui, ui.Title, 10, 6, (llc::s1_t)(sessionSize.x - 20), 28));
 	if_fail_fe(llsPlace(gui, ui.Statistics, 10, 40, (llc::s1_t)(sessionSize.x - 20), 26));
 	cnst llc::s1_t tabColumns = 3;
 	cnst llc::s1_t tabWidth = (llc::s1_t)llc::max(90, (workspaceSize.x - 20) / tabColumns);
@@ -1045,7 +1056,7 @@ llc::err_t llsGUISetup(SApplication & app) {
 	gui.Controls.Draw[ui.Host].NoClient = true;
 	gui.Controls.Placement[ui.Host].Area.Size = window.Size.s1();
 	gui.Controls.Constraints[ui.Host].AttachSizeToControl = {ui.Host, ui.Host};
-	if_fail_fe(llsToolbarCreate(ui));
+	if_fail_fe(llsToolbarsCreate(ui));
 	if_fail_fe(llsViewportCreate(ui, LLS_GUI_VIEWPORT_SESSION, "SESSION / SERVICE", {{18, 12}, {1144, 118}}));
 	if_fail_fe(llsViewportCreate(ui, LLS_GUI_VIEWPORT_WORKSPACE, "LLS WORKSPACE", {{18, 144}, {390, 594}}));
 	if_fail_fe(llsViewportCreate(ui, LLS_GUI_VIEWPORT_INSPECTOR, "INSPECTOR", {{420, 144}, {742, 594}}));
@@ -1074,10 +1085,6 @@ llc::err_t llsGUISetup(SApplication & app) {
 	if_fail_fe(llsControl(gui, ui.Hint, "Type to filter. Select a result to inspect. Enter opens the first match. Mouse wheel scrolls details.", true));
 	if_fail_fe(llsControlPool(gui, ui.Tabs, ui.TabText.size(), ui.Family, false, workspaceClient));
 	for(llc::u2_t i = 0; i < ui.Tabs.size(); ++i) { if_fail_fe(llc::controlTextSet(gui, ui.Tabs[i], ui.TabText[i])); }
-	if_fail_fe(llsControl(gui, ui.Exit, "Exit dashboard", false, sessionClient));
-	if_fail_fe(llsControl(gui, ui.Restart, "Restart dashboard", false, sessionClient));
-	if_fail_fe(llsControl(gui, ui.StopService, "Stop service", false, sessionClient));
-	if_fail_fe(llsControl(gui, ui.RestartService, "Restart service", false, sessionClient));
 	if_fail_fe(llsControl(gui, ui.Benchmark, "Benchmark", false, inspectorClient));
 	if_fail_fe(llsControl(gui, ui.Keyboard, "Keyboard", false, workspaceClient));
 	if_fail_fe(llsControl(gui, ui.OpenPath, "Open path", false, workspaceClient));
