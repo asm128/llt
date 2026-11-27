@@ -12,6 +12,39 @@
 stxp ::llc::u0_t SAMPLE_GUI_THEME_COUNT = 3;
 stxp ::llc::u0_t PALETTE_SHADE_COUNT = 16;
 
+sttc ::llc::err_t processScreenEvent(::SSampleGUIComponents &, cnst ::llc::SEventView<::llc::EVENT_SCREEN> & screenEvent) {
+	switch(screenEvent.Type) {
+	default: break;
+	case ::llc::EVENT_SCREEN_Create:
+	case ::llc::EVENT_SCREEN_Resize:
+		break;
+	}
+	rtrn 0;
+}
+
+sttc ::llc::err_t processKeyboardEvent(::SSampleGUIComponents & app, cnst ::llc::SEventView<::llc::EVENT_KEYBOARD> & keyboardEvent) {
+	switch(keyboardEvent.Type) {
+	default: break;
+	case ::llc::EVENT_KEYBOARD_SysDown:
+		switch(keyboardEvent.Data[0]) {
+		case '\r':
+			if_fail_fe(::llc::fullScreenToggle(app.Window));
+			break;
+		}
+		break;
+	}
+	rtrn 0;
+}
+
+sttc ::llc::err_t processSystemEvent(::SSampleGUIComponents & app, cnst ::llc::SEventSystem & systemEvent) {
+	switch(systemEvent.Type) {
+	default: break;
+	case ::llc::SYSTEM_EVENT_Screen		: if_fail_fe(::llc::eventExtractAndHandle<::llc::EVENT_SCREEN  >(systemEvent, [&app](cnst ::llc::SScreenEventView & screenEvent) { rtrn ::processScreenEvent  (app, screenEvent); })); break;
+	case ::llc::SYSTEM_EVENT_Keyboard	: if_fail_fe(::llc::eventExtractAndHandle<::llc::EVENT_KEYBOARD>(systemEvent, [&app](cnst ::llc::SEventView<::llc::EVENT_KEYBOARD> & keyboardEvent) { rtrn ::processKeyboardEvent(app, keyboardEvent); })); break;
+	}
+	rtrn 0;
+}
+
 sttc ::llc::SColorBGRA sampleGUIThemeColor(::llc::u0_t theme) nxpt {
 	stxp ::llc::SColorBGRA colors[SAMPLE_GUI_THEME_COUNT] =
 		{ {248, 208,  72}
@@ -509,6 +542,7 @@ sttc ::llc::err_t sampleGUIComponentsControlsSetup(SSampleGUIComponents & app) {
 ::llc::err_t sampleGUIComponentsUpdate(SSampleGUIComponents & app, bool systemRequestedExit, double secondsLastFrame) {
 	if(systemRequestedExit || app.Window.Closed)
 		rtrn ::llc::APPLICATION_STATE_EXIT;
+	if_fail_fe(app.Window.EventQueue.for_each([&app](cnst ::llc::pobj<::llc::SEventSystem> & systemEvent) { rtrn ::processSystemEvent(app, *systemEvent); }));
 	cnst bool editingAtFrameStart = app.InputBox.Editing;
 	if_fail_fe(::sampleCheckBoxUpdate(app.CheckBox, app.GUI));
 	if_fail_fe(::sampleSliderUpdate(app.SliderHorizontal, app.GUI, *app.Window.Input));
