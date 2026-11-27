@@ -481,7 +481,7 @@
       "Can I inspect a running build?",
       "LLS exposes status; LCP is synchronous and does not expose it.",
       "Will help execute its examples?",
-      "No. Help only returns static text; invalid paths do not dispatch commands.",
+      "No. Help only returns sttc text; invalid paths do not dispatch commands.",
       "Are file-content search/index commands ready?",
       "No; this catalog only describes implemented tools.",
       "Parent: <root> (empty path)."

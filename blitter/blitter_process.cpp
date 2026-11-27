@@ -45,7 +45,7 @@ LLC_USING_TYPEINT();
 	return 0;
 }
 
-static	::llc::err_t	queryGetDetail
+sttc	::llc::err_t	queryGetDetail
 	( ::llc::SLoadCache								& loadCache
 	, const ::llc::SExpressionReader				& expressionReader
 	, ::llc::array_obj<::blt::TNamedBlitterDB>		& databases
@@ -148,7 +148,7 @@ static	::llc::err_t	queryGetDetail
 	return 0;
 }
 
-static ::llc::err_t querySearch
+sttc ::llc::err_t querySearch
 	( ::llc::SLoadCache & loadCache
 	, ::blt::TNamedBlitterDB & namedDatabase
 	, ::llc::vcst_t folder
@@ -197,7 +197,7 @@ static ::llc::err_t querySearch
 	rtrn indices.size();
 }
 
-static	::llc::err_t	fillEmptyBlocks				(const ::llc::vcst_t & emptyBlockData, const u2_t  emptyBlocks, bool appendComma, ::llc::string & output)	{
+sttc	::llc::err_t	fillEmptyBlocks				(const ::llc::vcst_t & emptyBlockData, const u2_t  emptyBlocks, bool appendComma, ::llc::string & output)	{
 	for(u2_t  iEmpty = 0; iEmpty < emptyBlocks; ++iEmpty) {
 		if_fail_fef(output.append(emptyBlockData), "%s", "Out of memory?");
 		if(emptyBlocks - 1 != iEmpty)
@@ -208,7 +208,7 @@ static	::llc::err_t	fillEmptyBlocks				(const ::llc::vcst_t & emptyBlockData, co
 	return 0;
 }
 
-static	::llc::err_t	nextBlock					(const u2_t  iRangeInfo, const u2_t  lastRangeInfo, const ::llc::view<const ::blt::SRangeBlockInfo>	& rangeInfo, const ::llc::vcst_t & emptyBlockData, ::llc::string & output) {
+sttc	::llc::err_t	nextBlock					(const u2_t  iRangeInfo, const u2_t  lastRangeInfo, const ::llc::view<const ::blt::SRangeBlockInfo>	& rangeInfo, const ::llc::vcst_t & emptyBlockData, ::llc::string & output) {
 	if(rangeInfo.size() -1 != iRangeInfo)
 		if_fail_fef(output.push_back(','), "%s", "Out of memory?");
 
@@ -222,7 +222,7 @@ static	::llc::err_t	nextBlock					(const u2_t  iRangeInfo, const u2_t  lastRange
 	return 0;
 }
 
-static	::llc::err_t	queryGetRange
+sttc	::llc::err_t	queryGetRange
 	( ::llc::SLoadCache						& loadCache
 	, const ::llc::SExpressionReader		& expressionReader
 	, ::llc::aobj<::blt::TNamedBlitterDB>	& databases
@@ -310,7 +310,7 @@ static	::llc::err_t	queryGetRange
 	return 0;
 }
 
-static	s3_t			pushNewBlock
+sttc	s3_t			pushNewBlock
 	( ::llc::SLoadCache			& loadCache
 	, ::blt::TNamedBlitterDB	& database
 	, const ::llc::vcst_t			& folder
@@ -324,7 +324,7 @@ static	s3_t			pushNewBlock
 		loadCache.Deflated.clear();
 		if_true_fef(0 == recordToAdd.Tree.size(), "Invalid json record! %s.", "Forgot to build the reader from the record?")
 		if_fail_fef(::llc::jsonWrite(recordToAdd[0], recordToAdd.View, *(::llc::string*)&loadCache.Deflated), "Failed to write json record! %s", "Invalid format?");
-		if_fail_fe(newBlock->Bytes.append(loadCache.Deflated));
+		if_fail_fe(newBlock->Bytes.append(loadCache.Deflated.as<sc_c>()));
 		newBlock->Bytes.push_back(']');
 		if_fail_fef(::llc::jsonParse(newBlock->Reader, newBlock->Bytes), "%s", "Failed to parse new block.");
 		const u2_t 										indexBlock			= database.Val.Blocks.push_back(newBlock);
@@ -353,7 +353,7 @@ static	s3_t			pushNewBlock
 		loadCache.Deflated.clear();
 		if_true_fef(0 == recordToAdd.Tree.size(), "Invalid json record! %s.", "Forgot to build the reader from the record?")
 		if_fail_fef(::llc::jsonWrite(recordToAdd[0], recordToAdd.View, *(::llc::string*)&loadCache.Deflated), "Failed to write json record! %s", "Invalid format?");
-		if_fail_fe(newBlock.Bytes.append(loadCache.Deflated));
+		if_fail_fe(newBlock.Bytes.append(loadCache.Deflated.as<sc_c>()));
 		if_fail_fe(newBlock.Bytes.push_back(']'));
 		if_fail_fef(::llc::jsonParse(newBlock.Reader, newBlock.Bytes), "%s", "Failed to parse new block.");
 		database.Val.BlockIndices	[idxBlock]			= idNewBlock;
@@ -366,7 +366,7 @@ static	s3_t			pushNewBlock
 	return idNewBlock * (u3_t )database.Val.BlockSize;
 }
 
-static	s3_t								appendRecord
+sttc	s3_t								appendRecord
 	( ::llc::SLoadCache								& loadCache
 	, ::blt::SDatabase								& database
 	, const u2_t 								indexBlock

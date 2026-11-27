@@ -31,7 +31,7 @@ LLC_USING_TYPEINT();
 	return 0;
 }
 
-static ::llc::err_t						dbFileExtension				(const ::blt::DATABASE_HOST & hostType, bool bEncrypted, ::llc::vcst_t & extension) {
+sttc ::llc::err_t						dbFileExtension				(const ::blt::DATABASE_HOST & hostType, bool bEncrypted, ::llc::vcst_t & extension) {
 	extension										= bEncrypted
 		? ((::blt::DATABASE_HOST_DEFLATE & hostType) ? ::llc::vcst_t{"czon"} : ::llc::vcst_t{"cson"})
 		: ((::blt::DATABASE_HOST_DEFLATE & hostType) ? ::llc::vcst_t{"zson"} : ::llc::vcst_t{"sson"})
@@ -83,7 +83,7 @@ static ::llc::err_t						dbFileExtension				(const ::blt::DATABASE_HOST & hostTy
 	return 0;
 }
 
-static	::llc::err_t		dbFileLoad					(::llc::SLoadCache & loadCache, ::blt::TNamedBlitterDB & jsonDB, const ::llc::vcst_t & folder, const ::llc::vcst_t & fileName, u2_t  idBlock)	{
+sttc	::llc::err_t		dbFileLoad					(::llc::SLoadCache & loadCache, ::blt::TNamedBlitterDB & jsonDB, const ::llc::vcst_t & folder, const ::llc::vcst_t & fileName, u2_t  idBlock)	{
 	if(jsonDB.Val.Blocks.size() < ::blt::MAX_TABLE_BLOCKS_IN_MEMORY) {
 		const s2_t										idxBlock					= jsonDB.Val.Blocks.push_back({});
 		if_fail_fef(idxBlock																					, "%s", "Out of memory?");
@@ -154,7 +154,7 @@ static	::llc::err_t		dbFileLoad					(::llc::SLoadCache & loadCache, ::blt::TName
 	info_printf("Loading block file: %.*s.", LLC_VIEW_ARGS(fileName));
 	return ::dbFileLoad(loadCache, jsonDB, folder, fileName, block);
 }
-static	::llc::err_t		table_description_load			(::blt::STableDescription & tableDesc, const ::llc::SJSONReader & configReader, const u2_t  iNode, const ::llc::vcst_t & tableName)	{
+sttc	::llc::err_t		table_description_load			(::blt::STableDescription & tableDesc, const ::llc::SJSONReader & configReader, const u2_t  iNode, const ::llc::vcst_t & tableName)	{
 	s2_t												indexOfTable					= iNode;//::llc::jsonExpressionResolve(tableName, configReader, iNode);
 	if_fail_fef(indexOfTable, "API configuration (%.*s) not found in JSON file.", LLC_VIEW_ARGS(tableName));
 	::llc::vcst_t							strValue						= {};
@@ -312,7 +312,7 @@ static	::llc::err_t		table_description_load			(::blt::STableDescription & tableD
 	return 0;
 }
 
-static	::llc::err_t		queryLoad						(::blt::SBlitterQuery& query, const ::llc::view<const ::llc::keyval<::llc::vcst_t>> keyvals, ::llc::array_obj<::llc::vcst_t> & expansionKeyStorage) {
+sttc	::llc::err_t		queryLoad						(::blt::SBlitterQuery& query, const ::llc::view<const ::llc::keyval<::llc::vcst_t>> keyvals, ::llc::array_obj<::llc::vcst_t> & expansionKeyStorage) {
 	const ::llc::err_t indexSearch = ::llc::find(::llc::vcst_t{"q"}, keyvals);
 	if(0 <= indexSearch)
 		query.SearchText = keyvals[indexSearch].Val;

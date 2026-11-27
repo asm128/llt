@@ -15,7 +15,7 @@
 
 LLC_USING_TYPEINT();
 
-static constexpr const u2_t 			DEFAULT_BLOCK_SIZE				= 1024;
+sttc constexpr const u2_t 			DEFAULT_BLOCK_SIZE				= 1024;
 
 struct SSplitParams {
 	::llc::vcst_t				FileNameSrc						= {};	// First parameter is the only parameter, which is the name of the source file to be split.
