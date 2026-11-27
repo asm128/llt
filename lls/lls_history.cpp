@@ -18,9 +18,9 @@ llc::err_t llsJobJSON(cnst SBuildJob & job, llc::string & json) {
 	}
 	rtrn append_strings(json, ",\"pid\":", str(job.PID), ",\"elapsedMs\":", str(job.Historical ? job.SavedElapsedMs : elapsed.LastTimeMicroseconds / 1000),
 		",\"logStatus\":", str(job.OutputLogStatus), ",\"status\":", str(job.Result.Status), ",\"exitCode\":", str(job.Result.ExitCode),
-		",\"exitKnown\":", b82vcs(job.Result.ExitKnown), ",\"started\":", b82vcs(job.ProcessStarted), ",\"finished\":", b82vcs(job.ProcessFinished),
-		",\"detached\":", b82vcs(job.Detached), ",\"session\":", str(job.OriginSession), ",\"sequence\":", str(job.Sequence),
-		",\"historical\":", b82vcs(job.Historical), '}');
+		",\"exitKnown\":", b82st(job.Result.ExitKnown), ",\"started\":", b82st(job.ProcessStarted), ",\"finished\":", b82st(job.ProcessFinished),
+		",\"detached\":", b82st(job.Detached), ",\"session\":", str(job.OriginSession), ",\"sequence\":", str(job.Sequence),
+		",\"historical\":", b82st(job.Historical), '}');
 }
 llc::err_t llsHistorySave(SApplication & app, cnst SBuildJob & job) {
 	using namespace llc;

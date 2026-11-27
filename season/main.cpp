@@ -76,7 +76,7 @@ struct SWriteCache {
 	pathToWriteTo							= dbFolderName;
 	if_fail_fef(::blt::blockFileName(partFileName, params.DBName, params.EncryptionKey.size() > 0, params.DeflatedOutput ? ::blt::DATABASE_HOST_DEFLATE : ::blt::DATABASE_HOST_LOCAL, iPart), "%s", "??");
 	if_fail_fe(pathToWriteTo.append(partFileName));
-	return ::llc::fileFromMemorySecure(blockCache.LoadCache, pathToWriteTo, params.EncryptionKey.cu8(), params.DeflatedOutput, partBytes);
+	return ::llc::fileFromMemorySecure(blockCache.LoadCache, pathToWriteTo, params.EncryptionKey.as<u0_c>(), params.DeflatedOutput, partBytes);
 }
 
 // Splits a file.json into file.#blocksize.db/file.##.json parts.
@@ -107,7 +107,7 @@ int										main							(int argc, char ** argv)		{
 	::SWriteCache								blockCache						= {};
 	const ::llc::vcst_t				folder							= {dbFolderName.begin(), dbFolderName.size()};
 	for(u2_t  iPart = 0; iPart < outputJsons.size(); ++iPart) {
-		::llc::vcu0_t			partBytes						= outputJsons[iPart].cu8();
+		::llc::vcu0_t			partBytes						= outputJsons[iPart].as<u0_c>();
 		if_fail_fe(::writePart(blockCache, params, folder, partBytes, iPart));
 	}
 	return 0;

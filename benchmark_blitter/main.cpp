@@ -10,6 +10,11 @@
 sttc ::llc::err_t benchmark_blitter_entry_point(::llc::SRuntimeValues & runtimeValues);
 LLC_OS_ENTRY_POINT(::benchmark_blitter_entry_point);
 
+LLC_USING_TYPEINT();
+LLC_USING_VIEW();
+LLC_USING_APOD();
+LLC_USING_STRING();
+
 sttc ::llc::err_t benchmark_blitter_entry_point(::llc::SRuntimeValues & runtimeValues) {
 	cnst ::llc::SCommandLineArgs & args = runtimeValues.EntryPointArgs;
 	::llc::vcst_t configPath, expectedPath, dbName, offsetText, limitText, requestsText, searchText;
@@ -36,8 +41,8 @@ sttc ::llc::err_t benchmark_blitter_entry_point(::llc::SRuntimeValues & runtimeV
 	if_true_fe(::llc::parseIntegerDecimal(requestsText, requests) != (::llc::err_t)requestsText.size() || !requests || requests > 1000000);
 	::llc::string expected, response;
 	if_fail_fe(::llc::fileToMemory(expectedPath, expected));
-	::llc::vcst_t expectedView = {expected.begin(), expected.size()};
-	::llc::rtrim(expectedView);
+	::llc::vcst_t expectedView;
+	::llc::rtrim(expectedView, expected);
 	::llc::STimer setupTimer;
 	if_fail_fe(::blt::loadConfig(app, configPath));
 	cnst double setupSeconds = setupTimer.Frame();
@@ -59,7 +64,7 @@ sttc ::llc::err_t benchmark_blitter_entry_point(::llc::SRuntimeValues & runtimeV
 	for(::llc::u3_t i = 0; i < requests; ++i) {
 		if_fail_fe(request());
 		::llc::u3_t crc = 0;
-		if_fail_fe(::llc::crcGenerate(response.cu8(), crc));
+		if_fail_fe(::llc::crcGenerate(response.as<u0_c>(), crc));
 		checksum += crc;
 	}
 	cnst double warmSeconds = warmTimer.Frame();

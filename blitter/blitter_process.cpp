@@ -20,7 +20,7 @@ LLC_USING_TYPEINT();
 		pathToWriteTo.push_back('/');
 	if_fail_fef(::blt::blockFileName(partFileName, dbName, encryptionKey.size() > 0, hostType, iPart), "%s", "??");
 	if_fail_fef(pathToWriteTo.append(partFileName), "%s", "Out of memory?");
-	return ::llc::fileFromMemorySecure(writeCache.LoadCache, pathToWriteTo, encryptionKey.cu8(), ::llc::bit_true(hostType, ::blt::DATABASE_HOST_DEFLATE), partBytes.cu8());
+	return ::llc::fileFromMemorySecure(writeCache.LoadCache, pathToWriteTo, encryptionKey.as<u0_c>(), ::llc::bit_true(hostType, ::blt::DATABASE_HOST_DEFLATE), partBytes.as<u0_c>());
 }
 
 ::llc::err_t			databaseFlush							(::blt::SWriteCache & cache, ::blt::TNamedBlitterDB & db, ::llc::vcst_t folder) {
@@ -29,7 +29,7 @@ LLC_USING_TYPEINT();
 		if(dirty[iBlock]) {
 			::llc::string						folderName								= {};
 			if_fail_fef(::blt::tableFolderInit(folderName, folder, db.Key, db.Val.BlockSize), "Failed to initialize folder for table '%.*s'. Not enough permissions?", LLC_VIEW_ARGS(db.Key));
-			if_fail_fe(::blt::blockWrite(cache, folderName, db.Key, db.Val.EncryptionKey.cc(), db.Val.HostType, db.Val.Blocks[iBlock]->Bytes.cu8(), db.Val.BlockIndices[iBlock]));
+			if_fail_fe(::blt::blockWrite(cache, folderName, db.Key, db.Val.EncryptionKey, db.Val.HostType, db.Val.Blocks[iBlock]->Bytes.as<u0_c>(), db.Val.BlockIndices[iBlock]));
 		}
 	}
 	memset(db.Val.BlockDirty.begin(), 0, sizeof(u2_t ) * db.Val.BlockDirty.size());
@@ -324,7 +324,7 @@ static	s3_t			pushNewBlock
 		loadCache.Deflated.clear();
 		if_true_fef(0 == recordToAdd.Tree.size(), "Invalid json record! %s.", "Forgot to build the reader from the record?")
 		if_fail_fef(::llc::jsonWrite(recordToAdd[0], recordToAdd.View, *(::llc::string*)&loadCache.Deflated), "Failed to write json record! %s", "Invalid format?");
-		if_fail_fe(newBlock->Bytes.append(loadCache.Deflated.cc()));
+		if_fail_fe(newBlock->Bytes.append(loadCache.Deflated));
 		newBlock->Bytes.push_back(']');
 		if_fail_fef(::llc::jsonParse(newBlock->Reader, newBlock->Bytes), "%s", "Failed to parse new block.");
 		const u2_t 										indexBlock			= database.Val.Blocks.push_back(newBlock);
@@ -338,7 +338,7 @@ static	s3_t			pushNewBlock
 	}
 	else {
 		const u3_t 										* time						= 0;
-		const u2_t 										idxBlock					= ::llc::min(::llc::view_array<const u3_t >{database.Val.BlockTimes}, &time);
+		const u2_t 										idxBlock					= ::llc::min(::llc::vcu3_t{database.Val.BlockTimes}, &time);
 		::llc::view_bit<u2_t >							dirty						= {database.Val.BlockDirty.begin(), database.Val.Blocks.size()};
 		if(dirty[idxBlock]) {
 			::blt::SWriteCache								writeCache						= {loadCache};
@@ -353,7 +353,7 @@ static	s3_t			pushNewBlock
 		loadCache.Deflated.clear();
 		if_true_fef(0 == recordToAdd.Tree.size(), "Invalid json record! %s.", "Forgot to build the reader from the record?")
 		if_fail_fef(::llc::jsonWrite(recordToAdd[0], recordToAdd.View, *(::llc::string*)&loadCache.Deflated), "Failed to write json record! %s", "Invalid format?");
-		if_fail_fe(newBlock.Bytes.append(loadCache.Deflated.cc()));
+		if_fail_fe(newBlock.Bytes.append(loadCache.Deflated));
 		if_fail_fe(newBlock.Bytes.push_back(']'));
 		if_fail_fef(::llc::jsonParse(newBlock.Reader, newBlock.Bytes), "%s", "Failed to parse new block.");
 		database.Val.BlockIndices	[idxBlock]			= idNewBlock;
@@ -374,11 +374,11 @@ static	s3_t								appendRecord
 	) {
 	loadCache.Deflated.clear();
 	loadCache.Deflated.push_back(',');
-	if_fail_fef(::llc::jsonWrite(recordToAdd.Tree[0], recordToAdd.View, *(::llc::string*)&loadCache.Deflated), "Failed to write json record! %s", "Invalid format?");
+	if_fail_fef(::llc::jsonWrite(recordToAdd.Tree[0], recordToAdd.View, *(::llc::asc_t*)&loadCache.Deflated), "Failed to write json record! %s", "Invalid format?");
 	::llc::SJSONFile									& block				= *database.Blocks[indexBlock];
 	const u2_t 										insertPos			= block.Bytes.size() - 1;
 	const u2_t 										indexOfToken		= block.Reader.Token.size();
-	if_fail_fe(block.Bytes.insert(insertPos, loadCache.Deflated.cc()));
+	if_fail_fe(block.Bytes.insert(insertPos, loadCache.Deflated.as<sc_c>()));
 	::llc::SJSONReaderState								& stateReader										= block.Reader.StateRead;
 	block.Reader.Token[0].Span.End					= block.Reader.Token[0].Span.Begin;
 	stateReader.Escaping							= false;

@@ -136,7 +136,7 @@ sttc llc::err_t movePaths(llc::string & oldPath, llc::string & destinationFolder
 		oldPathDriveLetterFix[colonOffset] = '_';
 		oldPathView = oldPathDriveLetterFix;
 	}
-	if_fail_fe(llc::append_strings(destinationFolder, destinationRoot, '/', oldPathView.cc(), '/'));
+	if_fail_fe(llc::append_strings(destinationFolder, destinationRoot, '/', oldPathView, '/'));
 	return 0;
 }
 
@@ -154,24 +154,17 @@ sttc llc::err_t moveFile(const SFileInfo & fileToMove, llc::vcst_c & destination
 sttc llc::err_t collectExactMatches(llc::view<const SFileInfoPair> potentiallyDuplicatedFiles, llc::aobj<SFileInfoPair> & exactMatches) {
 	llc::STimer			timer;
 	for(const auto & pair : potentiallyDuplicatedFiles) {
-		verbose_printf("Processing potentially duplicated files with size %llu: %s/%s and %s/%s"
-			, pair.A.Size
-			, pair.A.Path.begin(), pair.A.Name.begin()
-			, pair.B.Path.begin(), pair.B.Name.begin()
-			);
-		
 		llc::err_t			comparisonResult = 0;
 		if_fail_ce(comparisonResult = compareFileContents(pair))
-		else if(comparisonResult)
-			verbose_printf("Files are different: %s/%s and %s/%s"
-				, pair.A.Path.begin(), pair.A.Name.begin()
-				, pair.B.Path.begin(), pair.B.Name.begin()
-			);
+		if_true_vf(comparisonResult, "Files are different: %s/%s and %s/%s"
+				, LLC_VIEW_ARGS(pair.A.Path), LLC_VIEW_ARGS(pair.A.Name)
+				, LLC_VIEW_ARGS(pair.B.Path), LLC_VIEW_ARGS(pair.B.Name)
+				)
 		else {
 			info_printf("Files are identical: %s/%s and %s/%s"
-				, pair.A.Path.begin(), pair.A.Name.begin()
-				, pair.B.Path.begin(), pair.B.Name.begin()
-			);
+				, LLC_VIEW_ARGS(pair.A.Path), LLC_VIEW_ARGS(pair.A.Name)
+				, LLC_VIEW_ARGS(pair.B.Path), LLC_VIEW_ARGS(pair.B.Name)
+				);
 			if_fail_fe(exactMatches.push_back(pair));
 		}
 		timer.Frame();

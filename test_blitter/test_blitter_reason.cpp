@@ -37,7 +37,7 @@ GDEFINE_ENUM_VALUED(TEST_REASON_RESULT, JSON_CONTENT	, 6, "The JSON loaded by Bl
 	if_fail_fe(::llc::jsonWrite(sourceReader.Tree[0], sourceReader.View, expectedJSON));
 
 	for(cnst SModeCase & mode : modes) {
-		cnst ::llc::err_t writeResult = ::llc::fileFromMemory(outputFolder, mode.InputFile, inputJSON.cu8());
+		cnst ::llc::err_t writeResult = ::llc::fileFromMemory(outputFolder, mode.InputFile, inputJSON.as<u0_c>());
 		LLC_TEST_CHECKF(errors, TEST_REASON_RESULT_INPUT_WRITE, ::llc::failed(writeResult), "Mode:%.*s, result:%i.", LLC_VIEW_ARGS(mode.Name), writeResult);
 		if(::llc::failed(writeResult))
 			continue;

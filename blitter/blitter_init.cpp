@@ -93,20 +93,21 @@ static	::llc::err_t		dbFileLoad					(::llc::SLoadCache & loadCache, ::blt::TName
 		if_fail_fef(jsonDB.Val.BlockTimes.push_back(::llc::timeCurrentInUs())								, "%s", "Out of memory?");
 		jsonDB.Val.Blocks[idxBlock].create();
 		::llc::SJSONFile									& dbBlock					= *jsonDB.Val.Blocks[idxBlock];
-		if_fail_fef(::llc::fileToMemorySecure(loadCache, fileName, jsonDB.Val.EncryptionKey.cu8(), llc::bit_true(jsonDB.Val.HostType, ::blt::DATABASE_HOST_DEFLATE), dbBlock.Bytes), "Failed to open block file: %.*s.", LLC_VIEW_ARGS(fileName));
+		if_fail_fef(::llc::fileToMemorySecure(loadCache, fileName, jsonDB.Val.EncryptionKey.as<u0_c>(), llc::bit_true(jsonDB.Val.HostType, ::blt::DATABASE_HOST_DEFLATE), dbBlock.Bytes), "Failed to open block file: %.*s.", LLC_VIEW_ARGS(fileName));
 		if_fail_fef(::llc::jsonParse(dbBlock.Reader, ::llc::vcst_t{(sc_c*)dbBlock.Bytes.begin(), dbBlock.Bytes.size()}), "Failed to parse database block file: %.*s.", LLC_VIEW_ARGS(fileName));
 		return idxBlock;
 	}
 	else {
 		const u3_t 										* time						= 0;
-		const u2_t 										idxBlock					= ::llc::min(::llc::view_array<const u3_t >{jsonDB.Val.BlockTimes}, &time);
+		const u2_t 										idxBlock					= ::llc::min(::llc::vcu3_t{jsonDB.Val.BlockTimes}, &time);
+
 		if_fail_fef(idxBlock, "%s", "Out of memory?");
 		::llc::view_bit<u2_t >							dirty						= {jsonDB.Val.BlockDirty.begin(), jsonDB.Val.Blocks.size()};
 		if(dirty[idxBlock]) {
 			::llc::string						folderName						= {};
 			::blt::SWriteCache								writeCache						= {loadCache};
 			if_fail_fef(::blt::tableFolderInit(folderName, folder, jsonDB.Key, jsonDB.Val.BlockSize), "Failed to initialize folder for table '%.*s'. Not enough permissions?", LLC_VIEW_ARGS(jsonDB.Key));
-			if_fail_fef(::blt::blockWrite(writeCache, folderName, jsonDB.Key, jsonDB.Val.EncryptionKey.cc(), jsonDB.Val.HostType, jsonDB.Val.Blocks[idxBlock]->Bytes.cu8(), jsonDB.Val.BlockIndices[idxBlock]), "%s", "Unknown error!");
+			if_fail_fef(::blt::blockWrite(writeCache, folderName, jsonDB.Key, jsonDB.Val.EncryptionKey, jsonDB.Val.HostType, jsonDB.Val.Blocks[idxBlock]->Bytes.as<u0_c>(), jsonDB.Val.BlockIndices[idxBlock]), "%s", "Unknown error!");
 			dirty[idxBlock]									= false;
 		}
 
@@ -116,7 +117,7 @@ static	::llc::err_t		dbFileLoad					(::llc::SLoadCache & loadCache, ::blt::TName
 		::llc::SJSONFile									& dbBlock					= *jsonDB.Val.Blocks[idxBlock];
 		dbBlock.Bytes	.clear();
 		dbBlock.Reader	.Reset();
-		if_fail_fef(::llc::fileToMemorySecure(loadCache, fileName, jsonDB.Val.EncryptionKey.cu8(), llc::bit_true(jsonDB.Val.HostType, ::blt::DATABASE_HOST_DEFLATE), dbBlock.Bytes), "Failed to open block file: %.*s.", LLC_VIEW_ARGS(fileName));
+		if_fail_fef(::llc::fileToMemorySecure(loadCache, fileName, jsonDB.Val.EncryptionKey.as<u0_c>(), llc::bit_true(jsonDB.Val.HostType, ::blt::DATABASE_HOST_DEFLATE), dbBlock.Bytes), "Failed to open block file: %.*s.", LLC_VIEW_ARGS(fileName));
 		if_fail_fef(::llc::jsonParse(dbBlock.Reader, ::llc::vcst_t{(sc_c*)dbBlock.Bytes.begin(), dbBlock.Bytes.size()}), "Failed to parse database block file: %.*s.", LLC_VIEW_ARGS(fileName));
 		dirty[idxBlock]									= true;
 		return idxBlock;

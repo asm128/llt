@@ -109,7 +109,7 @@ err_t control(vcst_t action, vcst_t configuration, vcst_t executablePath, string
 		rtrn located;
 	}
 	if(action == "status")
-		rtrn append_strings(text, "{\"running\":", b82vcs(window != 0), ",\"pid\":", str((u2_t)pid), '}');
+		rtrn append_strings(text, "{\"running\":", b82st(window != 0), ",\"pid\":", str((u2_t)pid), '}');
 	if(action == "launch" && window)
 		rtrn append_strings(text, "LLS already running; pid ", str((u2_t)pid), ". No second instance launched.");
 	if(action == "shutdown" && !window) rtrn ::llc::append_string(text, "LLS is already stopped.");

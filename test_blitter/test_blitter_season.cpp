@@ -37,7 +37,7 @@ GDEFINE_ENUM_VALUED(TEST_SEASON_RESULT, JSON_CONTENT	, 6, "A season block loaded
 	if_fail_fe(::llc::jsonArraySplit(*sourceReader.Tree[0], sourceReader.View, 2, expectedBlocks));
 
 	for(cnst SModeCase & mode : modes) {
-		cnst ::llc::err_t writeResult = ::llc::fileFromMemory(outputFolder, mode.InputFile, inputJSON.cu8());
+		cnst ::llc::err_t writeResult = ::llc::fileFromMemory(outputFolder, mode.InputFile, inputJSON.as<u0_c>());
 		LLC_TEST_CHECKF(errors, TEST_SEASON_RESULT_INPUT_WRITE, ::llc::failed(writeResult), "Mode:%.*s, result:%i.", LLC_VIEW_ARGS(mode.Name), writeResult);
 		if(::llc::failed(writeResult))
 			continue;
